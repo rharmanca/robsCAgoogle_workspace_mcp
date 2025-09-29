@@ -698,8 +698,9 @@ cp .env.oauth21 .env
 |------|------|-------------|
 | `search_drive_files` | **Core** | Search files with query syntax |
 | `get_drive_file_content` | **Core** | Read file content (Office formats) |
-| `list_drive_items` | Extended | List folder contents |
 | `create_drive_file` | **Core** | Create files or fetch from URLs |
+| `list_drive_items` | Extended | List folder contents |
+| `update_drive_file` | Extended | Update file metadata, move between folders |
 
 </td>
 </tr>
