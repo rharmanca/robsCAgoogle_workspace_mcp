@@ -7,6 +7,7 @@
 [![PyPI](https://img.shields.io/pypi/v/workspace-mcp.svg)](https://pypi.org/project/workspace-mcp/)
 [![PyPI Downloads](https://static.pepy.tech/personalized-badge/workspace-mcp?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=BLUE&left_text=downloads)](https://pepy.tech/projects/workspace-mcp)
 [![Website](https://img.shields.io/badge/Website-workspacemcp.com-green.svg)](https://workspacemcp.com)
+[![smithery badge](https://smithery.ai/badge/@rharmanca/robscagoogle_workspace_mcp)](https://smithery.ai/server/@rharmanca/robscagoogle_workspace_mcp)
 
 *Full natural language control over Google Calendar, Drive, Gmail, Docs, Sheets, Slides, Forms, Tasks, and Chat through all MCP clients, AI assistants and developer tools.*
 
@@ -186,6 +187,14 @@ Claude Desktop stores these securely in the OS keychain; set them once in the ex
 
 ---
 
+### Installing via Smithery
+
+To install robscagoogle_workspace_mcp automatically via [Smithery](https://smithery.ai/server/@rharmanca/robscagoogle_workspace_mcp):
+
+```bash
+npx -y @smithery/cli install @rharmanca/robscagoogle_workspace_mcp
+```
+
 ### Prerequisites
 
 - **Python 3.10+**
@@ -314,7 +323,7 @@ export OAUTHLIB_INSECURE_TRANSPORT=1
 ```bash
 export USER_GOOGLE_EMAIL=\
   your.email@gmail.com
-```
+``>
 <sub>Single-user authentication</sub>
 
 </td>
@@ -324,7 +333,7 @@ export USER_GOOGLE_EMAIL=\
 ```bash
 export GOOGLE_PSE_API_KEY=xxx
 export GOOGLE_PSE_ENGINE_ID=yyy
-```
+``>
 <sub>Optional: Search API setup</sub>
 
 </td>
@@ -347,7 +356,7 @@ export GOOGLE_PSE_ENGINE_ID=yyy
 export WORKSPACE_MCP_BASE_URI=
   http://localhost
 export WORKSPACE_MCP_PORT=8000
-```
+``>
 <sub>Server URL & port settings</sub>
 
 </td>
@@ -357,7 +366,7 @@ export WORKSPACE_MCP_PORT=8000
 ```bash
 export MCP_ENABLE_OAUTH21=
   true
-```
+``>
 <sub>Leverage multi-user OAuth2.1 clients</sub>
 
 </td>
@@ -367,7 +376,7 @@ export MCP_ENABLE_OAUTH21=
 ```bash
 export USER_GOOGLE_EMAIL=\
   your.email@gmail.com
-```
+``>
 <sub>Skip email in auth flows in single user mode</sub>
 
 </td>
@@ -405,7 +414,7 @@ programmablesearchengine.google.com
 
 → Configure sites or entire web
 → Note your Engine ID (cx)
-```
+``>
 <sub>[Open Control Panel →](https://programmablesearchengine.google.com/controlpanel/create)</sub>
 
 </td>
@@ -419,7 +428,7 @@ developers.google.com
 → Create/select project
 → Enable Custom Search API
 → Create credentials (API Key)
-```
+``>
 <sub>[Get API Key →](https://developers.google.com/custom-search/v1/overview)</sub>
 
 </td>
@@ -431,7 +440,7 @@ export GOOGLE_PSE_API_KEY=\
   "your-api-key"
 export GOOGLE_PSE_ENGINE_ID=\
   "your-engine-id"
-```
+``>
 <sub>Configure in environment</sub>
 
 </td>
@@ -481,7 +490,7 @@ export GOOGLE_PSE_ENGINE_ID=\
 **▶ Quick Start**
 ```bash
 uv run main.py
-```
+``>
 <sub>Default stdio mode</sub>
 
 </td>
@@ -491,7 +500,7 @@ uv run main.py
 ```bash
 uv run main.py \
   --transport streamable-http
-```
+``>
 <sub>Web interfaces & debugging</sub>
 
 </td>
@@ -501,7 +510,7 @@ uv run main.py \
 ```bash
 uv run main.py \
   --single-user
-```
+``>
 <sub>Simplified authentication</sub>
 
 </td>
@@ -613,7 +622,7 @@ export GOOGLE_OAUTH_CLIENT_ID=\
   "your-client-id"
 export GOOGLE_OAUTH_CLIENT_SECRET=\
   "your-secret"
-```
+``>
 <sub>Best for production</sub>
 
 </td>
@@ -627,7 +636,7 @@ client_secret.json
 # Or specify custom path
 export GOOGLE_CLIENT_SECRET_PATH=\
   /path/to/secret.json
-```
+``>
 <sub>Traditional method</sub>
 
 </td>
@@ -637,7 +646,7 @@ export GOOGLE_CLIENT_SECRET_PATH=\
 ```bash
 cp .env.oauth21 .env
 # Edit .env with credentials
-```
+``>
 <sub>Best for development</sub>
 
 </td>
@@ -921,7 +930,7 @@ To enable OAuth 2.1, set the `MCP_ENABLE_OAUTH21` environment variable to `true`
 # OAuth 2.1 requires HTTP transport mode
 export MCP_ENABLE_OAUTH21=true
 uv run main.py --transport streamable-http
-```
+``>
 
 If `MCP_ENABLE_OAUTH21` is not set to `true`, the server will use legacy authentication, which is suitable for clients that do not support OAuth 2.1.
 
@@ -952,7 +961,7 @@ The server supports a stateless mode designed for containerized environments whe
 export MCP_ENABLE_OAUTH21=true
 export WORKSPACE_MCP_STATELESS_MODE=true
 uv run main.py --transport streamable-http
-```
+``>
 
 **Key Features:**
 - **No file system writes**: Credentials are never written to disk
@@ -990,7 +999,7 @@ This mode is ideal for:
         }
     }
 }
-```
+``>
 </details>
 
 
@@ -1010,7 +1019,7 @@ export WORKSPACE_EXTERNAL_URL="https://your-domain.com"
 ```bash
 # This only overrides the OAuth callback URL
 export GOOGLE_OAUTH_REDIRECT_URI="https://your-domain.com/oauth2callback"
-```
+``>
 
 You also have options for:
 | `OAUTH_CUSTOM_REDIRECT_URIS` *(optional)* | Comma-separated list of additional redirect URIs |
@@ -1077,7 +1086,7 @@ uv run main.py
     }
   }
 }
-```
+``>
 </details>
 
 #### HTTP Mode (For debugging or web interfaces)
@@ -1216,7 +1225,7 @@ GOOGLE_OAUTH_CLIENT_ID="your_id" \
 GOOGLE_OAUTH_CLIENT_SECRET="your_secret" \
 uvx mcpo --port 8000 --api-key "secret" \
 -- uvx workspace-mcp
-```
+``>
 
 </td><td width="50%" valign="top">
 
@@ -1231,7 +1240,7 @@ uvx mcpo --port 8000 --api-key "secret" \
     }
   }
 }
-```
+``>
 
 2. Start MCPO:
 ```bash
