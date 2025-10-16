@@ -669,14 +669,14 @@ async def get_gmail_attachment_content(
     size_kb = size_bytes / 1024 if size_bytes else 0
 
     result_lines = [
-        f"Attachment downloaded successfully!",
+        "Attachment downloaded successfully!",
         f"Message ID: {message_id}",
         f"Size: {size_kb:.1f} KB ({size_bytes} bytes)",
-        f"\nBase64-encoded content (first 100 characters shown):",
+        "\nBase64-encoded content (first 100 characters shown):",
         f"{attachment['data'][:100]}...",
-        f"\n\nThe full base64-encoded attachment data is available.",
-        f"To save: decode the base64 data and write to a file with the appropriate extension.",
-        f"\nNote: Attachment IDs are ephemeral. Always use IDs from the most recent message fetch."
+        "\n\nThe full base64-encoded attachment data is available.",
+        "To save: decode the base64 data and write to a file with the appropriate extension.",
+        "\nNote: Attachment IDs are ephemeral. Always use IDs from the most recent message fetch."
     ]
 
     logger.info(f"[get_gmail_attachment_content] Successfully downloaded {size_kb:.1f} KB attachment")
