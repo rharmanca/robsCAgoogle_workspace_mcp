@@ -8,7 +8,7 @@ import logging
 import asyncio
 import base64
 import ssl
-from typing import Optional, List, Dict, Literal
+from typing import Optional, List, Dict, Literal, Any
 
 from email.mime.text import MIMEText
 
@@ -121,7 +121,7 @@ def _format_body_content(text_body: str, html_body: str) -> str:
         return "[No readable content found]"
 
 
-def _extract_attachments(payload: dict) -> List[Dict[str, any]]:
+def _extract_attachments(payload: dict) -> List[Dict[str, Any]]:
     """
     Extract attachment metadata from a Gmail message payload.
 
