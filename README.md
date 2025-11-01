@@ -101,7 +101,7 @@ A production-ready MCP server that integrates all major Google Workspace service
 ## ▶ Quick Start
 
 <details>
-<summary>≡ <b>Quick Reference Card</b> <sub><sup>← Essential commands & configs at a glance</sup></sub></summary>
+<summary>≡ <b>Quick Reference Card</b>← Essential commands & configs at a glance</summary>
 
 <table>
 <tr><td width="33%" valign="top">
