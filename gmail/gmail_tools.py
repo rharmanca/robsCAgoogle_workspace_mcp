@@ -149,6 +149,7 @@ def _prepare_gmail_message(
     in_reply_to: Optional[str] = None,
     references: Optional[str] = None,
     body_format: Literal["plain", "html"] = "plain",
+    from_email: Optional[str] = None,
 ) -> tuple[str, Optional[str]]:
     """
     Prepare a Gmail message with threading support.
@@ -163,6 +164,7 @@ def _prepare_gmail_message(
         in_reply_to: Optional Message-ID of the message being replied to
         references: Optional chain of Message-IDs for proper threading
         body_format: Content type for the email body ('plain' or 'html')
+        from_email: Optional sender email address
 
     Returns:
         Tuple of (raw_message, thread_id) where raw_message is base64 encoded
@@ -178,15 +180,19 @@ def _prepare_gmail_message(
         raise ValueError("body_format must be either 'plain' or 'html'.")
 
     message = MIMEText(body, normalized_format)
-    message["subject"] = reply_subject
+    message["Subject"] = reply_subject
+
+    # Add sender if provided
+    if from_email:
+        message["From"] = from_email
 
     # Add recipients if provided
     if to:
-        message["to"] = to
+        message["To"] = to
     if cc:
-        message["cc"] = cc
+        message["Cc"] = cc
     if bcc:
-        message["bcc"] = bcc
+        message["Bcc"] = bcc
 
     # Add reply headers for threading
     if in_reply_to:
@@ -653,6 +659,7 @@ async def send_gmail_message(
         in_reply_to=in_reply_to,
         references=references,
         body_format=body_format,
+        from_email=user_google_email,
     )
 
     send_body = {"raw": raw_message}
@@ -764,6 +771,7 @@ async def draft_gmail_message(
         thread_id=thread_id,
         in_reply_to=in_reply_to,
         references=references,
+        from_email=user_google_email,
     )
 
     # Create a draft instead of sending
