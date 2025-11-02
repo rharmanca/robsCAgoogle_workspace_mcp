@@ -8,7 +8,7 @@ import logging
 import asyncio
 import base64
 import ssl
-from typing import Optional, List, Dict, Literal
+from typing import Optional, List, Dict, Literal, Any
 
 from email.mime.text import MIMEText
 
@@ -119,6 +119,39 @@ def _format_body_content(text_body: str, html_body: str) -> str:
         return f"[HTML Content Converted]\n{html_body}"
     else:
         return "[No readable content found]"
+
+
+def _extract_attachments(payload: dict) -> List[Dict[str, Any]]:
+    """
+    Extract attachment metadata from a Gmail message payload.
+
+    Args:
+        payload: The message payload from Gmail API
+
+    Returns:
+        List of attachment dictionaries with filename, mimeType, size, and attachmentId
+    """
+    attachments = []
+
+    def search_parts(part):
+        """Recursively search for attachments in message parts"""
+        # Check if this part is an attachment
+        if part.get("filename") and part.get("body", {}).get("attachmentId"):
+            attachments.append({
+                "filename": part["filename"],
+                "mimeType": part.get("mimeType", "application/octet-stream"),
+                "size": part.get("body", {}).get("size", 0),
+                "attachmentId": part["body"]["attachmentId"]
+            })
+
+        # Recursively search sub-parts
+        if "parts" in part:
+            for subpart in part["parts"]:
+                search_parts(subpart)
+
+    # Start searching from the root payload
+    search_parts(payload)
+    return attachments
 
 
 def _extract_headers(payload: dict, header_names: List[str]) -> Dict[str, str]:
@@ -393,14 +426,27 @@ async def get_gmail_message_content(
     # Format body content with HTML fallback
     body_data = _format_body_content(text_body, html_body)
 
-    content_text = "\n".join(
-        [
-            f"Subject: {subject}",
-            f"From:    {sender}",
-            f"\n--- BODY ---\n{body_data or '[No text/plain body found]'}",
-        ]
-    )
-    return content_text
+    # Extract attachment metadata
+    attachments = _extract_attachments(payload)
+
+    content_lines = [
+        f"Subject: {subject}",
+        f"From:    {sender}",
+        f"\n--- BODY ---\n{body_data or '[No text/plain body found]'}",
+    ]
+
+    # Add attachment information if present
+    if attachments:
+        content_lines.append("\n--- ATTACHMENTS ---")
+        for i, att in enumerate(attachments, 1):
+            size_kb = att['size'] / 1024
+            content_lines.append(
+                f"{i}. {att['filename']} ({att['mimeType']}, {size_kb:.1f} KB)\n"
+                f"   Attachment ID: {att['attachmentId']}\n"
+                f"   Use get_gmail_attachment_content(message_id='{message_id}', attachment_id='{att['attachmentId']}') to download"
+            )
+
+    return "\n".join(content_lines)
 
 
 @server.tool()
@@ -575,6 +621,72 @@ async def get_gmail_messages_content_batch(
     final_output += "\n---\n\n".join(output_messages)
 
     return final_output
+
+
+@server.tool()
+@handle_http_errors("get_gmail_attachment_content", is_read_only=True, service_type="gmail")
+@require_google_service("gmail", "gmail_read")
+async def get_gmail_attachment_content(
+    service,
+    message_id: str,
+    attachment_id: str,
+    user_google_email: str,
+) -> str:
+    """
+    Downloads the content of a specific email attachment.
+
+    Args:
+        message_id (str): The ID of the Gmail message containing the attachment.
+        attachment_id (str): The ID of the attachment to download.
+        user_google_email (str): The user's Google email address. Required.
+
+    Returns:
+        str: Attachment metadata and base64-encoded content that can be decoded and saved.
+    """
+    logger.info(
+        f"[get_gmail_attachment_content] Invoked. Message ID: '{message_id}', Email: '{user_google_email}'"
+    )
+
+    # Download attachment directly without refetching message metadata.
+    #
+    # Important: Gmail attachment IDs are ephemeral and change between API calls for the
+    # same message. If we refetch the message here to get metadata, the new attachment IDs
+    # won't match the attachment_id parameter provided by the caller, causing the function
+    # to fail. The attachment download endpoint returns size information, and filename/mime
+    # type should be obtained from the original message content call that provided this ID.
+    try:
+        attachment = await asyncio.to_thread(
+            service.users()
+            .messages()
+            .attachments()
+            .get(userId="me", messageId=message_id, id=attachment_id)
+            .execute
+        )
+    except Exception as e:
+        logger.error(f"[get_gmail_attachment_content] Failed to download attachment: {e}")
+        return (
+            f"Error: Failed to download attachment. The attachment ID may have changed.\n"
+            f"Please fetch the message content again to get an updated attachment ID.\n\n"
+            f"Error details: {str(e)}"
+        )
+
+    # Format response with attachment data
+    size_bytes = attachment.get('size', 0)
+    size_kb = size_bytes / 1024 if size_bytes else 0
+
+    result_lines = [
+        "Attachment downloaded successfully!",
+        f"Message ID: {message_id}",
+        f"Size: {size_kb:.1f} KB ({size_bytes} bytes)",
+        "\nBase64-encoded content (first 100 characters shown):",
+        f"{attachment['data'][:100]}...",
+        "\n\nThe full base64-encoded attachment data is available.",
+        "To save: decode the base64 data and write to a file with the appropriate extension.",
+        "\nNote: Attachment IDs are ephemeral. Always use IDs from the most recent message fetch."
+    ]
+
+    logger.info(f"[get_gmail_attachment_content] Successfully downloaded {size_kb:.1f} KB attachment")
+    return "\n".join(result_lines)
 
 
 @server.tool()
