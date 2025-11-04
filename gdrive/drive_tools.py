@@ -129,7 +129,7 @@ async def get_drive_file_content(
     }.get(mime_type)
 
     request_obj = (
-        service.files().export_media(fileId=file_id, mimeType=export_mime_type)
+        service.files().export_media(fileId=file_id, mimeType=export_mime_type, supportsAllDrives=True)
         if export_mime_type
         else service.files().get_media(fileId=file_id, supportsAllDrives=True)
     )
