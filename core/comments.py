@@ -137,8 +137,7 @@ async def _read_comments_impl(service, app_name: str, file_id: str) -> str:
     response = await asyncio.to_thread(
         service.comments().list(
             fileId=file_id,
-            fields="comments(id,content,author,createdTime,modifiedTime,resolved,replies(content,author,id,createdTime,modifiedTime))",
-            supportsAllDrives=True
+            fields="comments(id,content,author,createdTime,modifiedTime,resolved,replies(content,author,id,createdTime,modifiedTime))"
         ).execute
     )
 
@@ -191,8 +190,7 @@ async def _create_comment_impl(service, app_name: str, file_id: str, comment_con
         service.comments().create(
             fileId=file_id,
             body=body,
-            fields="id,content,author,createdTime,modifiedTime",
-            supportsAllDrives=True
+            fields="id,content,author,createdTime,modifiedTime"
         ).execute
     )
 
@@ -214,8 +212,7 @@ async def _reply_to_comment_impl(service, app_name: str, file_id: str, comment_i
             fileId=file_id,
             commentId=comment_id,
             body=body,
-            fields="id,content,author,createdTime,modifiedTime",
-            supportsAllDrives=True
+            fields="id,content,author,createdTime,modifiedTime"
         ).execute
     )
 
@@ -240,8 +237,7 @@ async def _resolve_comment_impl(service, app_name: str, file_id: str, comment_id
             fileId=file_id,
             commentId=comment_id,
             body=body,
-            fields="id,content,author,createdTime,modifiedTime",
-            supportsAllDrives=True
+            fields="id,content,author,createdTime,modifiedTime"
         ).execute
     )
 
