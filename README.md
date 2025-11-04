@@ -1033,16 +1033,6 @@ uv run main.py --transport streamable-http
 - Multi-tenant SaaS applications with centralized auth
 - Mobile or web apps with their own OAuth implementation
 
-**Example Request:**
-```bash
-# List tools (no auth required)
-curl http://localhost:8000/mcp/v1/tools/list
-
-# Call tool (bearer token required)
-curl -H "Authorization: Bearer ya29.a0AfH6..." \
-     http://localhost:8000/mcp/v1/tools/call \
-     -d '{"name": "search_messages", "arguments": {"query": "test"}}'
-```
 
 ### VS Code MCP Client Support
 
