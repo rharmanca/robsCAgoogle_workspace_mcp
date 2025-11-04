@@ -603,7 +603,7 @@ async def create_event(
                 if drive_service:
                     try:
                         file_metadata = await asyncio.to_thread(
-                            lambda: drive_service.files().get(fileId=file_id, fields="mimeType,name").execute()
+                            lambda: drive_service.files().get(fileId=file_id, fields="mimeType,name", supportsAllDrives=True).execute()
                         )
                         mime_type = file_metadata.get("mimeType", mime_type)
                         filename = file_metadata.get("name")
