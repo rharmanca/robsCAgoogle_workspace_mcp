@@ -7,6 +7,8 @@ import logging
 import asyncio
 from typing import Optional
 from tempfile import NamedTemporaryFile
+from urllib.parse import urlparse, unquote
+from pathlib import Path
 
 from googleapiclient.http import MediaIoBaseDownload, MediaIoBaseUpload
 import io
@@ -258,7 +260,7 @@ async def create_drive_file(
         content (Optional[str]): If provided, the content to write to the file.
         folder_id (str): The ID of the parent folder. Defaults to 'root'. For shared drives, this must be a folder ID within the shared drive.
         mime_type (str): The MIME type of the file. Defaults to 'text/plain'.
-        fileUrl (Optional[str]): If provided, fetches the file content from this URL.
+        fileUrl (Optional[str]): If provided, fetches the file content from this URL. Supports file://, http://, and https:// protocols.
 
     Returns:
         str: Confirmation message of the successful file creation with file link.
@@ -279,19 +281,30 @@ async def create_drive_file(
     # Prefer fileUrl if both are provided
     if fileUrl:
         logger.info(f"[create_drive_file] Fetching file from URL: {fileUrl}")
-        # when running in stateless mode, deployment may not have access to local file system
-        if is_stateless_mode():
-            async with httpx.AsyncClient(follow_redirects=True) as client:
-                resp = await client.get(fileUrl)
-                if resp.status_code != 200:
-                    raise Exception(f"Failed to fetch file from URL: {fileUrl} (status {resp.status_code})")
-                file_data = await resp.aread()
-                # Try to get MIME type from Content-Type header
-                content_type = resp.headers.get("Content-Type")
-                if content_type and content_type != "application/octet-stream":
-                    mime_type = content_type
-                    file_metadata['mimeType'] = content_type
-                    logger.info(f"[create_drive_file] Using MIME type from Content-Type header: {content_type}")
+
+        # Check if this is a file:// URL
+        parsed_url = urlparse(fileUrl)
+        if parsed_url.scheme == 'file':
+            # Handle file:// URL - read from local filesystem
+            logger.info(f"[create_drive_file] Detected file:// URL, reading from local filesystem")
+
+            # Convert file:// URL to local path
+            # Handle both file:///path and file://path formats
+            file_path = unquote(parsed_url.path)
+
+            # Verify file exists
+            path_obj = Path(file_path)
+            if not path_obj.exists():
+                raise Exception(f"Local file does not exist: {file_path}")
+            if not path_obj.is_file():
+                raise Exception(f"Path is not a file: {file_path}")
+
+            logger.info(f"[create_drive_file] Reading local file: {file_path}")
+
+            # Read file and upload
+            file_data = await asyncio.to_thread(path_obj.read_bytes)
+            total_bytes = len(file_data)
+            logger.info(f"[create_drive_file] Read {total_bytes} bytes from local file")
 
             media = MediaIoBaseUpload(
                 io.BytesIO(file_data),
@@ -300,6 +313,7 @@ async def create_drive_file(
                 chunksize=UPLOAD_CHUNK_SIZE_BYTES
             )
 
+            logger.info("[create_drive_file] Starting upload to Google Drive...")
             created_file = await asyncio.to_thread(
                 service.files().create(
                     body=file_metadata,
@@ -308,42 +322,29 @@ async def create_drive_file(
                     supportsAllDrives=True
                 ).execute
             )
-        else:
-            # Use NamedTemporaryFile to stream download and upload
-            with NamedTemporaryFile() as temp_file:
-                total_bytes = 0
-                # follow redirects
+        # Handle HTTP/HTTPS URLs
+        elif parsed_url.scheme in ('http', 'https'):
+            # when running in stateless mode, deployment may not have access to local file system
+            if is_stateless_mode():
                 async with httpx.AsyncClient(follow_redirects=True) as client:
-                    async with client.stream('GET', fileUrl) as resp:
-                        if resp.status_code != 200:
-                            raise Exception(f"Failed to fetch file from URL: {fileUrl} (status {resp.status_code})")
+                    resp = await client.get(fileUrl)
+                    if resp.status_code != 200:
+                        raise Exception(f"Failed to fetch file from URL: {fileUrl} (status {resp.status_code})")
+                    file_data = await resp.aread()
+                    # Try to get MIME type from Content-Type header
+                    content_type = resp.headers.get("Content-Type")
+                    if content_type and content_type != "application/octet-stream":
+                        mime_type = content_type
+                        file_metadata['mimeType'] = content_type
+                        logger.info(f"[create_drive_file] Using MIME type from Content-Type header: {content_type}")
 
-                        # Stream download in chunks
-                        async for chunk in resp.aiter_bytes(chunk_size=DOWNLOAD_CHUNK_SIZE_BYTES):
-                            await asyncio.to_thread(temp_file.write, chunk)
-                            total_bytes += len(chunk)
-
-                        logger.info(f"[create_drive_file] Downloaded {total_bytes} bytes from URL before upload.")
-
-                        # Try to get MIME type from Content-Type header
-                        content_type = resp.headers.get("Content-Type")
-                        if content_type and content_type != "application/octet-stream":
-                            mime_type = content_type
-                            file_metadata['mimeType'] = mime_type
-                            logger.info(f"[create_drive_file] Using MIME type from Content-Type header: {mime_type}")
-
-                # Reset file pointer to beginning for upload
-                temp_file.seek(0)
-
-                # Upload with chunking
                 media = MediaIoBaseUpload(
-                    temp_file,
+                    io.BytesIO(file_data),
                     mimetype=mime_type,
                     resumable=True,
                     chunksize=UPLOAD_CHUNK_SIZE_BYTES
                 )
 
-                logger.info("[create_drive_file] Starting upload to Google Drive...")
                 created_file = await asyncio.to_thread(
                     service.files().create(
                         body=file_metadata,
@@ -352,6 +353,52 @@ async def create_drive_file(
                         supportsAllDrives=True
                     ).execute
                 )
+            else:
+                # Use NamedTemporaryFile to stream download and upload
+                with NamedTemporaryFile() as temp_file:
+                    total_bytes = 0
+                    # follow redirects
+                    async with httpx.AsyncClient(follow_redirects=True) as client:
+                        async with client.stream('GET', fileUrl) as resp:
+                            if resp.status_code != 200:
+                                raise Exception(f"Failed to fetch file from URL: {fileUrl} (status {resp.status_code})")
+
+                            # Stream download in chunks
+                            async for chunk in resp.aiter_bytes(chunk_size=DOWNLOAD_CHUNK_SIZE_BYTES):
+                                await asyncio.to_thread(temp_file.write, chunk)
+                                total_bytes += len(chunk)
+
+                            logger.info(f"[create_drive_file] Downloaded {total_bytes} bytes from URL before upload.")
+
+                            # Try to get MIME type from Content-Type header
+                            content_type = resp.headers.get("Content-Type")
+                            if content_type and content_type != "application/octet-stream":
+                                mime_type = content_type
+                                file_metadata['mimeType'] = mime_type
+                                logger.info(f"[create_drive_file] Using MIME type from Content-Type header: {mime_type}")
+
+                    # Reset file pointer to beginning for upload
+                    temp_file.seek(0)
+
+                    # Upload with chunking
+                    media = MediaIoBaseUpload(
+                        temp_file,
+                        mimetype=mime_type,
+                        resumable=True,
+                        chunksize=UPLOAD_CHUNK_SIZE_BYTES
+                    )
+
+                    logger.info("[create_drive_file] Starting upload to Google Drive...")
+                    created_file = await asyncio.to_thread(
+                        service.files().create(
+                            body=file_metadata,
+                            media_body=media,
+                            fields='id, name, webViewLink',
+                            supportsAllDrives=True
+                        ).execute
+                    )
+        else:
+            raise Exception(f"Unsupported URL scheme: {parsed_url.scheme}. Only file://, http://, and https:// are supported.")
     elif content:
         file_data = content.encode('utf-8')
         media = io.BytesIO(file_data)
