@@ -287,7 +287,7 @@ async def create_drive_file(
         parsed_url = urlparse(fileUrl)
         if parsed_url.scheme == 'file':
             # Handle file:// URL - read from local filesystem
-            logger.info(f"[create_drive_file] Detected file:// URL, reading from local filesystem")
+            logger.info("[create_drive_file] Detected file:// URL, reading from local filesystem")
 
             # Convert file:// URL to a cross-platform local path
             raw_path = parsed_url.path or ""
