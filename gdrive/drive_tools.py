@@ -19,6 +19,7 @@ from auth.service_decorator import require_google_service
 from auth.oauth_config import is_stateless_mode
 from core.utils import extract_office_xml_text, handle_http_errors
 from core.server import server
+from core.config import get_transport_mode
 from gdrive.drive_helpers import DRIVE_QUERY_PATTERNS, build_drive_list_params
 
 logger = logging.getLogger(__name__)
@@ -288,6 +289,10 @@ async def create_drive_file(
         if parsed_url.scheme == 'file':
             # Handle file:// URL - read from local filesystem
             logger.info("[create_drive_file] Detected file:// URL, reading from local filesystem")
+            transport_mode = get_transport_mode()
+            running_streamable = transport_mode == "streamable-http"
+            if running_streamable:
+                logger.warning("[create_drive_file] file:// URL requested while server runs in streamable-http mode. Ensure the file path is accessible to the server (e.g., Docker volume) or use an HTTP(S) URL.")
 
             # Convert file:// URL to a cross-platform local path
             raw_path = parsed_url.path or ""
@@ -299,9 +304,11 @@ async def create_drive_file(
             # Verify file exists
             path_obj = Path(file_path)
             if not path_obj.exists():
-                raise Exception(f"Local file does not exist: {file_path}")
+                extra = " The server is running via streamable-http, so file:// URLs must point to files inside the container or remote host." if running_streamable else ""
+                raise Exception(f"Local file does not exist: {file_path}.{extra}")
             if not path_obj.is_file():
-                raise Exception(f"Path is not a file: {file_path}")
+                extra = " In streamable-http/Docker deployments, mount the file into the container or provide an HTTP(S) URL." if running_streamable else ""
+                raise Exception(f"Path is not a file: {file_path}.{extra}")
 
             logger.info(f"[create_drive_file] Reading local file: {file_path}")
 
