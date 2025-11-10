@@ -7,7 +7,8 @@ import logging
 import asyncio
 from typing import Optional
 from tempfile import NamedTemporaryFile
-from urllib.parse import urlparse, unquote
+from urllib.parse import urlparse
+from urllib.request import url2pathname
 from pathlib import Path
 
 from googleapiclient.http import MediaIoBaseDownload, MediaIoBaseUpload
@@ -288,9 +289,12 @@ async def create_drive_file(
             # Handle file:// URL - read from local filesystem
             logger.info(f"[create_drive_file] Detected file:// URL, reading from local filesystem")
 
-            # Convert file:// URL to local path
-            # Handle both file:///path and file://path formats
-            file_path = unquote(parsed_url.path)
+            # Convert file:// URL to a cross-platform local path
+            raw_path = parsed_url.path or ""
+            netloc = parsed_url.netloc
+            if netloc and netloc.lower() != "localhost":
+                raw_path = f"//{netloc}{raw_path}"
+            file_path = url2pathname(raw_path)
 
             # Verify file exists
             path_obj = Path(file_path)
@@ -398,7 +402,9 @@ async def create_drive_file(
                         ).execute
                     )
         else:
-            raise Exception(f"Unsupported URL scheme: {parsed_url.scheme}. Only file://, http://, and https:// are supported.")
+            if not parsed_url.scheme:
+                raise Exception("fileUrl is missing a URL scheme. Use file://, http://, or https://.")
+            raise Exception(f"Unsupported URL scheme '{parsed_url.scheme}'. Only file://, http://, and https:// are supported.")
     elif content:
         file_data = content.encode('utf-8')
         media = io.BytesIO(file_data)
