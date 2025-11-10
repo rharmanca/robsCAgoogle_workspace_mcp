@@ -614,100 +614,102 @@ async def update_drive_file(
     """
     logger.info(f"[update_drive_file] Updating file {file_id} for {user_google_email}")
 
-    try:
-        # First, get current file info for reference
-        current_file = await asyncio.to_thread(
-            service.files().get(
-                fileId=file_id,
-                fields="id, name, description, mimeType, parents, starred, trashed, webViewLink",
-                supportsAllDrives=True
-            ).execute
-        )
+    # First, get current file info for reference
+    current_file = await asyncio.to_thread(
+        service.files().get(
+            fileId=file_id,
+            fields="id, name, description, mimeType, parents, starred, trashed, webViewLink",
+            supportsAllDrives=True
+        ).execute
+    )
 
-        # Build the update body with only specified fields
-        update_body = {}
-        if name is not None:
-            update_body['name'] = name
-        if description is not None:
-            update_body['description'] = description
-        if mime_type is not None:
-            update_body['mimeType'] = mime_type
-        if starred is not None:
-            update_body['starred'] = starred
-        if trashed is not None:
-            update_body['trashed'] = trashed
-        if writers_can_share is not None:
-            update_body['writersCanShare'] = writers_can_share
-        if copy_requires_writer_permission is not None:
-            update_body['copyRequiresWriterPermission'] = copy_requires_writer_permission
-        if properties is not None:
-            update_body['properties'] = properties
+    # Build the update body with only specified fields
+    update_body = {}
+    if name is not None:
+        update_body['name'] = name
+    if description is not None:
+        update_body['description'] = description
+    if mime_type is not None:
+        update_body['mimeType'] = mime_type
+    if starred is not None:
+        update_body['starred'] = starred
+    if trashed is not None:
+        update_body['trashed'] = trashed
+    if writers_can_share is not None:
+        update_body['writersCanShare'] = writers_can_share
+    if copy_requires_writer_permission is not None:
+        update_body['copyRequiresWriterPermission'] = copy_requires_writer_permission
+    if properties is not None:
+        update_body['properties'] = properties
 
-        # Build query parameters for parent changes
-        query_params = {
-            'fileId': file_id,
-            'supportsAllDrives': True,
-            'fields': 'id, name, description, mimeType, parents, starred, trashed, webViewLink, writersCanShare, copyRequiresWriterPermission, properties'
-        }
+    # Build query parameters for parent changes
+    query_params = {
+        'fileId': file_id,
+        'supportsAllDrives': True,
+        'fields': 'id, name, description, mimeType, parents, starred, trashed, webViewLink, writersCanShare, copyRequiresWriterPermission, properties'
+    }
 
-        if add_parents:
-            query_params['addParents'] = add_parents
-        if remove_parents:
-            query_params['removeParents'] = remove_parents
+    if add_parents:
+        query_params['addParents'] = add_parents
+    if remove_parents:
+        query_params['removeParents'] = remove_parents
 
-        # Only include body if there are updates
-        if update_body:
-            query_params['body'] = update_body
+    # Only include body if there are updates
+    if update_body:
+        query_params['body'] = update_body
 
-        # Perform the update
-        updated_file = await asyncio.to_thread(
-            service.files().update(**query_params).execute
-        )
+    # Perform the update
+    updated_file = await asyncio.to_thread(
+        service.files().update(**query_params).execute
+    )
 
-        # Build response message
-        output_parts = [f"✅ Successfully updated file: {updated_file.get('name', current_file['name'])}"]
-        output_parts.append(f"   File ID: {file_id}")
+    # Build response message
+    output_parts = [f"✅ Successfully updated file: {updated_file.get('name', current_file['name'])}"]
+    output_parts.append(f"   File ID: {file_id}")
 
-        # Report what changed
-        changes = []
-        if name is not None and name != current_file.get('name'):
-            changes.append(f"   • Name: '{current_file.get('name')}' → '{name}'")
-        if description is not None:
-            old_desc = current_file.get('description', '(empty)')
-            new_desc = description if description else '(empty)'
-            if old_desc != new_desc:
-                changes.append(f"   • Description: {old_desc} → {new_desc}")
-        if add_parents:
-            changes.append(f"   • Added to folder(s): {add_parents}")
-        if remove_parents:
-            changes.append(f"   • Removed from folder(s): {remove_parents}")
-        if starred is not None:
-            star_status = "starred" if starred else "unstarred"
-            changes.append(f"   • File {star_status}")
-        if trashed is not None:
-            trash_status = "moved to trash" if trashed else "restored from trash"
-            changes.append(f"   • File {trash_status}")
-        if writers_can_share is not None:
-            share_status = "can" if writers_can_share else "cannot"
-            changes.append(f"   • Writers {share_status} share the file")
-        if copy_requires_writer_permission is not None:
-            copy_status = "requires" if copy_requires_writer_permission else "doesn't require"
-            changes.append(f"   • Copying {copy_status} writer permission")
-        if properties:
-            changes.append(f"   • Updated custom properties: {properties}")
+    # Report what changed
+    changes = []
+    if name is not None and name != current_file.get('name'):
+        changes.append(f"   • Name: '{current_file.get('name')}' → '{name}'")
+    if description is not None:
+        old_desc_value = current_file.get('description')
+        new_desc_value = description
+        should_report_change = (old_desc_value or '') != (new_desc_value or '')
+        if should_report_change:
+            old_desc_display = old_desc_value if old_desc_value not in (None, '') else '(empty)'
+            new_desc_display = new_desc_value if new_desc_value not in (None, '') else '(empty)'
+            changes.append(f"   • Description: {old_desc_display} → {new_desc_display}")
+    if add_parents:
+        changes.append(f"   • Added to folder(s): {add_parents}")
+    if remove_parents:
+        changes.append(f"   • Removed from folder(s): {remove_parents}")
+    current_starred = current_file.get('starred')
+    if starred is not None and starred != current_starred:
+        star_status = "starred" if starred else "unstarred"
+        changes.append(f"   • File {star_status}")
+    current_trashed = current_file.get('trashed')
+    if trashed is not None and trashed != current_trashed:
+        trash_status = "moved to trash" if trashed else "restored from trash"
+        changes.append(f"   • File {trash_status}")
+    current_writers_can_share = current_file.get('writersCanShare')
+    if writers_can_share is not None and writers_can_share != current_writers_can_share:
+        share_status = "can" if writers_can_share else "cannot"
+        changes.append(f"   • Writers {share_status} share the file")
+    current_copy_requires_writer_permission = current_file.get('copyRequiresWriterPermission')
+    if copy_requires_writer_permission is not None and copy_requires_writer_permission != current_copy_requires_writer_permission:
+        copy_status = "requires" if copy_requires_writer_permission else "doesn't require"
+        changes.append(f"   • Copying {copy_status} writer permission")
+    if properties:
+        changes.append(f"   • Updated custom properties: {properties}")
 
-        if changes:
-            output_parts.append("")
-            output_parts.append("Changes applied:")
-            output_parts.extend(changes)
-        else:
-            output_parts.append("   (No changes were made)")
-
+    if changes:
         output_parts.append("")
-        output_parts.append(f"View file: {updated_file.get('webViewLink', '#')}")
+        output_parts.append("Changes applied:")
+        output_parts.extend(changes)
+    else:
+        output_parts.append("   (No changes were made)")
 
-        return "\n".join(output_parts)
+    output_parts.append("")
+    output_parts.append(f"View file: {updated_file.get('webViewLink', '#')}")
 
-    except Exception as e:
-        logger.error(f"Error updating file: {e}")
-        return f"❌ Error updating file: {e}"
+    return "\n".join(output_parts)
