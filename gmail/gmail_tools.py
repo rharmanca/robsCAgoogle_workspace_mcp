@@ -370,14 +370,14 @@ async def get_gmail_message_content(
     service, message_id: str, user_google_email: str
 ) -> str:
     """
-    Retrieves the full content (subject, sender, plain text body) of a specific Gmail message.
+    Retrieves the full content (subject, sender, recipients, plain text body) of a specific Gmail message.
 
     Args:
         message_id (str): The unique ID of the Gmail message to retrieve.
         user_google_email (str): The user's Google email address. Required.
 
     Returns:
-        str: The message details including subject, sender, and body content.
+        str: The message details including subject, sender, recipients (To, Cc), and body content.
     """
     logger.info(
         f"[get_gmail_message_content] Invoked. Message ID: '{message_id}', Email: '{user_google_email}'"
@@ -393,7 +393,7 @@ async def get_gmail_message_content(
             userId="me",
             id=message_id,
             format="metadata",
-            metadataHeaders=["Subject", "From"],
+            metadataHeaders=["Subject", "From", "To", "Cc"],
         )
         .execute
     )
@@ -404,6 +404,8 @@ async def get_gmail_message_content(
     }
     subject = headers.get("Subject", "(no subject)")
     sender = headers.get("From", "(unknown sender)")
+    to = headers.get("To", "")
+    cc = headers.get("Cc", "")
 
     # Now fetch the full message to get the body parts
     message_full = await asyncio.to_thread(
@@ -432,8 +434,14 @@ async def get_gmail_message_content(
     content_lines = [
         f"Subject: {subject}",
         f"From:    {sender}",
-        f"\n--- BODY ---\n{body_data or '[No text/plain body found]'}",
     ]
+
+    if to:
+        content_lines.append(f"To:      {to}")
+    if cc:
+        content_lines.append(f"Cc:      {cc}")
+
+    content_lines.append(f"\n--- BODY ---\n{body_data or '[No text/plain body found]'}")
 
     # Add attachment information if present
     if attachments:
@@ -468,7 +476,7 @@ async def get_gmail_messages_content_batch(
         format (Literal["full", "metadata"]): Message format. "full" includes body, "metadata" only headers.
 
     Returns:
-        str: A formatted list of message contents with separators.
+        str: A formatted list of message contents including subject, sender, recipients (To, Cc), and body (if full format).
     """
     logger.info(
         f"[get_gmail_messages_content_batch] Invoked. Message count: {len(message_ids)}, Email: '{user_google_email}'"
@@ -501,7 +509,7 @@ async def get_gmail_messages_content_batch(
                             userId="me",
                             id=mid,
                             format="metadata",
-                            metadataHeaders=["Subject", "From"],
+                            metadataHeaders=["Subject", "From", "To", "Cc"],
                         )
                     )
                 else:
@@ -533,7 +541,7 @@ async def get_gmail_messages_content_batch(
                                     userId="me",
                                     id=mid,
                                     format="metadata",
-                                    metadataHeaders=["Subject", "From"],
+                                    metadataHeaders=["Subject", "From", "To", "Cc"],
                                 )
                                 .execute
                             )
@@ -584,21 +592,27 @@ async def get_gmail_messages_content_batch(
                 payload = message.get("payload", {})
 
                 if format == "metadata":
-                    headers = _extract_headers(payload, ["Subject", "From"])
+                    headers = _extract_headers(payload, ["Subject", "From", "To", "Cc"])
                     subject = headers.get("Subject", "(no subject)")
                     sender = headers.get("From", "(unknown sender)")
+                    to = headers.get("To", "")
+                    cc = headers.get("Cc", "")
 
-                    output_messages.append(
-                        f"Message ID: {mid}\n"
-                        f"Subject: {subject}\n"
-                        f"From: {sender}\n"
-                        f"Web Link: {_generate_gmail_web_url(mid)}\n"
-                    )
+                    msg_output = f"Message ID: {mid}\nSubject: {subject}\nFrom: {sender}\n"
+                    if to:
+                        msg_output += f"To: {to}\n"
+                    if cc:
+                        msg_output += f"Cc: {cc}\n"
+                    msg_output += f"Web Link: {_generate_gmail_web_url(mid)}\n"
+
+                    output_messages.append(msg_output)
                 else:
                     # Full format - extract body too
-                    headers = _extract_headers(payload, ["Subject", "From"])
+                    headers = _extract_headers(payload, ["Subject", "From", "To", "Cc"])
                     subject = headers.get("Subject", "(no subject)")
                     sender = headers.get("From", "(unknown sender)")
+                    to = headers.get("To", "")
+                    cc = headers.get("Cc", "")
 
                     # Extract both text and HTML bodies using enhanced helper function
                     bodies = _extract_message_bodies(payload)
@@ -608,13 +622,14 @@ async def get_gmail_messages_content_batch(
                     # Format body content with HTML fallback
                     body_data = _format_body_content(text_body, html_body)
 
-                    output_messages.append(
-                        f"Message ID: {mid}\n"
-                        f"Subject: {subject}\n"
-                        f"From: {sender}\n"
-                        f"Web Link: {_generate_gmail_web_url(mid)}\n"
-                        f"\n{body_data}\n"
-                    )
+                    msg_output = f"Message ID: {mid}\nSubject: {subject}\nFrom: {sender}\n"
+                    if to:
+                        msg_output += f"To: {to}\n"
+                    if cc:
+                        msg_output += f"Cc: {cc}\n"
+                    msg_output += f"Web Link: {_generate_gmail_web_url(mid)}\n\n{body_data}\n"
+
+                    output_messages.append(msg_output)
 
     # Combine all messages with separators
     final_output = f"Retrieved {len(message_ids)} messages:\n\n"
