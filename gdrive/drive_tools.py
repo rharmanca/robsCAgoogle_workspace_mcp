@@ -460,7 +460,7 @@ async def get_drive_file_permissions(
 
     resolved_file_id, _ = await resolve_drive_item(service, file_id)
     file_id = resolved_file_id
-    
+
     try:
         # Get comprehensive file metadata including permissions
         file_metadata = await asyncio.to_thread(
