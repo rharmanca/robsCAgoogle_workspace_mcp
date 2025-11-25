@@ -170,7 +170,6 @@ async def resolve_folder_id(
     resolved_id, metadata = await resolve_drive_item(
         service,
         folder_id,
-        extra_fields="mimeType",
         max_depth=max_depth,
     )
     mime_type = metadata.get("mimeType")
