@@ -90,7 +90,36 @@ async def get_presentation(
     for i, slide in enumerate(slides, 1):
         slide_id = slide.get('objectId', 'Unknown')
         page_elements = slide.get('pageElements', [])
-        slides_info.append(f"  Slide {i}: ID {slide_id}, {len(page_elements)} element(s)")
+
+        # Collect text from the slide whose JSON structure is very complicated
+        # https://googleapis.github.io/google-api-python-client/docs/dyn/slides_v1.presentations.html#get
+        slide_texts = []
+        try:
+            for page_element in slide.get('pageElements', []):
+                shape = page_element.get('shape', None)
+                if shape and shape.get('shapeType', None) == 'TEXT_BOX':
+                    text = shape.get('text', None)
+                    if text:
+                        for text_element in text.get('textElements', []):
+                            text_run = text_element.get('textRun', None)
+                            start_index = text_element.get('startIndex', 0)
+                            if text_run:
+                                content = text_run.get('content', None)
+                                if content:
+                                    slide_texts.append([start_index, content])
+
+            # Sort and cleanup text we collected
+            slide_texts.sort(key=lambda idx_and_cont: idx_and_cont[0])
+            slide_text = "".join([i[1] for i in slide_texts])
+            slide_text_rows = slide_text.split("\n")
+            slide_text_rows = [row for row in slide_text_rows if len(row.replace(" ", "")) > 0]
+            slide_text_rows = ["    > " + row for row in slide_text_rows]
+            slide_text = "\n" + "\n".join(slide_text_rows)
+        except Exception as e:
+            logger.warning(f"Failed to extract text from the slide {slide_id}: {e}")
+            slide_text = f"<failed to extract text: {type(e)}, {e}>"
+
+        slides_info.append(f"  Slide {i}: ID {slide_id}, {len(page_elements)} element(s), text: {slide_text if len(slide_text) > 0 else 'empty'}")
 
     confirmation_message = f"""Presentation Details for {user_google_email}:
 - Title: {title}
