@@ -255,7 +255,7 @@ def _generate_gmail_web_url(item_id: str, account_index: int = 0) -> str:
     return f"https://mail.google.com/mail/u/{account_index}/#all/{item_id}"
 
 
-def _format_gmail_results_plain(messages: list, query: str) -> str:
+def _format_gmail_results_plain(messages: list, query: str, next_page_token: Optional[str] = None) -> str:
     """Format Gmail search results in clean, LLM-friendly plain text."""
     if not messages:
         return f"No messages found for query: '{query}'"
@@ -315,6 +315,11 @@ def _format_gmail_results_plain(messages: list, query: str) -> str:
         ]
     )
 
+    # Add pagination info if there's a next page
+    if next_page_token:
+        lines.append("")
+        lines.append(f"📄 PAGINATION: To get the next page, call search_gmail_messages again with page_token='{next_page_token}'")
+
     return "\n".join(lines)
 
 
@@ -322,28 +327,43 @@ def _format_gmail_results_plain(messages: list, query: str) -> str:
 @handle_http_errors("search_gmail_messages", is_read_only=True, service_type="gmail")
 @require_google_service("gmail", "gmail_read")
 async def search_gmail_messages(
-    service, query: str, user_google_email: str, page_size: int = 10
+    service, query: str, user_google_email: str, page_size: int = 10, page_token: Optional[str] = None
 ) -> str:
     """
     Searches messages in a user's Gmail account based on a query.
     Returns both Message IDs and Thread IDs for each found message, along with Gmail web interface links for manual verification.
+    Supports pagination via page_token parameter.
 
     Args:
         query (str): The search query. Supports standard Gmail search operators.
         user_google_email (str): The user's Google email address. Required.
         page_size (int): The maximum number of messages to return. Defaults to 10.
+        page_token (Optional[str]): Token for retrieving the next page of results. Use the next_page_token from a previous response.
 
     Returns:
         str: LLM-friendly structured results with Message IDs, Thread IDs, and clickable Gmail web interface URLs for each found message.
+        Includes pagination token if more results are available.
     """
     logger.info(
-        f"[search_gmail_messages] Email: '{user_google_email}', Query: '{query}'"
+        f"[search_gmail_messages] Email: '{user_google_email}', Query: '{query}', Page size: {page_size}"
     )
+
+    # Build the API request parameters
+    request_params = {
+        "userId": "me",
+        "q": query,
+        "maxResults": page_size
+    }
+    
+    # Add page token if provided
+    if page_token:
+        request_params["pageToken"] = page_token
+        logger.info(f"[search_gmail_messages] Using page_token for pagination")
 
     response = await asyncio.to_thread(
         service.users()
         .messages()
-        .list(userId="me", q=query, maxResults=page_size)
+        .list(**request_params)
         .execute
     )
 
@@ -357,9 +377,14 @@ async def search_gmail_messages(
     if messages is None:
         messages = []
 
-    formatted_output = _format_gmail_results_plain(messages, query)
+    # Extract next page token for pagination
+    next_page_token = response.get("nextPageToken")
+
+    formatted_output = _format_gmail_results_plain(messages, query, next_page_token)
 
     logger.info(f"[search_gmail_messages] Found {len(messages)} messages")
+    if next_page_token:
+        logger.info(f"[search_gmail_messages] More results available (next_page_token present)")
     return formatted_output
 
 
