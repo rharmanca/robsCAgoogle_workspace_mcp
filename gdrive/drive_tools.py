@@ -14,6 +14,7 @@ from pathlib import Path
 from googleapiclient.http import MediaIoBaseDownload, MediaIoBaseUpload
 import io
 import httpx
+import base64
 
 from auth.service_decorator import require_google_service
 from auth.oauth_config import is_stateless_mode
@@ -188,6 +189,172 @@ async def get_drive_file_content(
         f'Link: {file_metadata.get("webViewLink", "#")}\n\n--- CONTENT ---\n'
     )
     return header + body_text
+
+
+@server.tool()
+@handle_http_errors("get_drive_file_download_url", is_read_only=True, service_type="drive")
+@require_google_service("drive", "drive_read")
+async def get_drive_file_download_url(
+    service,
+    user_google_email: str,
+    file_id: str,
+    export_format: Optional[str] = None,
+) -> str:
+    """
+    Gets a download URL for a Google Drive file. The file is prepared and made available via HTTP URL.
+    
+    For Google native files (Docs, Sheets, Slides), exports to a useful format:
+    • Google Docs → PDF (default) or DOCX if export_format='docx'
+    • Google Sheets → XLSX (default) or CSV if export_format='csv'
+    • Google Slides → PDF (default) or PPTX if export_format='pptx'
+    
+    For other files, downloads the original file format.
+    
+    Args:
+        user_google_email: The user's Google email address. Required.
+        file_id: The Google Drive file ID to get a download URL for.
+        export_format: Optional export format for Google native files. 
+                      Options: 'pdf', 'docx', 'xlsx', 'csv', 'pptx'. 
+                      If not specified, uses sensible defaults (PDF for Docs/Slides, XLSX for Sheets).
+    
+    Returns:
+        str: Download URL and file metadata. The file is available at the URL for 1 hour.
+    """
+    logger.info(f"[get_drive_file_download_url] Invoked. File ID: '{file_id}', Export format: {export_format}")
+    
+    # Resolve shortcuts and get file metadata
+    resolved_file_id, file_metadata = await resolve_drive_item(
+        service,
+        file_id,
+        extra_fields="name, webViewLink, mimeType",
+    )
+    file_id = resolved_file_id
+    mime_type = file_metadata.get("mimeType", "")
+    file_name = file_metadata.get("name", "Unknown File")
+    
+    # Determine export format for Google native files
+    export_mime_type = None
+    output_filename = file_name
+    output_mime_type = mime_type
+    
+    if mime_type == "application/vnd.google-apps.document":
+        # Google Docs
+        if export_format == "docx":
+            export_mime_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            output_mime_type = export_mime_type
+            if not output_filename.endswith(".docx"):
+                output_filename = f"{Path(output_filename).stem}.docx"
+        else:
+            # Default to PDF
+            export_mime_type = "application/pdf"
+            output_mime_type = export_mime_type
+            if not output_filename.endswith(".pdf"):
+                output_filename = f"{Path(output_filename).stem}.pdf"
+    
+    elif mime_type == "application/vnd.google-apps.spreadsheet":
+        # Google Sheets
+        if export_format == "csv":
+            export_mime_type = "text/csv"
+            output_mime_type = export_mime_type
+            if not output_filename.endswith(".csv"):
+                output_filename = f"{Path(output_filename).stem}.csv"
+        else:
+            # Default to XLSX
+            export_mime_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            output_mime_type = export_mime_type
+            if not output_filename.endswith(".xlsx"):
+                output_filename = f"{Path(output_filename).stem}.xlsx"
+    
+    elif mime_type == "application/vnd.google-apps.presentation":
+        # Google Slides
+        if export_format == "pptx":
+            export_mime_type = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+            output_mime_type = export_mime_type
+            if not output_filename.endswith(".pptx"):
+                output_filename = f"{Path(output_filename).stem}.pptx"
+        else:
+            # Default to PDF
+            export_mime_type = "application/pdf"
+            output_mime_type = export_mime_type
+            if not output_filename.endswith(".pdf"):
+                output_filename = f"{Path(output_filename).stem}.pdf"
+    
+    # Download the file
+    request_obj = (
+        service.files().export_media(fileId=file_id, mimeType=export_mime_type)
+        if export_mime_type
+        else service.files().get_media(fileId=file_id)
+    )
+    
+    fh = io.BytesIO()
+    downloader = MediaIoBaseDownload(fh, request_obj)
+    loop = asyncio.get_event_loop()
+    done = False
+    while not done:
+        status, done = await loop.run_in_executor(None, downloader.next_chunk)
+    
+    file_content_bytes = fh.getvalue()
+    size_bytes = len(file_content_bytes)
+    size_kb = size_bytes / 1024 if size_bytes else 0
+    
+    # Check if we're in stateless mode (can't save files)
+    if is_stateless_mode():
+        result_lines = [
+            "File downloaded successfully!",
+            f"File: {file_name}",
+            f"File ID: {file_id}",
+            f"Size: {size_kb:.1f} KB ({size_bytes} bytes)",
+            f"MIME Type: {output_mime_type}",
+            "\n⚠️ Stateless mode: File storage disabled.",
+            "\nBase64-encoded content (first 100 characters shown):",
+            f"{base64.b64encode(file_content_bytes[:100]).decode('utf-8')}...",
+        ]
+        logger.info(f"[get_drive_file_download_url] Successfully downloaded {size_kb:.1f} KB file (stateless mode)")
+        return "\n".join(result_lines)
+    
+    # Save file and generate URL
+    try:
+        from core.attachment_storage import get_attachment_storage, get_attachment_url
+        
+        storage = get_attachment_storage()
+        
+        # Encode bytes to base64 (as expected by AttachmentStorage)
+        base64_data = base64.urlsafe_b64encode(file_content_bytes).decode('utf-8')
+        
+        # Save attachment
+        saved_file_id = storage.save_attachment(
+            base64_data=base64_data,
+            filename=output_filename,
+            mime_type=output_mime_type
+        )
+        
+        # Generate URL
+        download_url = get_attachment_url(saved_file_id)
+        
+        result_lines = [
+            "File downloaded successfully!",
+            f"File: {file_name}",
+            f"File ID: {file_id}",
+            f"Size: {size_kb:.1f} KB ({size_bytes} bytes)",
+            f"MIME Type: {output_mime_type}",
+            f"\n📎 Download URL: {download_url}",
+            "\nThe file has been saved and is available at the URL above.",
+            "The file will expire after 1 hour.",
+        ]
+        
+        if export_mime_type:
+            result_lines.append(f"\nNote: Google native file exported to {output_mime_type} format.")
+        
+        logger.info(f"[get_drive_file_download_url] Successfully saved {size_kb:.1f} KB file as {saved_file_id}")
+        return "\n".join(result_lines)
+        
+    except Exception as e:
+        logger.error(f"[get_drive_file_download_url] Failed to save file: {e}")
+        return (
+            f"Error: Failed to save file for download.\n"
+            f"File was downloaded successfully ({size_kb:.1f} KB) but could not be saved.\n\n"
+            f"Error details: {str(e)}"
+        )
 
 
 @server.tool()
