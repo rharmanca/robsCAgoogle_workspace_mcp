@@ -688,20 +688,90 @@ async def get_gmail_attachment_content(
     # Format response with attachment data
     size_bytes = attachment.get('size', 0)
     size_kb = size_bytes / 1024 if size_bytes else 0
+    base64_data = attachment.get('data', '')
 
-    result_lines = [
-        "Attachment downloaded successfully!",
-        f"Message ID: {message_id}",
-        f"Size: {size_kb:.1f} KB ({size_bytes} bytes)",
-        "\nBase64-encoded content (first 100 characters shown):",
-        f"{attachment['data'][:100]}...",
-        "\n\nThe full base64-encoded attachment data is available.",
-        "To save: decode the base64 data and write to a file with the appropriate extension.",
-        "\nNote: Attachment IDs are ephemeral. Always use IDs from the most recent message fetch."
-    ]
+    # Check if we're in stateless mode (can't save files)
+    from auth.oauth_config import is_stateless_mode
+    if is_stateless_mode():
+        result_lines = [
+            "Attachment downloaded successfully!",
+            f"Message ID: {message_id}",
+            f"Size: {size_kb:.1f} KB ({size_bytes} bytes)",
+            "\n⚠️ Stateless mode: File storage disabled.",
+            "\nBase64-encoded content (first 100 characters shown):",
+            f"{base64_data[:100]}...",
+            "\nNote: Attachment IDs are ephemeral. Always use IDs from the most recent message fetch."
+        ]
+        logger.info(f"[get_gmail_attachment_content] Successfully downloaded {size_kb:.1f} KB attachment (stateless mode)")
+        return "\n".join(result_lines)
 
-    logger.info(f"[get_gmail_attachment_content] Successfully downloaded {size_kb:.1f} KB attachment")
-    return "\n".join(result_lines)
+    # Save attachment and generate URL
+    try:
+        from core.attachment_storage import get_attachment_storage, get_attachment_url
+        
+        storage = get_attachment_storage()
+        
+        # Try to get filename and mime type from message (optional - attachment IDs are ephemeral)
+        filename = None
+        mime_type = None
+        try:
+            # Quick metadata fetch to try to get attachment info
+            # Note: This might fail if attachment IDs changed, but worth trying
+            message_metadata = await asyncio.to_thread(
+                service.users()
+                .messages()
+                .get(userId="me", id=message_id, format="metadata")
+                .execute
+            )
+            payload = message_metadata.get("payload", {})
+            attachments = _extract_attachments(payload)
+            for att in attachments:
+                if att.get("attachmentId") == attachment_id:
+                    filename = att.get("filename")
+                    mime_type = att.get("mimeType")
+                    break
+        except Exception:
+            # If we can't get metadata, use defaults
+            logger.debug(f"Could not fetch attachment metadata for {attachment_id}, using defaults")
+            pass
+
+        # Save attachment
+        file_id = storage.save_attachment(
+            base64_data=base64_data,
+            filename=filename,
+            mime_type=mime_type
+        )
+        
+        # Generate URL
+        attachment_url = get_attachment_url(file_id)
+        
+        result_lines = [
+            "Attachment downloaded successfully!",
+            f"Message ID: {message_id}",
+            f"Size: {size_kb:.1f} KB ({size_bytes} bytes)",
+            f"\n📎 Download URL: {attachment_url}",
+            "\nThe attachment has been saved and is available at the URL above.",
+            "The file will expire after 1 hour.",
+            "\nNote: Attachment IDs are ephemeral. Always use IDs from the most recent message fetch."
+        ]
+        
+        logger.info(f"[get_gmail_attachment_content] Successfully saved {size_kb:.1f} KB attachment as {file_id}")
+        return "\n".join(result_lines)
+        
+    except Exception as e:
+        logger.error(f"[get_gmail_attachment_content] Failed to save attachment: {e}", exc_info=True)
+        # Fallback to showing base64 preview
+        result_lines = [
+            "Attachment downloaded successfully!",
+            f"Message ID: {message_id}",
+            f"Size: {size_kb:.1f} KB ({size_bytes} bytes)",
+            "\n⚠️ Failed to save attachment file. Showing preview instead.",
+            "\nBase64-encoded content (first 100 characters shown):",
+            f"{base64_data[:100]}...",
+            f"\nError: {str(e)}",
+            "\nNote: Attachment IDs are ephemeral. Always use IDs from the most recent message fetch."
+        ]
+        return "\n".join(result_lines)
 
 
 @server.tool()
