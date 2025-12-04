@@ -358,7 +358,7 @@ async def search_gmail_messages(
     # Add page token if provided
     if page_token:
         request_params["pageToken"] = page_token
-        logger.info(f"[search_gmail_messages] Using page_token for pagination")
+        logger.info("[search_gmail_messages] Using page_token for pagination")
 
     response = await asyncio.to_thread(
         service.users()
@@ -384,7 +384,7 @@ async def search_gmail_messages(
 
     logger.info(f"[search_gmail_messages] Found {len(messages)} messages")
     if next_page_token:
-        logger.info(f"[search_gmail_messages] More results available (next_page_token present)")
+        logger.info("[search_gmail_messages] More results available (next_page_token present)")
     return formatted_output
 
 
