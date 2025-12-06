@@ -721,7 +721,7 @@ async def get_gmail_attachment_content(
                 service.users()
                 .messages()
                 .get(userId="me", id=message_id, format="metadata")
-                .execute
+                .execute()
             )
             payload = message_metadata.get("payload", {})
             attachments = _extract_attachments(payload)
@@ -733,7 +733,6 @@ async def get_gmail_attachment_content(
         except Exception:
             # If we can't get metadata, use defaults
             logger.debug(f"Could not fetch attachment metadata for {attachment_id}, using defaults")
-            pass
 
         # Save attachment
         file_id = storage.save_attachment(
