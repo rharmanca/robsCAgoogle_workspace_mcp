@@ -7,8 +7,6 @@ Files are automatically cleaned up after expiration (default 1 hour).
 
 import base64
 import logging
-import os
-import time
 import uuid
 from pathlib import Path
 from typing import Optional, Dict
