@@ -2,7 +2,7 @@ import logging
 from typing import List, Optional
 from importlib import metadata
 
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.middleware import Middleware
@@ -155,6 +155,33 @@ async def health_check(request: Request):
         "version": version,
         "transport": get_transport_mode()
     })
+
+@server.custom_route("/attachments/{file_id}", methods=["GET"])
+async def serve_attachment(file_id: str, request: Request):
+    """Serve a stored attachment file."""
+    from core.attachment_storage import get_attachment_storage
+    
+    storage = get_attachment_storage()
+    metadata = storage.get_attachment_metadata(file_id)
+    
+    if not metadata:
+        return JSONResponse(
+            {"error": "Attachment not found or expired"},
+            status_code=404
+        )
+    
+    file_path = storage.get_attachment_path(file_id)
+    if not file_path:
+        return JSONResponse(
+            {"error": "Attachment file not found"},
+            status_code=404
+        )
+    
+    return FileResponse(
+        path=str(file_path),
+        filename=metadata["filename"],
+        media_type=metadata["mime_type"]
+    )
 
 async def legacy_oauth2_callback(request: Request) -> HTMLResponse:
     state = request.query_params.get("state")
