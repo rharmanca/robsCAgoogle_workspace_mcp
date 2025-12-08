@@ -721,7 +721,7 @@ async def get_gmail_attachment_content(
                 service.users()
                 .messages()
                 .get(userId="me", id=message_id, format="metadata")
-                .execute()
+                .execute
             )
             payload = message_metadata.get("payload", {})
             attachments = _extract_attachments(payload)
