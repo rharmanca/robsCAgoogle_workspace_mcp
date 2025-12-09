@@ -174,10 +174,12 @@ async def get_doc_content(
             tab_text = ""
 
             if 'documentTab' in tab:
-                tab_title = tab.get('documentTab', {}).get('title', 'Untitled Tab')
+                props = tab.get('tabProperties', {})
+                tab_title = props.get('title', 'Untitled Tab')
+                tab_id = props.get('tabId', 'Unknown ID')
                 # Add indentation for nested tabs to show hierarchy
                 if level > 0:
-                    tab_title = "    " * level + tab_title
+                    tab_title = "    " * level + f"{tab_title} ( ID: {tab_id})"
                 tab_body = tab.get('documentTab', {}).get('body', {}).get('content', [])
                 tab_text += extract_text_from_elements(tab_body, tab_title)
 
