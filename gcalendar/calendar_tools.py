@@ -110,6 +110,32 @@ def _apply_transparency_if_valid(
         )
 
 
+def _apply_visibility_if_valid(
+    event_body: Dict[str, Any],
+    visibility: Optional[str],
+    function_name: str,
+) -> None:
+    """
+    Apply visibility to the event body if the provided value is valid.
+
+    Args:
+        event_body: Event payload being constructed.
+        visibility: Provided visibility value.
+        function_name: Name of the calling function for logging context.
+    """
+    if visibility is None:
+        return
+
+    valid_visibility_values = ["default", "public", "private", "confidential"]
+    if visibility in valid_visibility_values:
+        event_body["visibility"] = visibility
+        logger.info(f"[{function_name}] Set visibility to '{visibility}'")
+    else:
+        logger.warning(
+            f"[{function_name}] Invalid visibility value '{visibility}', must be 'default', 'public', 'private', or 'confidential', skipping"
+        )
+
+
 def _preserve_existing_fields(event_body: Dict[str, Any], existing_event: Dict[str, Any], field_mappings: Dict[str, Any]) -> None:
     """
     Helper function to preserve existing event fields when not explicitly provided.
@@ -490,6 +516,7 @@ async def create_event(
     reminders: Optional[Union[str, List[Dict[str, Any]]]] = None,
     use_default_reminders: bool = True,
     transparency: Optional[str] = None,
+    visibility: Optional[str] = None,
 ) -> str:
     """
     Creates a new event.
@@ -509,6 +536,7 @@ async def create_event(
         reminders (Optional[Union[str, List[Dict[str, Any]]]]): JSON string or list of reminder objects. Each should have 'method' ("popup" or "email") and 'minutes' (0-40320). Max 5 reminders. Example: '[{"method": "popup", "minutes": 15}]' or [{"method": "popup", "minutes": 15}]
         use_default_reminders (bool): Whether to use calendar's default reminders. If False, uses custom reminders. Defaults to True.
         transparency (Optional[str]): Event transparency for busy/free status. "opaque" shows as Busy (default), "transparent" shows as Available/Free. Defaults to None (uses Google Calendar default).
+        visibility (Optional[str]): Event visibility. "default" uses calendar default, "public" is visible to all, "private" is visible only to attendees, "confidential" is same as private (legacy). Defaults to None (uses Google Calendar default).
 
     Returns:
         str: Confirmation message of the successful event creation with event link.
@@ -564,6 +592,9 @@ async def create_event(
 
     # Handle transparency validation
     _apply_transparency_if_valid(event_body, transparency, "create_event")
+
+    # Handle visibility validation
+    _apply_visibility_if_valid(event_body, visibility, "create_event")
 
     if add_google_meet:
         request_id = str(uuid.uuid4())
@@ -671,6 +702,7 @@ async def modify_event(
     reminders: Optional[Union[str, List[Dict[str, Any]]]] = None,
     use_default_reminders: Optional[bool] = None,
     transparency: Optional[str] = None,
+    visibility: Optional[str] = None,
 ) -> str:
     """
     Modifies an existing event.
@@ -690,6 +722,7 @@ async def modify_event(
         reminders (Optional[Union[str, List[Dict[str, Any]]]]): JSON string or list of reminder objects to replace existing reminders. Each should have 'method' ("popup" or "email") and 'minutes' (0-40320). Max 5 reminders. Example: '[{"method": "popup", "minutes": 15}]' or [{"method": "popup", "minutes": 15}]
         use_default_reminders (Optional[bool]): Whether to use calendar's default reminders. If specified, overrides current reminder settings.
         transparency (Optional[str]): Event transparency for busy/free status. "opaque" shows as Busy, "transparent" shows as Available/Free. If None, preserves existing transparency setting.
+        visibility (Optional[str]): Event visibility. "default" uses calendar default, "public" is visible to all, "private" is visible only to attendees, "confidential" is same as private (legacy). If None, preserves existing visibility setting.
 
     Returns:
         str: Confirmation message of the successful event modification with event link.
@@ -754,6 +787,9 @@ async def modify_event(
 
     # Handle transparency validation
     _apply_transparency_if_valid(event_body, transparency, "modify_event")
+
+    # Handle visibility validation
+    _apply_visibility_if_valid(event_body, visibility, "modify_event")
 
     if (
         timezone is not None
