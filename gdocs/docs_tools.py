@@ -45,6 +45,7 @@ from gdocs.managers import (
     ValidationManager,
     BatchOperationManager
 )
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -903,7 +904,6 @@ async def inspect_doc_structure(
                     'end_index': table['end_index']
                 })
 
-    import json
     link = f"https://docs.google.com/document/d/{document_id}/edit"
     return f"Document structure analysis for {document_id}:\n\n{json.dumps(result, indent=2)}\n\nLink: {link}"
 
@@ -1060,8 +1060,6 @@ async def debug_table_structure(
         return f"Error: Table index {table_index} not found. Document has {len(tables)} table(s)."
 
     table_info = tables[table_index]
-
-    import json
 
     # Extract detailed cell information
     debug_info = {
