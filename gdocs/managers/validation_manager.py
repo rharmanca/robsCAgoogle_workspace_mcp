@@ -205,7 +205,7 @@ class ValidationManager:
                 if isinstance(component, int):
                     if component < 0 or component > 255:
                         return False, f"{comp_name} integer values must be between 0 and 255"
-                elif isinstance(component, (float, int)):
+                elif isinstance(component, float):
                     component = float(component)
                     if component < 0 or component > 1:
                         return False, f"{comp_name} float values must be between 0 and 1"

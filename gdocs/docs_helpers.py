@@ -21,6 +21,8 @@ def _normalize_color(color: Any, param_name: str) -> Optional[Dict[str, float]]:
         return None
 
     def _to_component(value: Any) -> float:
+        if isinstance(value, bool):
+            raise ValueError(f"{param_name} components cannot be boolean values")
         if isinstance(value, int):
             if value < 0 or value > 255:
                 raise ValueError(f"{param_name} components must be 0-255 when using integers")
