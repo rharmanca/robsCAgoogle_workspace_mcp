@@ -85,8 +85,7 @@ def _parse_a1_range(range_name: str, sheets: List[dict]) -> dict:
                 break
         if target_sheet is None:
             available_titles = [
-                sheet.get("properties", {}).get("title", "Untitled")
-                for sheet in sheets
+                sheet.get("properties", {}).get("title", "Untitled") for sheet in sheets
             ]
             available_list = ", ".join(available_titles) if available_titles else "none"
             raise UserInputError(
@@ -209,7 +208,9 @@ def _grid_range_to_a1(grid_range: dict, sheet_titles: dict[int, str]) -> str:
     end_label = f"{col_label(end_col - 1 if end_col is not None else None)}{row_label(end_row - 1 if end_row is not None else None)}"
 
     if start_label and end_label:
-        range_ref = start_label if start_label == end_label else f"{start_label}:{end_label}"
+        range_ref = (
+            start_label if start_label == end_label else f"{start_label}:{end_label}"
+        )
     elif start_label:
         range_ref = start_label
     elif end_label:
@@ -227,7 +228,9 @@ def _summarize_conditional_rule(
     Produce a concise human-readable summary of a conditional formatting rule.
     """
     ranges = rule.get("ranges", [])
-    range_labels = [_grid_range_to_a1(rng, sheet_titles) for rng in ranges] or ["(no range)"]
+    range_labels = [_grid_range_to_a1(rng, sheet_titles) for rng in ranges] or [
+        "(no range)"
+    ]
 
     if "booleanRule" in rule:
         boolean_rule = rule["booleanRule"]
@@ -288,7 +291,9 @@ def _format_conditional_rules_section(
 
     lines = [f'{indent}Conditional formats for "{sheet_title}" ({len(rules)}):']
     for idx, rule in enumerate(rules):
-        lines.append(f"{indent}  {_summarize_conditional_rule(rule, idx, sheet_titles)}")
+        lines.append(
+            f"{indent}  {_summarize_conditional_rule(rule, idx, sheet_titles)}"
+        )
     return "\n".join(lines)
 
 
@@ -379,7 +384,7 @@ def _parse_condition_values(
             parsed = json.loads(parsed)
         except json.JSONDecodeError as exc:
             raise UserInputError(
-                'condition_values must be a list or a JSON-encoded list (e.g., \'["=$B2>1000"]\').'
+                "condition_values must be a list or a JSON-encoded list (e.g., '[\"=$B2>1000\"]')."
             ) from exc
 
     if parsed is not None and not isinstance(parsed, list):
@@ -396,7 +401,7 @@ def _parse_condition_values(
 
 
 def _parse_gradient_points(
-    gradient_points: Optional[Union[str, List[dict]]]
+    gradient_points: Optional[Union[str, List[dict]]],
 ) -> Optional[List[dict]]:
     """
     Normalize gradient points into a list of dicts with type/value/color.
@@ -424,7 +429,9 @@ def _parse_gradient_points(
     normalized_points: List[dict] = []
     for idx, point in enumerate(parsed):
         if not isinstance(point, dict):
-            raise UserInputError(f"gradient_points[{idx}] must be an object with type/color.")
+            raise UserInputError(
+                f"gradient_points[{idx}] must be an object with type/color."
+            )
 
         point_type = point.get("type")
         if not point_type or point_type.upper() not in GRADIENT_POINT_TYPES:
@@ -432,7 +439,11 @@ def _parse_gradient_points(
                 f"gradient_points[{idx}].type must be one of {sorted(GRADIENT_POINT_TYPES)}."
             )
         color_raw = point.get("color")
-        color_dict = _parse_hex_color(color_raw) if not isinstance(color_raw, dict) else color_raw
+        color_dict = (
+            _parse_hex_color(color_raw)
+            if not isinstance(color_raw, dict)
+            else color_raw
+        )
         if not color_dict:
             raise UserInputError(f"gradient_points[{idx}].color is required.")
 
@@ -462,7 +473,9 @@ def _build_boolean_rule(
 
     cond_type_normalized = condition_type.upper()
     if cond_type_normalized not in CONDITION_TYPES:
-        raise UserInputError(f"condition_type must be one of {sorted(CONDITION_TYPES)}.")
+        raise UserInputError(
+            f"condition_type must be one of {sorted(CONDITION_TYPES)}."
+        )
 
     condition = {"type": cond_type_normalized}
     if condition_values:
