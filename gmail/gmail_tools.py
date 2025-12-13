@@ -23,7 +23,6 @@ from auth.scopes import (
     GMAIL_COMPOSE_SCOPE,
     GMAIL_MODIFY_SCOPE,
     GMAIL_LABELS_SCOPE,
-    GMAIL_SETTINGS_BASIC_SCOPE,
 )
 
 logger = logging.getLogger(__name__)
@@ -1430,7 +1429,7 @@ async def list_gmail_filters(service, user_google_email: str) -> str:
 
 @server.tool()
 @handle_http_errors("create_gmail_filter", service_type="gmail")
-@require_google_service("gmail", GMAIL_SETTINGS_BASIC_SCOPE)
+@require_google_service("gmail", "gmail_settings_basic")
 async def create_gmail_filter(
     service,
     user_google_email: str,
@@ -1468,7 +1467,7 @@ async def create_gmail_filter(
 
 @server.tool()
 @handle_http_errors("delete_gmail_filter", service_type="gmail")
-@require_google_service("gmail", GMAIL_SETTINGS_BASIC_SCOPE)
+@require_google_service("gmail", "gmail_settings_basic")
 async def delete_gmail_filter(
     service, user_google_email: str, filter_id: str = Field(..., description="ID of the filter to delete.")
 ) -> str:
