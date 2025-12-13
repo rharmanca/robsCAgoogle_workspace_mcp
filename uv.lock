@@ -1756,7 +1756,11 @@ wheels = [
 
 [[package]]
 name = "workspace-mcp"
+<<<<<<< HEAD
 version = "1.5.5"
+=======
+version = "1.6.0"
+>>>>>>> c615a6d74373db6864e38b22f2b8dac4efed351e
 source = { editable = "." }
 dependencies = [
     { name = "fastapi" },

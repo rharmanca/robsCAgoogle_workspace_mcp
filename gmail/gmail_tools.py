@@ -255,7 +255,7 @@ def _generate_gmail_web_url(item_id: str, account_index: int = 0) -> str:
     return f"https://mail.google.com/mail/u/{account_index}/#all/{item_id}"
 
 
-def _format_gmail_results_plain(messages: list, query: str) -> str:
+def _format_gmail_results_plain(messages: list, query: str, next_page_token: Optional[str] = None) -> str:
     """Format Gmail search results in clean, LLM-friendly plain text."""
     if not messages:
         return f"No messages found for query: '{query}'"
@@ -315,6 +315,11 @@ def _format_gmail_results_plain(messages: list, query: str) -> str:
         ]
     )
 
+    # Add pagination info if there's a next page
+    if next_page_token:
+        lines.append("")
+        lines.append(f"📄 PAGINATION: To get the next page, call search_gmail_messages again with page_token='{next_page_token}'")
+
     return "\n".join(lines)
 
 
@@ -322,28 +327,43 @@ def _format_gmail_results_plain(messages: list, query: str) -> str:
 @handle_http_errors("search_gmail_messages", is_read_only=True, service_type="gmail")
 @require_google_service("gmail", "gmail_read")
 async def search_gmail_messages(
-    service, query: str, user_google_email: str, page_size: int = 10
+    service, query: str, user_google_email: str, page_size: int = 10, page_token: Optional[str] = None
 ) -> str:
     """
     Searches messages in a user's Gmail account based on a query.
     Returns both Message IDs and Thread IDs for each found message, along with Gmail web interface links for manual verification.
+    Supports pagination via page_token parameter.
 
     Args:
         query (str): The search query. Supports standard Gmail search operators.
         user_google_email (str): The user's Google email address. Required.
         page_size (int): The maximum number of messages to return. Defaults to 10.
+        page_token (Optional[str]): Token for retrieving the next page of results. Use the next_page_token from a previous response.
 
     Returns:
         str: LLM-friendly structured results with Message IDs, Thread IDs, and clickable Gmail web interface URLs for each found message.
+        Includes pagination token if more results are available.
     """
     logger.info(
-        f"[search_gmail_messages] Email: '{user_google_email}', Query: '{query}'"
+        f"[search_gmail_messages] Email: '{user_google_email}', Query: '{query}', Page size: {page_size}"
     )
+
+    # Build the API request parameters
+    request_params = {
+        "userId": "me",
+        "q": query,
+        "maxResults": page_size
+    }
+    
+    # Add page token if provided
+    if page_token:
+        request_params["pageToken"] = page_token
+        logger.info("[search_gmail_messages] Using page_token for pagination")
 
     response = await asyncio.to_thread(
         service.users()
         .messages()
-        .list(userId="me", q=query, maxResults=page_size)
+        .list(**request_params)
         .execute
     )
 
@@ -357,9 +377,14 @@ async def search_gmail_messages(
     if messages is None:
         messages = []
 
-    formatted_output = _format_gmail_results_plain(messages, query)
+    # Extract next page token for pagination
+    next_page_token = response.get("nextPageToken")
+
+    formatted_output = _format_gmail_results_plain(messages, query, next_page_token)
 
     logger.info(f"[search_gmail_messages] Found {len(messages)} messages")
+    if next_page_token:
+        logger.info("[search_gmail_messages] More results available (next_page_token present)")
     return formatted_output
 
 
@@ -688,20 +713,89 @@ async def get_gmail_attachment_content(
     # Format response with attachment data
     size_bytes = attachment.get('size', 0)
     size_kb = size_bytes / 1024 if size_bytes else 0
+    base64_data = attachment.get('data', '')
 
-    result_lines = [
-        "Attachment downloaded successfully!",
-        f"Message ID: {message_id}",
-        f"Size: {size_kb:.1f} KB ({size_bytes} bytes)",
-        "\nBase64-encoded content (first 100 characters shown):",
-        f"{attachment['data'][:100]}...",
-        "\n\nThe full base64-encoded attachment data is available.",
-        "To save: decode the base64 data and write to a file with the appropriate extension.",
-        "\nNote: Attachment IDs are ephemeral. Always use IDs from the most recent message fetch."
-    ]
+    # Check if we're in stateless mode (can't save files)
+    from auth.oauth_config import is_stateless_mode
+    if is_stateless_mode():
+        result_lines = [
+            "Attachment downloaded successfully!",
+            f"Message ID: {message_id}",
+            f"Size: {size_kb:.1f} KB ({size_bytes} bytes)",
+            "\n⚠️ Stateless mode: File storage disabled.",
+            "\nBase64-encoded content (first 100 characters shown):",
+            f"{base64_data[:100]}...",
+            "\nNote: Attachment IDs are ephemeral. Always use IDs from the most recent message fetch."
+        ]
+        logger.info(f"[get_gmail_attachment_content] Successfully downloaded {size_kb:.1f} KB attachment (stateless mode)")
+        return "\n".join(result_lines)
 
-    logger.info(f"[get_gmail_attachment_content] Successfully downloaded {size_kb:.1f} KB attachment")
-    return "\n".join(result_lines)
+    # Save attachment and generate URL
+    try:
+        from core.attachment_storage import get_attachment_storage, get_attachment_url
+        
+        storage = get_attachment_storage()
+        
+        # Try to get filename and mime type from message (optional - attachment IDs are ephemeral)
+        filename = None
+        mime_type = None
+        try:
+            # Quick metadata fetch to try to get attachment info
+            # Note: This might fail if attachment IDs changed, but worth trying
+            message_metadata = await asyncio.to_thread(
+                service.users()
+                .messages()
+                .get(userId="me", id=message_id, format="metadata")
+                .execute
+            )
+            payload = message_metadata.get("payload", {})
+            attachments = _extract_attachments(payload)
+            for att in attachments:
+                if att.get("attachmentId") == attachment_id:
+                    filename = att.get("filename")
+                    mime_type = att.get("mimeType")
+                    break
+        except Exception:
+            # If we can't get metadata, use defaults
+            logger.debug(f"Could not fetch attachment metadata for {attachment_id}, using defaults")
+
+        # Save attachment
+        file_id = storage.save_attachment(
+            base64_data=base64_data,
+            filename=filename,
+            mime_type=mime_type
+        )
+        
+        # Generate URL
+        attachment_url = get_attachment_url(file_id)
+        
+        result_lines = [
+            "Attachment downloaded successfully!",
+            f"Message ID: {message_id}",
+            f"Size: {size_kb:.1f} KB ({size_bytes} bytes)",
+            f"\n📎 Download URL: {attachment_url}",
+            "\nThe attachment has been saved and is available at the URL above.",
+            "The file will expire after 1 hour.",
+            "\nNote: Attachment IDs are ephemeral. Always use IDs from the most recent message fetch."
+        ]
+        
+        logger.info(f"[get_gmail_attachment_content] Successfully saved {size_kb:.1f} KB attachment as {file_id}")
+        return "\n".join(result_lines)
+        
+    except Exception as e:
+        logger.error(f"[get_gmail_attachment_content] Failed to save attachment: {e}", exc_info=True)
+        # Fallback to showing base64 preview
+        result_lines = [
+            "Attachment downloaded successfully!",
+            f"Message ID: {message_id}",
+            f"Size: {size_kb:.1f} KB ({size_bytes} bytes)",
+            "\n⚠️ Failed to save attachment file. Showing preview instead.",
+            "\nBase64-encoded content (first 100 characters shown):",
+            f"{base64_data[:100]}...",
+            f"\nError: {str(e)}",
+            "\nNote: Attachment IDs are ephemeral. Always use IDs from the most recent message fetch."
+        ]
+        return "\n".join(result_lines)
 
 
 @server.tool()
