@@ -7,6 +7,8 @@ extracting validation patterns from individual tool functions.
 import logging
 from typing import Dict, Any, List, Tuple, Optional
 
+from gdocs.docs_helpers import validate_operation
+
 logger = logging.getLogger(__name__)
 
 
@@ -381,10 +383,33 @@ class ValidationManager:
             
             if 'type' not in op:
                 return False, f"Operation {i+1} missing required 'type' field"
-            
-            # Validate operation-specific fields using existing validation logic
-            # This would call the validate_operation function from docs_helpers
-            # but we're centralizing the logic here
+
+            # Validate required fields for the operation type
+            is_valid, error_msg = validate_operation(op)
+            if not is_valid:
+                return False, f"Operation {i+1}: {error_msg}"
+
+            op_type = op['type']
+
+            if op_type == 'format_text':
+                is_valid, error_msg = self.validate_text_formatting_params(
+                    op.get('bold'),
+                    op.get('italic'),
+                    op.get('underline'),
+                    op.get('font_size'),
+                    op.get('font_family'),
+                    op.get('text_color'),
+                    op.get('background_color')
+                )
+                if not is_valid:
+                    return False, f"Operation {i+1} (format_text): {error_msg}"
+
+                is_valid, error_msg = self.validate_index_range(
+                    op['start_index'],
+                    op['end_index']
+                )
+                if not is_valid:
+                    return False, f"Operation {i+1} (format_text): {error_msg}"
             
         return True, ""
     
