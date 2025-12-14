@@ -709,6 +709,7 @@ cp .env.oauth21 .env
 | `remove_drive_permission` | Extended | Revoke file access |
 | `transfer_drive_ownership` | Extended | Transfer file ownership to another user |
 | `get_drive_file_permissions` | Complete | Get detailed file permissions |
+| `check_drive_file_public_access` | Complete | Check public sharing status |
 
 </td>
 </tr>

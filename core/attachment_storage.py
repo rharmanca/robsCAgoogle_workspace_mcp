@@ -77,7 +77,9 @@ class AttachmentStorage:
         file_path = STORAGE_DIR / f"{file_id}{extension}"
         try:
             file_path.write_bytes(file_bytes)
-            logger.info(f"Saved attachment {file_id} ({len(file_bytes)} bytes) to {file_path}")
+            logger.info(
+                f"Saved attachment {file_id} ({len(file_bytes)} bytes) to {file_path}"
+            )
         except Exception as e:
             logger.error(f"Failed to save attachment to {file_path}: {e}")
             raise
@@ -213,4 +215,3 @@ def get_attachment_url(file_id: str) -> str:
         base_url = f"{WORKSPACE_MCP_BASE_URI}:{WORKSPACE_MCP_PORT}"
 
     return f"{base_url}/attachments/{file_id}"
-
