@@ -7,6 +7,9 @@ import asyncio
 import re
 from typing import List, Dict, Any, Optional, Tuple
 
+VALID_SHARE_ROLES = {'reader', 'commenter', 'writer'}
+VALID_SHARE_TYPES = {'user', 'group', 'domain', 'anyone'}
+
 
 def check_public_link_permission(permissions: List[Dict[str, Any]]) -> bool:
     """
@@ -42,17 +45,102 @@ def format_public_sharing_error(file_name: str, file_id: str) -> str:
     )
 
 
-def get_drive_image_url(file_id: str) -> str:
+def validate_share_role(role: str) -> None:
     """
-    Get the correct Drive URL format for publicly shared images.
-    
+    Validate that the role is valid for sharing.
+
     Args:
-        file_id: Google Drive file ID
-        
-    Returns:
-        str: URL for embedding Drive images
+        role: The permission role to validate
+
+    Raises:
+        ValueError: If role is not reader, commenter, or writer
     """
-    return f"https://drive.google.com/uc?export=view&id={file_id}"
+    if role not in VALID_SHARE_ROLES:
+        raise ValueError(
+            f"Invalid role '{role}'. Must be one of: {', '.join(sorted(VALID_SHARE_ROLES))}"
+        )
+
+
+def validate_share_type(share_type: str) -> None:
+    """
+    Validate that the share type is valid.
+
+    Args:
+        share_type: The type of sharing to validate
+
+    Raises:
+        ValueError: If share_type is not user, group, or domain
+    """
+    if share_type not in VALID_SHARE_TYPES:
+        raise ValueError(
+            f"Invalid share_type '{share_type}'. Must be one of: {', '.join(sorted(VALID_SHARE_TYPES))}"
+        )
+
+
+RFC3339_PATTERN = re.compile(
+    r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$'
+)
+
+
+def validate_expiration_time(expiration_time: str) -> None:
+    """
+    Validate that expiration_time is in RFC 3339 format.
+
+    Args:
+        expiration_time: The expiration time string to validate
+
+    Raises:
+        ValueError: If expiration_time is not valid RFC 3339 format
+    """
+    if not RFC3339_PATTERN.match(expiration_time):
+        raise ValueError(
+            f"Invalid expiration_time '{expiration_time}'. "
+            "Must be RFC 3339 format (e.g., '2025-01-15T00:00:00Z')"
+        )
+
+
+def format_permission_info(permission: Dict[str, Any]) -> str:
+    """
+    Format a permission object for display.
+
+    Args:
+        permission: Permission object from Google Drive API
+
+    Returns:
+        str: Human-readable permission description with ID
+    """
+    perm_type = permission.get('type', 'unknown')
+    role = permission.get('role', 'unknown')
+    perm_id = permission.get('id', '')
+
+    if perm_type == 'anyone':
+        base = f"Anyone with the link ({role}) [id: {perm_id}]"
+    elif perm_type == 'user':
+        email = permission.get('emailAddress', 'unknown')
+        base = f"User: {email} ({role}) [id: {perm_id}]"
+    elif perm_type == 'group':
+        email = permission.get('emailAddress', 'unknown')
+        base = f"Group: {email} ({role}) [id: {perm_id}]"
+    elif perm_type == 'domain':
+        domain = permission.get('domain', 'unknown')
+        base = f"Domain: {domain} ({role}) [id: {perm_id}]"
+    else:
+        base = f"{perm_type} ({role}) [id: {perm_id}]"
+
+    extras = []
+    if permission.get('expirationTime'):
+        extras.append(f"expires: {permission['expirationTime']}")
+
+    perm_details = permission.get('permissionDetails', [])
+    if perm_details:
+        for detail in perm_details:
+            if detail.get('inherited') and detail.get('inheritedFrom'):
+                extras.append(f"inherited from: {detail['inheritedFrom']}")
+                break
+
+    if extras:
+        return f"{base} | {', '.join(extras)}"
+    return base
 
 
 # Precompiled regex patterns for Drive query detection

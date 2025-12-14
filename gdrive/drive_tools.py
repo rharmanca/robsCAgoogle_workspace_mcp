@@ -5,12 +5,13 @@ This module provides MCP tools for interacting with Google Drive API.
 """
 import logging
 import asyncio
-from typing import Optional
+from typing import Optional, List, Dict, Any
 from tempfile import NamedTemporaryFile
 from urllib.parse import urlparse
 from urllib.request import url2pathname
 from pathlib import Path
 
+from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseDownload, MediaIoBaseUpload
 import io
 import httpx
@@ -24,8 +25,13 @@ from core.config import get_transport_mode
 from gdrive.drive_helpers import (
     DRIVE_QUERY_PATTERNS,
     build_drive_list_params,
+    check_public_link_permission,
+    format_permission_info,
     resolve_drive_item,
     resolve_folder_id,
+    validate_expiration_time,
+    validate_share_role,
+    validate_share_type,
 )
 
 logger = logging.getLogger(__name__)
@@ -629,11 +635,12 @@ async def get_drive_file_permissions(
     file_id = resolved_file_id
 
     try:
-        # Get comprehensive file metadata including permissions
+        # Get comprehensive file metadata including permissions with details
         file_metadata = await asyncio.to_thread(
             service.files().get(
                 fileId=file_id,
-                fields="id, name, mimeType, size, modifiedTime, owners, permissions, "
+                fields="id, name, mimeType, size, modifiedTime, owners, "
+                       "permissions(id, type, role, emailAddress, domain, expirationTime, permissionDetails), "
                        "webViewLink, webContentLink, shared, sharingUser, viewersCanCopyContent",
                 supportsAllDrives=True
             ).execute
@@ -662,22 +669,7 @@ async def get_drive_file_permissions(
             output_parts.append(f"  Number of permissions: {len(permissions)}")
             output_parts.append("  Permissions:")
             for perm in permissions:
-                perm_type = perm.get('type', 'unknown')
-                role = perm.get('role', 'unknown')
-                
-                if perm_type == 'anyone':
-                    output_parts.append(f"    - Anyone with the link ({role})")
-                elif perm_type == 'user':
-                    email = perm.get('emailAddress', 'unknown')
-                    output_parts.append(f"    - User: {email} ({role})")
-                elif perm_type == 'domain':
-                    domain = perm.get('domain', 'unknown')
-                    output_parts.append(f"    - Domain: {domain} ({role})")
-                elif perm_type == 'group':
-                    email = perm.get('emailAddress', 'unknown')
-                    output_parts.append(f"    - Group: {email} ({role})")
-                else:
-                    output_parts.append(f"    - {perm_type} ({role})")
+                output_parts.append(f"    - {format_permission_info(perm)}")
         else:
             output_parts.append("  No additional permissions (private file)")
         
@@ -693,8 +685,6 @@ async def get_drive_file_permissions(
         if web_content_link:
             output_parts.append(f"  Direct Download Link: {web_content_link}")
         
-        # Check if file has "anyone with link" permission
-        from gdrive.drive_helpers import check_public_link_permission
         has_public_link = check_public_link_permission(permissions)
         
         if has_public_link:
@@ -714,95 +704,6 @@ async def get_drive_file_permissions(
     except Exception as e:
         logger.error(f"Error getting file permissions: {e}")
         return f"Error getting file permissions: {e}"
-
-
-@server.tool()
-@handle_http_errors("check_drive_file_public_access", is_read_only=True, service_type="drive")
-@require_google_service("drive", "drive_read")
-async def check_drive_file_public_access(
-    service,
-    user_google_email: str,
-    file_name: str,
-) -> str:
-    """
-    Searches for a file by name and checks if it has public link sharing enabled.
-    
-    Args:
-        user_google_email (str): The user's Google email address. Required.
-        file_name (str): The name of the file to check.
-    
-    Returns:
-        str: Information about the file's sharing status and whether it can be used in Google Docs.
-    """
-    logger.info(f"[check_drive_file_public_access] Searching for {file_name}")
-    
-    # Search for the file
-    escaped_name = file_name.replace("'", "\\'")
-    query = f"name = '{escaped_name}'"
-    
-    list_params = {
-        "q": query,
-        "pageSize": 10,
-        "fields": "files(id, name, mimeType, webViewLink)",
-        "supportsAllDrives": True,
-        "includeItemsFromAllDrives": True,
-    }
-    
-    results = await asyncio.to_thread(
-        service.files().list(**list_params).execute
-    )
-    
-    files = results.get('files', [])
-    if not files:
-        return f"No file found with name '{file_name}'"
-    
-    if len(files) > 1:
-        output_parts = [f"Found {len(files)} files with name '{file_name}':"]
-        for f in files:
-            output_parts.append(f"  - {f['name']} (ID: {f['id']})")
-        output_parts.append("\nChecking the first file...")
-        output_parts.append("")
-    else:
-        output_parts = []
-    
-    # Check permissions for the first file
-    file_id = files[0]['id']
-    resolved_file_id, _ = await resolve_drive_item(service, file_id)
-    file_id = resolved_file_id
-    
-    # Get detailed permissions
-    file_metadata = await asyncio.to_thread(
-        service.files().get(
-            fileId=file_id,
-            fields="id, name, mimeType, permissions, webViewLink, webContentLink, shared",
-            supportsAllDrives=True
-        ).execute
-    )
-    
-    permissions = file_metadata.get('permissions', [])
-    from gdrive.drive_helpers import check_public_link_permission, get_drive_image_url
-    has_public_link = check_public_link_permission(permissions)
-    
-    output_parts.extend([
-        f"File: {file_metadata['name']}",
-        f"ID: {file_id}",
-        f"Type: {file_metadata['mimeType']}",
-        f"Shared: {file_metadata.get('shared', False)}",
-        ""
-    ])
-    
-    if has_public_link:
-        output_parts.extend([
-            "✅ PUBLIC ACCESS ENABLED - This file can be inserted into Google Docs",
-            f"Use with insert_doc_image_url: {get_drive_image_url(file_id)}"
-        ])
-    else:
-        output_parts.extend([
-            "❌ NO PUBLIC ACCESS - Cannot insert into Google Docs",
-            "Fix: Drive → Share → 'Anyone with the link' → 'Viewer'"
-        ])
-    
-    return "\n".join(output_parts)
 
 
 @server.tool()
@@ -969,5 +870,480 @@ async def update_drive_file(
 
     output_parts.append("")
     output_parts.append(f"View file: {updated_file.get('webViewLink', '#')}")
+
+    return "\n".join(output_parts)
+
+
+@server.tool()
+@handle_http_errors("get_drive_shareable_link", is_read_only=True, service_type="drive")
+@require_google_service("drive", "drive_read")
+async def get_drive_shareable_link(
+    service,
+    user_google_email: str,
+    file_id: str,
+) -> str:
+    """
+    Gets the shareable link for a Google Drive file or folder.
+
+    Args:
+        user_google_email (str): The user's Google email address. Required.
+        file_id (str): The ID of the file or folder to get the shareable link for. Required.
+
+    Returns:
+        str: The shareable links and current sharing status.
+    """
+    logger.info(f"[get_drive_shareable_link] Invoked. Email: '{user_google_email}', File ID: '{file_id}'")
+
+    resolved_file_id, _ = await resolve_drive_item(service, file_id)
+    file_id = resolved_file_id
+
+    file_metadata = await asyncio.to_thread(
+        service.files().get(
+            fileId=file_id,
+            fields="id, name, mimeType, webViewLink, webContentLink, shared, "
+                   "permissions(id, type, role, emailAddress, domain, expirationTime)",
+            supportsAllDrives=True
+        ).execute
+    )
+
+    output_parts = [
+        f"File: {file_metadata.get('name', 'Unknown')}",
+        f"ID: {file_id}",
+        f"Type: {file_metadata.get('mimeType', 'Unknown')}",
+        f"Shared: {file_metadata.get('shared', False)}",
+        "",
+        "Links:",
+        f"  View: {file_metadata.get('webViewLink', 'N/A')}",
+    ]
+
+    web_content_link = file_metadata.get('webContentLink')
+    if web_content_link:
+        output_parts.append(f"  Download: {web_content_link}")
+
+    permissions = file_metadata.get('permissions', [])
+    if permissions:
+        output_parts.append("")
+        output_parts.append("Current permissions:")
+        for perm in permissions:
+            output_parts.append(f"  - {format_permission_info(perm)}")
+
+    return "\n".join(output_parts)
+
+
+@server.tool()
+@handle_http_errors("share_drive_file", is_read_only=False, service_type="drive")
+@require_google_service("drive", "drive_file")
+async def share_drive_file(
+    service,
+    user_google_email: str,
+    file_id: str,
+    share_with: Optional[str] = None,
+    role: str = "reader",
+    share_type: str = "user",
+    send_notification: bool = True,
+    email_message: Optional[str] = None,
+    expiration_time: Optional[str] = None,
+    allow_file_discovery: Optional[bool] = None,
+) -> str:
+    """
+    Shares a Google Drive file or folder with a user, group, domain, or anyone with the link.
+
+    When sharing a folder, all files inside inherit the permission.
+
+    Args:
+        user_google_email (str): The user's Google email address. Required.
+        file_id (str): The ID of the file or folder to share. Required.
+        share_with (Optional[str]): Email address (for user/group), domain name (for domain), or omit for 'anyone'.
+        role (str): Permission role - 'reader', 'commenter', or 'writer'. Defaults to 'reader'.
+        share_type (str): Type of sharing - 'user', 'group', 'domain', or 'anyone'. Defaults to 'user'.
+        send_notification (bool): Whether to send a notification email. Defaults to True.
+        email_message (Optional[str]): Custom message for the notification email.
+        expiration_time (Optional[str]): Expiration time in RFC 3339 format (e.g., "2025-01-15T00:00:00Z"). Permission auto-revokes after this time.
+        allow_file_discovery (Optional[bool]): For 'domain' or 'anyone' shares - whether the file can be found via search. Defaults to None (API default).
+
+    Returns:
+        str: Confirmation with permission details and shareable link.
+    """
+    logger.info(f"[share_drive_file] Invoked. Email: '{user_google_email}', File ID: '{file_id}', Share with: '{share_with}', Role: '{role}', Type: '{share_type}'")
+
+    validate_share_role(role)
+    validate_share_type(share_type)
+
+    if share_type in ('user', 'group') and not share_with:
+        raise ValueError(f"share_with is required for share_type '{share_type}'")
+    if share_type == 'domain' and not share_with:
+        raise ValueError("share_with (domain name) is required for share_type 'domain'")
+
+    resolved_file_id, file_metadata = await resolve_drive_item(
+        service, file_id, extra_fields="name, webViewLink"
+    )
+    file_id = resolved_file_id
+
+    permission_body = {
+        'type': share_type,
+        'role': role,
+    }
+
+    if share_type in ('user', 'group'):
+        permission_body['emailAddress'] = share_with
+    elif share_type == 'domain':
+        permission_body['domain'] = share_with
+
+    if expiration_time:
+        validate_expiration_time(expiration_time)
+        permission_body['expirationTime'] = expiration_time
+
+    if share_type in ('domain', 'anyone') and allow_file_discovery is not None:
+        permission_body['allowFileDiscovery'] = allow_file_discovery
+
+    create_params = {
+        'fileId': file_id,
+        'body': permission_body,
+        'supportsAllDrives': True,
+        'fields': 'id, type, role, emailAddress, domain, expirationTime',
+    }
+
+    if share_type in ('user', 'group'):
+        create_params['sendNotificationEmail'] = send_notification
+        if email_message:
+            create_params['emailMessage'] = email_message
+
+    created_permission = await asyncio.to_thread(
+        service.permissions().create(**create_params).execute
+    )
+
+    output_parts = [
+        f"Successfully shared '{file_metadata.get('name', 'Unknown')}'",
+        "",
+        "Permission created:",
+        f"  - {format_permission_info(created_permission)}",
+        "",
+        f"View link: {file_metadata.get('webViewLink', 'N/A')}",
+    ]
+
+    return "\n".join(output_parts)
+
+
+@server.tool()
+@handle_http_errors("batch_share_drive_file", is_read_only=False, service_type="drive")
+@require_google_service("drive", "drive_file")
+async def batch_share_drive_file(
+    service,
+    user_google_email: str,
+    file_id: str,
+    recipients: List[Dict[str, Any]],
+    send_notification: bool = True,
+    email_message: Optional[str] = None,
+) -> str:
+    """
+    Shares a Google Drive file or folder with multiple users or groups in a single operation.
+
+    Each recipient can have a different role and optional expiration time.
+
+    Note: Each recipient is processed sequentially. For very large recipient lists,
+    consider splitting into multiple calls.
+
+    Args:
+        user_google_email (str): The user's Google email address. Required.
+        file_id (str): The ID of the file or folder to share. Required.
+        recipients (List[Dict]): List of recipient objects. Each should have:
+            - email (str): Recipient email address. Required for 'user' or 'group' share_type.
+            - role (str): Permission role - 'reader', 'commenter', or 'writer'. Defaults to 'reader'.
+            - share_type (str, optional): 'user', 'group', or 'domain'. Defaults to 'user'.
+            - expiration_time (str, optional): Expiration in RFC 3339 format.
+            For domain shares, use 'domain' field instead of 'email':
+            - domain (str): Domain name. Required when share_type is 'domain'.
+        send_notification (bool): Whether to send notification emails. Defaults to True.
+        email_message (Optional[str]): Custom message for notification emails.
+
+    Returns:
+        str: Summary of created permissions with success/failure for each recipient.
+    """
+    logger.info(f"[batch_share_drive_file] Invoked. Email: '{user_google_email}', File ID: '{file_id}', Recipients: {len(recipients)}")
+
+    resolved_file_id, file_metadata = await resolve_drive_item(
+        service, file_id, extra_fields="name, webViewLink"
+    )
+    file_id = resolved_file_id
+
+    if not recipients:
+        raise ValueError("recipients list cannot be empty")
+
+    results = []
+    success_count = 0
+    failure_count = 0
+
+    for recipient in recipients:
+        share_type = recipient.get('share_type', 'user')
+
+        if share_type == 'domain':
+            domain = recipient.get('domain')
+            if not domain:
+                results.append("  - Skipped: missing domain for domain share")
+                failure_count += 1
+                continue
+            identifier = domain
+        else:
+            email = recipient.get('email')
+            if not email:
+                results.append("  - Skipped: missing email address")
+                failure_count += 1
+                continue
+            identifier = email
+
+        role = recipient.get('role', 'reader')
+        try:
+            validate_share_role(role)
+        except ValueError as e:
+            results.append(f"  - {identifier}: Failed - {e}")
+            failure_count += 1
+            continue
+
+        try:
+            validate_share_type(share_type)
+        except ValueError as e:
+            results.append(f"  - {identifier}: Failed - {e}")
+            failure_count += 1
+            continue
+
+        permission_body = {
+            'type': share_type,
+            'role': role,
+        }
+
+        if share_type == 'domain':
+            permission_body['domain'] = identifier
+        else:
+            permission_body['emailAddress'] = identifier
+
+        if recipient.get('expiration_time'):
+            try:
+                validate_expiration_time(recipient['expiration_time'])
+                permission_body['expirationTime'] = recipient['expiration_time']
+            except ValueError as e:
+                results.append(f"  - {identifier}: Failed - {e}")
+                failure_count += 1
+                continue
+
+        create_params = {
+            'fileId': file_id,
+            'body': permission_body,
+            'supportsAllDrives': True,
+            'fields': 'id, type, role, emailAddress, domain, expirationTime',
+        }
+
+        if share_type in ('user', 'group'):
+            create_params['sendNotificationEmail'] = send_notification
+            if email_message:
+                create_params['emailMessage'] = email_message
+
+        try:
+            created_permission = await asyncio.to_thread(
+                service.permissions().create(**create_params).execute
+            )
+            results.append(f"  - {format_permission_info(created_permission)}")
+            success_count += 1
+        except HttpError as e:
+            results.append(f"  - {identifier}: Failed - {str(e)}")
+            failure_count += 1
+
+    output_parts = [
+        f"Batch share results for '{file_metadata.get('name', 'Unknown')}'",
+        "",
+        f"Summary: {success_count} succeeded, {failure_count} failed",
+        "",
+        "Results:",
+    ]
+    output_parts.extend(results)
+    output_parts.extend([
+        "",
+        f"View link: {file_metadata.get('webViewLink', 'N/A')}",
+    ])
+
+    return "\n".join(output_parts)
+
+
+@server.tool()
+@handle_http_errors("update_drive_permission", is_read_only=False, service_type="drive")
+@require_google_service("drive", "drive_file")
+async def update_drive_permission(
+    service,
+    user_google_email: str,
+    file_id: str,
+    permission_id: str,
+    role: Optional[str] = None,
+    expiration_time: Optional[str] = None,
+) -> str:
+    """
+    Updates an existing permission on a Google Drive file or folder.
+
+    Args:
+        user_google_email (str): The user's Google email address. Required.
+        file_id (str): The ID of the file or folder. Required.
+        permission_id (str): The ID of the permission to update (from get_drive_file_permissions). Required.
+        role (Optional[str]): New role - 'reader', 'commenter', or 'writer'. If not provided, role unchanged.
+        expiration_time (Optional[str]): Expiration time in RFC 3339 format (e.g., "2025-01-15T00:00:00Z"). Set or update when permission expires.
+
+    Returns:
+        str: Confirmation with updated permission details.
+    """
+    logger.info(f"[update_drive_permission] Invoked. Email: '{user_google_email}', File ID: '{file_id}', Permission ID: '{permission_id}', Role: '{role}'")
+
+    if not role and not expiration_time:
+        raise ValueError("Must provide at least one of: role, expiration_time")
+
+    if role:
+        validate_share_role(role)
+    if expiration_time:
+        validate_expiration_time(expiration_time)
+
+    resolved_file_id, file_metadata = await resolve_drive_item(
+        service, file_id, extra_fields="name"
+    )
+    file_id = resolved_file_id
+
+    # Google API requires role in update body, so fetch current if not provided
+    if not role:
+        current_permission = await asyncio.to_thread(
+            service.permissions().get(
+                fileId=file_id,
+                permissionId=permission_id,
+                supportsAllDrives=True,
+                fields='role'
+            ).execute
+        )
+        role = current_permission.get('role')
+
+    update_body = {'role': role}
+    if expiration_time:
+        update_body['expirationTime'] = expiration_time
+
+    updated_permission = await asyncio.to_thread(
+        service.permissions().update(
+            fileId=file_id,
+            permissionId=permission_id,
+            body=update_body,
+            supportsAllDrives=True,
+            fields='id, type, role, emailAddress, domain, expirationTime'
+        ).execute
+    )
+
+    output_parts = [
+        f"Successfully updated permission on '{file_metadata.get('name', 'Unknown')}'",
+        "",
+        "Updated permission:",
+        f"  - {format_permission_info(updated_permission)}",
+    ]
+
+    return "\n".join(output_parts)
+
+
+@server.tool()
+@handle_http_errors("remove_drive_permission", is_read_only=False, service_type="drive")
+@require_google_service("drive", "drive_file")
+async def remove_drive_permission(
+    service,
+    user_google_email: str,
+    file_id: str,
+    permission_id: str,
+) -> str:
+    """
+    Removes a permission from a Google Drive file or folder, revoking access.
+
+    Args:
+        user_google_email (str): The user's Google email address. Required.
+        file_id (str): The ID of the file or folder. Required.
+        permission_id (str): The ID of the permission to remove (from get_drive_file_permissions). Required.
+
+    Returns:
+        str: Confirmation of the removed permission.
+    """
+    logger.info(f"[remove_drive_permission] Invoked. Email: '{user_google_email}', File ID: '{file_id}', Permission ID: '{permission_id}'")
+
+    resolved_file_id, file_metadata = await resolve_drive_item(
+        service, file_id, extra_fields="name"
+    )
+    file_id = resolved_file_id
+
+    await asyncio.to_thread(
+        service.permissions().delete(
+            fileId=file_id,
+            permissionId=permission_id,
+            supportsAllDrives=True
+        ).execute
+    )
+
+    output_parts = [
+        f"Successfully removed permission from '{file_metadata.get('name', 'Unknown')}'",
+        "",
+        f"Permission ID '{permission_id}' has been revoked.",
+    ]
+
+    return "\n".join(output_parts)
+
+
+@server.tool()
+@handle_http_errors("transfer_drive_ownership", is_read_only=False, service_type="drive")
+@require_google_service("drive", "drive_file")
+async def transfer_drive_ownership(
+    service,
+    user_google_email: str,
+    file_id: str,
+    new_owner_email: str,
+    move_to_new_owners_root: bool = False,
+) -> str:
+    """
+    Transfers ownership of a Google Drive file or folder to another user.
+
+    This is an irreversible operation. The current owner will become an editor.
+    Only works within the same Google Workspace domain or for personal accounts.
+
+    Args:
+        user_google_email (str): The user's Google email address. Required.
+        file_id (str): The ID of the file or folder to transfer. Required.
+        new_owner_email (str): Email address of the new owner. Required.
+        move_to_new_owners_root (bool): If True, moves the file to the new owner's My Drive root. Defaults to False.
+
+    Returns:
+        str: Confirmation of the ownership transfer.
+    """
+    logger.info(f"[transfer_drive_ownership] Invoked. Email: '{user_google_email}', File ID: '{file_id}', New owner: '{new_owner_email}'")
+
+    resolved_file_id, file_metadata = await resolve_drive_item(
+        service, file_id, extra_fields="name, owners"
+    )
+    file_id = resolved_file_id
+
+    current_owners = file_metadata.get('owners', [])
+    current_owner_emails = [o.get('emailAddress', '') for o in current_owners]
+
+    permission_body = {
+        'type': 'user',
+        'role': 'owner',
+        'emailAddress': new_owner_email,
+    }
+
+    await asyncio.to_thread(
+        service.permissions().create(
+            fileId=file_id,
+            body=permission_body,
+            transferOwnership=True,
+            moveToNewOwnersRoot=move_to_new_owners_root,
+            supportsAllDrives=True,
+            fields='id, type, role, emailAddress'
+        ).execute
+    )
+
+    output_parts = [
+        f"Successfully transferred ownership of '{file_metadata.get('name', 'Unknown')}'",
+        "",
+        f"New owner: {new_owner_email}",
+        f"Previous owner(s): {', '.join(current_owner_emails) or 'Unknown'}",
+    ]
+
+    if move_to_new_owners_root:
+        output_parts.append(f"File moved to {new_owner_email}'s My Drive root.")
+
+    output_parts.extend(["", "Note: Previous owner now has editor access."])
 
     return "\n".join(output_parts)
