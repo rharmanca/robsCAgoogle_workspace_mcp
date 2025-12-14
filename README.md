@@ -98,24 +98,24 @@ A production-ready MCP server that integrates all major Google Workspace service
 
 ---
 
-## ▶ Quick Start
+## Quick Start
 
 <details>
-<summary>≡ <b>Quick Reference Card</b>← Essential commands & configs at a glance</summary>
+<summary><b>Quick Reference Card</b> - Essential commands & configs at a glance</summary>
 
 <table>
 <tr><td width="33%" valign="top">
 
-**⊠ Credentials**
+**Credentials**
 ```bash
 export GOOGLE_OAUTH_CLIENT_ID="..."
 export GOOGLE_OAUTH_CLIENT_SECRET="..."
 ```
-[Full setup →](#-credential-configuration)
+[Full setup →](#credential-configuration)
 
 </td><td width="33%" valign="top">
 
-**▶ Launch Commands**
+**Launch Commands**
 ```bash
 uvx workspace-mcp --tool-tier core
 uv run main.py --tools gmail drive
@@ -124,10 +124,10 @@ uv run main.py --tools gmail drive
 
 </td><td width="34%" valign="top">
 
-**★ Tool Tiers**
-- ● `core` - Essential tools
-- ◐ `extended` - Core + extras
-- ○ `complete` - Everything
+**Tool Tiers**
+- `core` - Essential tools
+- `extended` - Core + extras
+- `complete` - Everything
 [Details →](#tool-tiers)
 
 </td></tr>
@@ -148,7 +148,7 @@ uv run main.py --tools gmail drive
 
 #### Required Configuration
 <details>
-<summary>◆ <b>Environment Variables</b> <sub><sup>← Click to configure in Claude Desktop</sup></sub></summary>
+<summary><b>Environment Variables</b> <sub><sup>← Click to configure in Claude Desktop</sup></sub></summary>
 
 <table>
 <tr><td width="50%" valign="top">
@@ -195,7 +195,7 @@ Claude Desktop stores these securely in the OS keychain; set them once in the ex
 ### Configuration
 
 <details open>
-<summary>◆ <b>Google Cloud Setup</b> <sub><sup>← OAuth 2.0 credentials & API enablement</sup></sub></summary>
+<summary><b>Google Cloud Setup</b> <sub><sup>← OAuth 2.0 credentials & API enablement</sup></sub></summary>
 
 <table>
 <tr>
@@ -242,7 +242,7 @@ Forms, Tasks, Chat, Search
 <td colspan="3">
 
 <details>
-<summary>≡ <b>OAuth Credential Setup Guide</b> <sub><sup>← Step-by-step instructions</sup></sub></summary>
+<summary><b>OAuth Credential Setup Guide</b> <sub><sup>← Step-by-step instructions</sup></sub></summary>
 
 **Complete Setup Process:**
 
@@ -263,7 +263,7 @@ Forms, Tasks, Chat, Search
    export GOOGLE_OAUTH_CLIENT_SECRET="your-secret"
    ```
 
-≡ [Full Documentation →](https://developers.google.com/workspace/guides/auth-overview)
+[Full Documentation →](https://developers.google.com/workspace/guides/auth-overview)
 
 </details>
 
@@ -272,7 +272,7 @@ Forms, Tasks, Chat, Search
 </table>
 
 <details>
-  <summary>⊥ <b>Quick API Enable Links</b> <sub><sup>← One-click enable each Google API</sup></sub></summary>
+  <summary><b>Quick API Enable Links</b> <sub><sup>← One-click enable each Google API</sup></sub></summary>
   You can enable each one by clicking the links below (make sure you're logged into the Google Cloud Console and have the correct project selected):
 
 * [Enable Google Calendar API](https://console.cloud.google.com/flows/enableapi?apiid=calendar-json.googleapis.com)
