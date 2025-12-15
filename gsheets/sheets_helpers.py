@@ -14,6 +14,7 @@ from core.utils import UserInputError
 
 
 A1_PART_REGEX = re.compile(r"^([A-Za-z]*)(\d*)$")
+SHEET_TITLE_SAFE_RE = re.compile(r"^[A-Za-z0-9_]+$")
 
 
 def _column_to_index(column: str) -> Optional[int]:
@@ -158,6 +159,233 @@ def _index_to_column(index: int) -> str:
         index, remainder = divmod(index - 1, 26)
         result.append(chr(ord("A") + remainder))
     return "".join(reversed(result))
+
+
+def _quote_sheet_title_for_a1(sheet_title: str) -> str:
+    """
+    Quote a sheet title for use in A1 notation if necessary.
+
+    If the sheet title contains special characters or spaces, it is wrapped in single quotes.
+    Any single quotes in the title are escaped by doubling them, as required by Google Sheets.
+    """
+    if SHEET_TITLE_SAFE_RE.match(sheet_title or ""):
+        return sheet_title
+    escaped = (sheet_title or "").replace("'", "''")
+    return f"'{escaped}'"
+
+
+def _format_a1_cell(sheet_title: str, row_index: int, col_index: int) -> str:
+    """
+    Format a cell reference in A1 notation given a sheet title and zero-based row/column indices.
+
+    Args:
+        sheet_title: The title of the sheet.
+        row_index: Zero-based row index (0 for first row).
+        col_index: Zero-based column index (0 for column A).
+
+    Returns:
+        A string representing the cell reference in A1 notation, e.g., 'Sheet1!B2'.
+    """
+    return f"{_quote_sheet_title_for_a1(sheet_title)}!{_index_to_column(col_index)}{row_index + 1}"
+
+
+def _coerce_int(value: object, default: int = 0) -> int:
+    """
+    Safely convert a value to an integer, returning a default value if conversion fails.
+
+    Args:
+        value: The value to convert to int.
+        default: The value to return if conversion fails (default is 0).
+
+    Returns:
+        The integer value of `value`, or `default` if conversion fails.
+    """
+    try:
+        return int(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return default
+
+
+def _is_sheets_error_token(value: object) -> bool:
+    """
+    Detect whether a cell value represents a Google Sheets error token (e.g., #ERROR!, #NAME?, #REF!, #N/A).
+
+    Returns True if the value is a string that starts with '#' and ends with '!' or '?', or is exactly '#N/A'.
+    """
+    if not isinstance(value, str):
+        return False
+    candidate = value.strip()
+    if not candidate.startswith("#"):
+        return False
+    upper_candidate = candidate.upper()
+    if upper_candidate == "#N/A":
+        return True
+    return upper_candidate.endswith(("!", "?"))
+
+
+def _values_contain_sheets_errors(values: List[List[object]]) -> bool:
+    """
+    Check whether a 2D array of cell values contains any Google Sheets error tokens.
+
+    Args:
+        values: A 2D list of cell values (as returned from the Sheets API).
+
+    Returns:
+        True if any cell contains a Google Sheets error token, False otherwise.
+    """
+    for row in values:
+        for cell in row:
+            if _is_sheets_error_token(cell):
+                return True
+    return False
+
+
+def _a1_range_for_values(a1_range: str, values: List[List[object]]) -> Optional[str]:
+    """
+    Compute a tight A1 range for a returned values matrix.
+
+    This helps keep follow-up includeGridData payloads small vs. using a wide requested range.
+    Only applies when the A1 range has an explicit starting cell (e.g., 'Sheet1!B2:D10').
+    """
+    sheet_name, range_part = _split_sheet_and_range(a1_range)
+    if not range_part:
+        return None
+
+    start_part = range_part.split(":", 1)[0]
+    start_col, start_row = _parse_a1_part(start_part)
+    if start_col is None or start_row is None:
+        return None
+
+    height = len(values)
+    width = max((len(row) for row in values), default=0)
+    if height <= 0 or width <= 0:
+        return None
+
+    end_row = start_row + height - 1
+    end_col = start_col + width - 1
+
+    start_label = f"{_index_to_column(start_col)}{start_row + 1}"
+    end_label = f"{_index_to_column(end_col)}{end_row + 1}"
+    range_ref = (
+        start_label if start_label == end_label else f"{start_label}:{end_label}"
+    )
+
+    if sheet_name:
+        return f"{_quote_sheet_title_for_a1(sheet_name)}!{range_ref}"
+    return range_ref
+
+
+def _extract_cell_errors_from_grid(spreadsheet: dict) -> list[dict[str, Optional[str]]]:
+    """
+    Extracts error information from spreadsheet grid data.
+
+    Iterates through the sheets and their grid data in the provided spreadsheet dictionary,
+    collecting all cell errors. Returns a list of dictionaries, each containing:
+        - "cell": the A1 notation of the cell with the error,
+        - "type": the error type (e.g., "ERROR", "N/A"),
+        - "message": the error message, if available.
+
+    Args:
+        spreadsheet (dict): The spreadsheet data as returned by the Sheets API with grid data included.
+
+    Returns:
+        list[dict[str, Optional[str]]]: List of error details for each cell with an error.
+    """
+    errors: list[dict[str, Optional[str]]] = []
+    for sheet in spreadsheet.get("sheets", []) or []:
+        sheet_title = sheet.get("properties", {}).get("title") or "Unknown"
+        for grid in sheet.get("data", []) or []:
+            start_row = _coerce_int(grid.get("startRow"), default=0)
+            start_col = _coerce_int(grid.get("startColumn"), default=0)
+            for row_offset, row_data in enumerate(grid.get("rowData", []) or []):
+                if not row_data:
+                    continue
+                for col_offset, cell_data in enumerate(
+                    row_data.get("values", []) or []
+                ):
+                    if not cell_data:
+                        continue
+                    error_value = (cell_data.get("effectiveValue") or {}).get(
+                        "errorValue"
+                    ) or None
+                    if not error_value:
+                        continue
+                    errors.append(
+                        {
+                            "cell": _format_a1_cell(
+                                sheet_title,
+                                start_row + row_offset,
+                                start_col + col_offset,
+                            ),
+                            "type": error_value.get("type"),
+                            "message": error_value.get("message"),
+                        }
+                    )
+    return errors
+
+
+async def _fetch_detailed_sheet_errors(
+    service, spreadsheet_id: str, a1_range: str
+) -> list[dict[str, Optional[str]]]:
+    response = await asyncio.to_thread(
+        service.spreadsheets()
+        .get(
+            spreadsheetId=spreadsheet_id,
+            ranges=[a1_range],
+            includeGridData=True,
+            fields="sheets(properties(title),data(startRow,startColumn,rowData(values(effectiveValue(errorValue(type,message))))))",
+        )
+        .execute
+    )
+    return _extract_cell_errors_from_grid(response)
+
+
+def _format_sheet_error_section(
+    *, errors: list[dict[str, Optional[str]]], range_label: str, max_details: int = 25
+) -> str:
+    """
+    Format a list of cell error information into a human-readable section.
+
+    Args:
+        errors: A list of dictionaries, each containing details about a cell error,
+            including the cell location, error type, and message.
+        range_label: A string label for the range in which the errors occurred.
+        max_details: The maximum number of error details to include in the output.
+            If the number of errors exceeds this value, the output will be truncated
+            and a summary line will indicate how many additional errors were omitted.
+
+    Returns:
+        A formatted string listing the cell errors in a human-readable format.
+        If there are no errors, returns an empty string.
+    """
+    # Limit the number of error details to 25 for performance and readability.
+    if not errors:
+        return ""
+
+    lines = []
+    for item in errors[:max_details]:
+        cell = item.get("cell") or "(unknown cell)"
+        error_type = item.get("type")
+        message = item.get("message")
+        if error_type and message:
+            lines.append(f"- {cell}: {error_type} — {message}")
+        elif message:
+            lines.append(f"- {cell}: {message}")
+        elif error_type:
+            lines.append(f"- {cell}: {error_type}")
+        else:
+            lines.append(f"- {cell}: (unknown error)")
+
+    suffix = (
+        f"\n... and {len(errors) - max_details} more errors"
+        if len(errors) > max_details
+        else ""
+    )
+    return (
+        f"\n\nDetailed cell errors in range '{range_label}':\n"
+        + "\n".join(lines)
+        + suffix
+    )
 
 
 def _color_to_hex(color: Optional[dict]) -> Optional[str]:
