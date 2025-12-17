@@ -39,7 +39,7 @@ Add to your `claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
-    "google-workspace": {
+    "work-google-workspace": {
       "command": "npx",
       "args": [
         "-y",
@@ -60,7 +60,7 @@ Add to your `claude_desktop_config.json`:
 ### Claude Code (CLI)
 
 ```bash
-claude mcp add --transport http google-workspace https://google-workspace-mcp-production-76d5.up.railway.app/mcp
+claude mcp add --transport http work-google-workspace https://google-workspace-mcp-production-76d5.up.railway.app/mcp
 ```
 
 ---
@@ -72,7 +72,7 @@ Add to your VS Code MCP settings:
 ```json
 {
   "servers": {
-    "google-workspace": {
+    "work-google-workspace": {
       "url": "https://google-workspace-mcp-production-76d5.up.railway.app/mcp/",
       "type": "http"
     }
