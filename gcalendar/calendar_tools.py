@@ -17,6 +17,7 @@ from googleapiclient.discovery import build
 
 from auth.service_decorator import require_google_service
 from core.utils import handle_http_errors
+from cache import cached_response
 
 from core.server import server
 
@@ -302,6 +303,7 @@ def _correct_time_format_for_api(
 
 
 @server.tool()
+@cached_response()
 @handle_http_errors("list_calendars", is_read_only=True, service_type="calendar")
 @require_google_service("calendar", "calendar_read")
 async def list_calendars(service, user_google_email: str) -> str:
@@ -336,6 +338,7 @@ async def list_calendars(service, user_google_email: str) -> str:
 
 
 @server.tool()
+@cached_response()
 @handle_http_errors("get_events", is_read_only=True, service_type="calendar")
 @require_google_service("calendar", "calendar_read")
 async def get_events(

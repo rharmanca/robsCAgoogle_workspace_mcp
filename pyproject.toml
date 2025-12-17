@@ -19,6 +19,10 @@ dependencies = [
  "pyjwt>=2.10.1",
  "python-dotenv>=1.1.0",
  "pyyaml>=6.0.2",
+ # Semantic caching dependencies
+ "qdrant-client>=1.7.0",
+ "redis>=5.0.0",
+ "sentence-transformers>=2.2.0",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
