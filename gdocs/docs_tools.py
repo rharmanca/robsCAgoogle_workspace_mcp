@@ -7,7 +7,7 @@ This module provides MCP tools for interacting with Google Docs API and managing
 import logging
 import asyncio
 import io
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from googleapiclient.http import MediaIoBaseDownload, MediaIoBaseUpload
 
@@ -19,6 +19,7 @@ from core.comments import create_comment_tools
 
 # Import helper functions for document operations
 from gdocs.docs_helpers import (
+    ColorInput,
     create_insert_text_request,
     create_delete_range_request,
     create_format_text_request,
@@ -365,8 +366,8 @@ async def modify_doc_text(
     underline: bool = None,
     font_size: int = None,
     font_family: str = None,
-    text_color: Any = None,
-    background_color: Any = None,
+    text_color: Optional[ColorInput] = None,
+    background_color: Optional[ColorInput] = None,
 ) -> str:
     """
     Modifies text in a Google Doc - can insert/replace text and/or apply formatting in a single operation.
