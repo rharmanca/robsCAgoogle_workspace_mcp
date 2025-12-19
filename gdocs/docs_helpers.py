@@ -6,12 +6,18 @@ to simplify the implementation of document editing tools.
 """
 
 import logging
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Optional, Tuple, Union
 
 logger = logging.getLogger(__name__)
 
+ColorComponent = Union[int, float]
+RgbColor = Tuple[ColorComponent, ColorComponent, ColorComponent]
+ColorInput = Union[str, RgbColor]
 
-def _normalize_color(color: Any, param_name: str) -> Optional[Dict[str, float]]:
+
+def _normalize_color(
+    color: Optional[ColorInput], param_name: str
+) -> Optional[Dict[str, float]]:
     """
     Normalize a user-supplied color into Docs API rgbColor format.
 
@@ -65,8 +71,8 @@ def build_text_style(
     underline: bool = None,
     font_size: int = None,
     font_family: str = None,
-    text_color: Any = None,
-    background_color: Any = None,
+    text_color: Optional[ColorInput] = None,
+    background_color: Optional[ColorInput] = None,
 ) -> tuple[Dict[str, Any], list[str]]:
     """
     Build text style object for Google Docs API requests.
@@ -181,8 +187,8 @@ def create_format_text_request(
     underline: bool = None,
     font_size: int = None,
     font_family: str = None,
-    text_color: Any = None,
-    background_color: Any = None,
+    text_color: Optional[ColorInput] = None,
+    background_color: Optional[ColorInput] = None,
 ) -> Optional[Dict[str, Any]]:
     """
     Create an updateTextStyle request for Google Docs API.
