@@ -16,15 +16,19 @@ from core.utils import handle_http_errors, UserInputError
 from core.comments import create_comment_tools
 from gsheets.sheets_helpers import (
     CONDITION_TYPES,
+    _a1_range_for_values,
     _build_boolean_rule,
     _build_gradient_rule,
+    _fetch_detailed_sheet_errors,
     _fetch_sheets_with_rules,
     _format_conditional_rules_section,
+    _format_sheet_error_section,
     _parse_a1_range,
     _parse_condition_values,
     _parse_gradient_points,
     _parse_hex_color,
     _select_sheet,
+    _values_contain_sheets_errors,
 )
 
 # Configure module logger
@@ -197,6 +201,24 @@ async def read_sheet_values(
     if not values:
         return f"No data found in range '{range_name}' for {user_google_email}."
 
+    detailed_errors_section = ""
+    if _values_contain_sheets_errors(values):
+        resolved_range = result.get("range", range_name)
+        detailed_range = _a1_range_for_values(resolved_range, values) or resolved_range
+        try:
+            errors = await _fetch_detailed_sheet_errors(
+                service, spreadsheet_id, detailed_range
+            )
+            detailed_errors_section = _format_sheet_error_section(
+                errors=errors, range_label=detailed_range
+            )
+        except Exception as exc:
+            logger.warning(
+                "[read_sheet_values] Failed fetching detailed error messages for range '%s': %s",
+                detailed_range,
+                exc,
+            )
+
     # Format the output as a readable table
     formatted_rows = []
     for i, row in enumerate(values, 1):
@@ -211,7 +233,7 @@ async def read_sheet_values(
     )
 
     logger.info(f"Successfully read {len(values)} rows for {user_google_email}.")
-    return text_output
+    return text_output + detailed_errors_section
 
 
 @server.tool()
@@ -296,6 +318,10 @@ async def modify_sheet_values(
                 spreadsheetId=spreadsheet_id,
                 range=range_name,
                 valueInputOption=value_input_option,
+                # NOTE: This increases response payload/shape by including `updatedData`, but lets
+                # us detect Sheets error tokens (e.g. "#VALUE!", "#REF!") without an extra read.
+                includeValuesInResponse=True,
+                responseValueRenderOption="FORMATTED_VALUE",
                 body=body,
             )
             .execute
@@ -305,10 +331,33 @@ async def modify_sheet_values(
         updated_rows = result.get("updatedRows", 0)
         updated_columns = result.get("updatedColumns", 0)
 
+        detailed_errors_section = ""
+        updated_data = result.get("updatedData") or {}
+        updated_values = updated_data.get("values", []) or []
+        if updated_values and _values_contain_sheets_errors(updated_values):
+            updated_range = result.get("updatedRange", range_name)
+            detailed_range = (
+                _a1_range_for_values(updated_range, updated_values) or updated_range
+            )
+            try:
+                errors = await _fetch_detailed_sheet_errors(
+                    service, spreadsheet_id, detailed_range
+                )
+                detailed_errors_section = _format_sheet_error_section(
+                    errors=errors, range_label=detailed_range
+                )
+            except Exception as exc:
+                logger.warning(
+                    "[modify_sheet_values] Failed fetching detailed error messages for range '%s': %s",
+                    detailed_range,
+                    exc,
+                )
+
         text_output = (
             f"Successfully updated range '{range_name}' in spreadsheet {spreadsheet_id} for {user_google_email}. "
             f"Updated: {updated_cells} cells, {updated_rows} rows, {updated_columns} columns."
         )
+        text_output += detailed_errors_section
         logger.info(
             f"Successfully updated {updated_cells} cells for {user_google_email}."
         )
