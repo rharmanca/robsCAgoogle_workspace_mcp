@@ -8,6 +8,7 @@ import logging
 import asyncio
 import base64
 import ssl
+from html.parser import HTMLParser
 from typing import Optional, List, Dict, Literal, Any
 
 from email.mime.text import MIMEText
@@ -30,6 +31,39 @@ logger = logging.getLogger(__name__)
 GMAIL_BATCH_SIZE = 25
 GMAIL_REQUEST_DELAY = 0.1
 HTML_BODY_TRUNCATE_LIMIT = 20000
+
+
+class _HTMLTextExtractor(HTMLParser):
+    """Extract readable text from HTML using stdlib."""
+
+    def __init__(self):
+        super().__init__()
+        self._text = []
+        self._skip = False
+
+    def handle_starttag(self, tag, attrs):
+        self._skip = tag in ("script", "style")
+
+    def handle_endtag(self, tag):
+        if tag in ("script", "style"):
+            self._skip = False
+
+    def handle_data(self, data):
+        if not self._skip:
+            self._text.append(data)
+
+    def get_text(self) -> str:
+        return " ".join("".join(self._text).split())
+
+
+def _html_to_text(html: str) -> str:
+    """Convert HTML to readable plain text."""
+    try:
+        parser = _HTMLTextExtractor()
+        parser.feed(html)
+        return parser.get_text()
+    except Exception:
+        return html
 
 
 def _extract_message_body(payload):
@@ -103,6 +137,7 @@ def _extract_message_bodies(payload):
 def _format_body_content(text_body: str, html_body: str) -> str:
     """
     Helper function to format message body content with HTML fallback and truncation.
+    Detects useless text/plain fallbacks (e.g., "Your client does not support HTML").
 
     Args:
         text_body: Plain text body content
@@ -111,15 +146,23 @@ def _format_body_content(text_body: str, html_body: str) -> str:
     Returns:
         Formatted body content string
     """
-    if text_body.strip():
+    text_stripped = text_body.strip()
+    html_stripped = html_body.strip()
+
+    # Detect useless fallback: HTML comments in text, or HTML is 50x+ longer
+    use_html = html_stripped and (
+        not text_stripped
+        or "<!--" in text_body
+        or len(html_body) > len(text_body) * 50
+    )
+
+    if use_html:
+        content = _html_to_text(html_body)
+        if len(content) > HTML_BODY_TRUNCATE_LIMIT:
+            content = content[:HTML_BODY_TRUNCATE_LIMIT] + "\n\n[Content truncated...]"
+        return content
+    elif text_stripped:
         return text_body
-    elif html_body.strip():
-        # Truncate very large HTML to keep responses manageable
-        if len(html_body) > HTML_BODY_TRUNCATE_LIMIT:
-            html_body = (
-                html_body[:HTML_BODY_TRUNCATE_LIMIT] + "\n\n[HTML content truncated...]"
-            )
-        return f"[HTML Content Converted]\n{html_body}"
     else:
         return "[No readable content found]"
 
