@@ -151,7 +151,9 @@ def _format_body_content(text_body: str, html_body: str) -> str:
 
     # Detect useless fallback: HTML comments in text, or HTML is 50x+ longer
     use_html = html_stripped and (
-        not text_stripped or "<!--" in text_stripped or len(html_stripped) > len(text_stripped) * 50
+        not text_stripped
+        or "<!--" in text_stripped
+        or len(html_stripped) > len(text_stripped) * 50
     )
 
     if use_html:
