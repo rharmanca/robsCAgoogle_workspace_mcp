@@ -713,10 +713,11 @@ async def get_drive_file_permissions(
             .get(
                 fileId=file_id,
                 fields="id, name, mimeType, size, modifiedTime, owners, "
-                       "permissions(id, type, role, emailAddress, domain, expirationTime, permissionDetails), "
-                       "webViewLink, webContentLink, shared, sharingUser, viewersCanCopyContent",
-                supportsAllDrives=True
-            ).execute
+                "permissions(id, type, role, emailAddress, domain, expirationTime, permissionDetails), "
+                "webViewLink, webContentLink, shared, sharingUser, viewersCanCopyContent",
+                supportsAllDrives=True,
+            )
+            .execute
         )
 
         # Format the response
@@ -1080,18 +1081,22 @@ async def get_drive_shareable_link(
     Returns:
         str: The shareable links and current sharing status.
     """
-    logger.info(f"[get_drive_shareable_link] Invoked. Email: '{user_google_email}', File ID: '{file_id}'")
+    logger.info(
+        f"[get_drive_shareable_link] Invoked. Email: '{user_google_email}', File ID: '{file_id}'"
+    )
 
     resolved_file_id, _ = await resolve_drive_item(service, file_id)
     file_id = resolved_file_id
 
     file_metadata = await asyncio.to_thread(
-        service.files().get(
+        service.files()
+        .get(
             fileId=file_id,
             fields="id, name, mimeType, webViewLink, webContentLink, shared, "
-                   "permissions(id, type, role, emailAddress, domain, expirationTime)",
-            supportsAllDrives=True
-        ).execute
+            "permissions(id, type, role, emailAddress, domain, expirationTime)",
+            supportsAllDrives=True,
+        )
+        .execute
     )
 
     output_parts = [
@@ -1104,11 +1109,11 @@ async def get_drive_shareable_link(
         f"  View: {file_metadata.get('webViewLink', 'N/A')}",
     ]
 
-    web_content_link = file_metadata.get('webContentLink')
+    web_content_link = file_metadata.get("webContentLink")
     if web_content_link:
         output_parts.append(f"  Download: {web_content_link}")
 
-    permissions = file_metadata.get('permissions', [])
+    permissions = file_metadata.get("permissions", [])
     if permissions:
         output_parts.append("")
         output_parts.append("Current permissions:")
@@ -1152,14 +1157,16 @@ async def share_drive_file(
     Returns:
         str: Confirmation with permission details and shareable link.
     """
-    logger.info(f"[share_drive_file] Invoked. Email: '{user_google_email}', File ID: '{file_id}', Share with: '{share_with}', Role: '{role}', Type: '{share_type}'")
+    logger.info(
+        f"[share_drive_file] Invoked. Email: '{user_google_email}', File ID: '{file_id}', Share with: '{share_with}', Role: '{role}', Type: '{share_type}'"
+    )
 
     validate_share_role(role)
     validate_share_type(share_type)
 
-    if share_type in ('user', 'group') and not share_with:
+    if share_type in ("user", "group") and not share_with:
         raise ValueError(f"share_with is required for share_type '{share_type}'")
-    if share_type == 'domain' and not share_with:
+    if share_type == "domain" and not share_with:
         raise ValueError("share_with (domain name) is required for share_type 'domain'")
 
     resolved_file_id, file_metadata = await resolve_drive_item(
@@ -1168,33 +1175,33 @@ async def share_drive_file(
     file_id = resolved_file_id
 
     permission_body = {
-        'type': share_type,
-        'role': role,
+        "type": share_type,
+        "role": role,
     }
 
-    if share_type in ('user', 'group'):
-        permission_body['emailAddress'] = share_with
-    elif share_type == 'domain':
-        permission_body['domain'] = share_with
+    if share_type in ("user", "group"):
+        permission_body["emailAddress"] = share_with
+    elif share_type == "domain":
+        permission_body["domain"] = share_with
 
     if expiration_time:
         validate_expiration_time(expiration_time)
-        permission_body['expirationTime'] = expiration_time
+        permission_body["expirationTime"] = expiration_time
 
-    if share_type in ('domain', 'anyone') and allow_file_discovery is not None:
-        permission_body['allowFileDiscovery'] = allow_file_discovery
+    if share_type in ("domain", "anyone") and allow_file_discovery is not None:
+        permission_body["allowFileDiscovery"] = allow_file_discovery
 
     create_params = {
-        'fileId': file_id,
-        'body': permission_body,
-        'supportsAllDrives': True,
-        'fields': 'id, type, role, emailAddress, domain, expirationTime',
+        "fileId": file_id,
+        "body": permission_body,
+        "supportsAllDrives": True,
+        "fields": "id, type, role, emailAddress, domain, expirationTime",
     }
 
-    if share_type in ('user', 'group'):
-        create_params['sendNotificationEmail'] = send_notification
+    if share_type in ("user", "group"):
+        create_params["sendNotificationEmail"] = send_notification
         if email_message:
-            create_params['emailMessage'] = email_message
+            create_params["emailMessage"] = email_message
 
     created_permission = await asyncio.to_thread(
         service.permissions().create(**create_params).execute
@@ -1247,7 +1254,9 @@ async def batch_share_drive_file(
     Returns:
         str: Summary of created permissions with success/failure for each recipient.
     """
-    logger.info(f"[batch_share_drive_file] Invoked. Email: '{user_google_email}', File ID: '{file_id}', Recipients: {len(recipients)}")
+    logger.info(
+        f"[batch_share_drive_file] Invoked. Email: '{user_google_email}', File ID: '{file_id}', Recipients: {len(recipients)}"
+    )
 
     resolved_file_id, file_metadata = await resolve_drive_item(
         service, file_id, extra_fields="name, webViewLink"
@@ -1262,24 +1271,24 @@ async def batch_share_drive_file(
     failure_count = 0
 
     for recipient in recipients:
-        share_type = recipient.get('share_type', 'user')
+        share_type = recipient.get("share_type", "user")
 
-        if share_type == 'domain':
-            domain = recipient.get('domain')
+        if share_type == "domain":
+            domain = recipient.get("domain")
             if not domain:
                 results.append("  - Skipped: missing domain for domain share")
                 failure_count += 1
                 continue
             identifier = domain
         else:
-            email = recipient.get('email')
+            email = recipient.get("email")
             if not email:
                 results.append("  - Skipped: missing email address")
                 failure_count += 1
                 continue
             identifier = email
 
-        role = recipient.get('role', 'reader')
+        role = recipient.get("role", "reader")
         try:
             validate_share_role(role)
         except ValueError as e:
@@ -1295,35 +1304,35 @@ async def batch_share_drive_file(
             continue
 
         permission_body = {
-            'type': share_type,
-            'role': role,
+            "type": share_type,
+            "role": role,
         }
 
-        if share_type == 'domain':
-            permission_body['domain'] = identifier
+        if share_type == "domain":
+            permission_body["domain"] = identifier
         else:
-            permission_body['emailAddress'] = identifier
+            permission_body["emailAddress"] = identifier
 
-        if recipient.get('expiration_time'):
+        if recipient.get("expiration_time"):
             try:
-                validate_expiration_time(recipient['expiration_time'])
-                permission_body['expirationTime'] = recipient['expiration_time']
+                validate_expiration_time(recipient["expiration_time"])
+                permission_body["expirationTime"] = recipient["expiration_time"]
             except ValueError as e:
                 results.append(f"  - {identifier}: Failed - {e}")
                 failure_count += 1
                 continue
 
         create_params = {
-            'fileId': file_id,
-            'body': permission_body,
-            'supportsAllDrives': True,
-            'fields': 'id, type, role, emailAddress, domain, expirationTime',
+            "fileId": file_id,
+            "body": permission_body,
+            "supportsAllDrives": True,
+            "fields": "id, type, role, emailAddress, domain, expirationTime",
         }
 
-        if share_type in ('user', 'group'):
-            create_params['sendNotificationEmail'] = send_notification
+        if share_type in ("user", "group"):
+            create_params["sendNotificationEmail"] = send_notification
             if email_message:
-                create_params['emailMessage'] = email_message
+                create_params["emailMessage"] = email_message
 
         try:
             created_permission = await asyncio.to_thread(
@@ -1343,10 +1352,12 @@ async def batch_share_drive_file(
         "Results:",
     ]
     output_parts.extend(results)
-    output_parts.extend([
-        "",
-        f"View link: {file_metadata.get('webViewLink', 'N/A')}",
-    ])
+    output_parts.extend(
+        [
+            "",
+            f"View link: {file_metadata.get('webViewLink', 'N/A')}",
+        ]
+    )
 
     return "\n".join(output_parts)
 
@@ -1375,7 +1386,9 @@ async def update_drive_permission(
     Returns:
         str: Confirmation with updated permission details.
     """
-    logger.info(f"[update_drive_permission] Invoked. Email: '{user_google_email}', File ID: '{file_id}', Permission ID: '{permission_id}', Role: '{role}'")
+    logger.info(
+        f"[update_drive_permission] Invoked. Email: '{user_google_email}', File ID: '{file_id}', Permission ID: '{permission_id}', Role: '{role}'"
+    )
 
     if not role and not expiration_time:
         raise ValueError("Must provide at least one of: role, expiration_time")
@@ -1393,27 +1406,31 @@ async def update_drive_permission(
     # Google API requires role in update body, so fetch current if not provided
     if not role:
         current_permission = await asyncio.to_thread(
-            service.permissions().get(
+            service.permissions()
+            .get(
                 fileId=file_id,
                 permissionId=permission_id,
                 supportsAllDrives=True,
-                fields='role'
-            ).execute
+                fields="role",
+            )
+            .execute
         )
-        role = current_permission.get('role')
+        role = current_permission.get("role")
 
-    update_body = {'role': role}
+    update_body = {"role": role}
     if expiration_time:
-        update_body['expirationTime'] = expiration_time
+        update_body["expirationTime"] = expiration_time
 
     updated_permission = await asyncio.to_thread(
-        service.permissions().update(
+        service.permissions()
+        .update(
             fileId=file_id,
             permissionId=permission_id,
             body=update_body,
             supportsAllDrives=True,
-            fields='id, type, role, emailAddress, domain, expirationTime'
-        ).execute
+            fields="id, type, role, emailAddress, domain, expirationTime",
+        )
+        .execute
     )
 
     output_parts = [
@@ -1446,7 +1463,9 @@ async def remove_drive_permission(
     Returns:
         str: Confirmation of the removed permission.
     """
-    logger.info(f"[remove_drive_permission] Invoked. Email: '{user_google_email}', File ID: '{file_id}', Permission ID: '{permission_id}'")
+    logger.info(
+        f"[remove_drive_permission] Invoked. Email: '{user_google_email}', File ID: '{file_id}', Permission ID: '{permission_id}'"
+    )
 
     resolved_file_id, file_metadata = await resolve_drive_item(
         service, file_id, extra_fields="name"
@@ -1454,11 +1473,9 @@ async def remove_drive_permission(
     file_id = resolved_file_id
 
     await asyncio.to_thread(
-        service.permissions().delete(
-            fileId=file_id,
-            permissionId=permission_id,
-            supportsAllDrives=True
-        ).execute
+        service.permissions()
+        .delete(fileId=file_id, permissionId=permission_id, supportsAllDrives=True)
+        .execute
     )
 
     output_parts = [
@@ -1471,7 +1488,9 @@ async def remove_drive_permission(
 
 
 @server.tool()
-@handle_http_errors("transfer_drive_ownership", is_read_only=False, service_type="drive")
+@handle_http_errors(
+    "transfer_drive_ownership", is_read_only=False, service_type="drive"
+)
 @require_google_service("drive", "drive_file")
 async def transfer_drive_ownership(
     service,
@@ -1495,31 +1514,35 @@ async def transfer_drive_ownership(
     Returns:
         str: Confirmation of the ownership transfer.
     """
-    logger.info(f"[transfer_drive_ownership] Invoked. Email: '{user_google_email}', File ID: '{file_id}', New owner: '{new_owner_email}'")
+    logger.info(
+        f"[transfer_drive_ownership] Invoked. Email: '{user_google_email}', File ID: '{file_id}', New owner: '{new_owner_email}'"
+    )
 
     resolved_file_id, file_metadata = await resolve_drive_item(
         service, file_id, extra_fields="name, owners"
     )
     file_id = resolved_file_id
 
-    current_owners = file_metadata.get('owners', [])
-    current_owner_emails = [o.get('emailAddress', '') for o in current_owners]
+    current_owners = file_metadata.get("owners", [])
+    current_owner_emails = [o.get("emailAddress", "") for o in current_owners]
 
     permission_body = {
-        'type': 'user',
-        'role': 'owner',
-        'emailAddress': new_owner_email,
+        "type": "user",
+        "role": "owner",
+        "emailAddress": new_owner_email,
     }
 
     await asyncio.to_thread(
-        service.permissions().create(
+        service.permissions()
+        .create(
             fileId=file_id,
             body=permission_body,
             transferOwnership=True,
             moveToNewOwnersRoot=move_to_new_owners_root,
             supportsAllDrives=True,
-            fields='id, type, role, emailAddress'
-        ).execute
+            fields="id, type, role, emailAddress",
+        )
+        .execute
     )
 
     output_parts = [

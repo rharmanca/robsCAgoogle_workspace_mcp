@@ -8,8 +8,8 @@ import asyncio
 import re
 from typing import List, Dict, Any, Optional, Tuple
 
-VALID_SHARE_ROLES = {'reader', 'commenter', 'writer'}
-VALID_SHARE_TYPES = {'user', 'group', 'domain', 'anyone'}
+VALID_SHARE_ROLES = {"reader", "commenter", "writer"}
+VALID_SHARE_TYPES = {"user", "group", "domain", "anyone"}
 
 
 def check_public_link_permission(permissions: List[Dict[str, Any]]) -> bool:
@@ -92,7 +92,7 @@ def validate_share_type(share_type: str) -> None:
 
 
 RFC3339_PATTERN = re.compile(
-    r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$'
+    r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$"
 )
 
 
@@ -123,32 +123,32 @@ def format_permission_info(permission: Dict[str, Any]) -> str:
     Returns:
         str: Human-readable permission description with ID
     """
-    perm_type = permission.get('type', 'unknown')
-    role = permission.get('role', 'unknown')
-    perm_id = permission.get('id', '')
+    perm_type = permission.get("type", "unknown")
+    role = permission.get("role", "unknown")
+    perm_id = permission.get("id", "")
 
-    if perm_type == 'anyone':
+    if perm_type == "anyone":
         base = f"Anyone with the link ({role}) [id: {perm_id}]"
-    elif perm_type == 'user':
-        email = permission.get('emailAddress', 'unknown')
+    elif perm_type == "user":
+        email = permission.get("emailAddress", "unknown")
         base = f"User: {email} ({role}) [id: {perm_id}]"
-    elif perm_type == 'group':
-        email = permission.get('emailAddress', 'unknown')
+    elif perm_type == "group":
+        email = permission.get("emailAddress", "unknown")
         base = f"Group: {email} ({role}) [id: {perm_id}]"
-    elif perm_type == 'domain':
-        domain = permission.get('domain', 'unknown')
+    elif perm_type == "domain":
+        domain = permission.get("domain", "unknown")
         base = f"Domain: {domain} ({role}) [id: {perm_id}]"
     else:
         base = f"{perm_type} ({role}) [id: {perm_id}]"
 
     extras = []
-    if permission.get('expirationTime'):
+    if permission.get("expirationTime"):
         extras.append(f"expires: {permission['expirationTime']}")
 
-    perm_details = permission.get('permissionDetails', [])
+    perm_details = permission.get("permissionDetails", [])
     if perm_details:
         for detail in perm_details:
-            if detail.get('inherited') and detail.get('inheritedFrom'):
+            if detail.get("inherited") and detail.get("inheritedFrom"):
                 extras.append(f"inherited from: {detail['inheritedFrom']}")
                 break
 
