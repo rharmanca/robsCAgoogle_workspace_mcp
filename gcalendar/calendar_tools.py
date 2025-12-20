@@ -903,7 +903,8 @@ async def modify_event(
                 "summary": summary,
                 "description": description,
                 "location": location,
-                "attendees": attendees,
+                # Use the already-normalized attendee objects (if provided); otherwise preserve existing
+                "attendees": event_body.get("attendees"),
             },
         )
 
