@@ -21,10 +21,17 @@ drive:
   core:
     - search_drive_files
     - get_drive_file_content
+    - get_drive_file_download_url
     - create_drive_file
+    - share_drive_file
+    - get_drive_shareable_link
   extended:
     - list_drive_items
     - update_drive_file
+    - update_drive_permission
+    - remove_drive_permission
+    - transfer_drive_ownership
+    - batch_share_drive_file
   complete:
     - get_drive_file_permissions
     - check_drive_file_public_access

@@ -698,9 +698,18 @@ cp .env.oauth21 .env
 |------|------|-------------|
 | `search_drive_files` | **Core** | Search files with query syntax |
 | `get_drive_file_content` | **Core** | Read file content (Office formats) |
+| `get_drive_file_download_url` | **Core** | Get download URL for Drive files |
 | `create_drive_file` | **Core** | Create files or fetch from URLs |
+| `share_drive_file` | **Core** | Share file with users/groups/domains/anyone |
+| `get_drive_shareable_link` | **Core** | Get shareable links for a file |
 | `list_drive_items` | Extended | List folder contents |
 | `update_drive_file` | Extended | Update file metadata, move between folders |
+| `batch_share_drive_file` | Extended | Share file with multiple recipients |
+| `update_drive_permission` | Extended | Modify permission role |
+| `remove_drive_permission` | Extended | Revoke file access |
+| `transfer_drive_ownership` | Extended | Transfer file ownership to another user |
+| `get_drive_file_permissions` | Complete | Get detailed file permissions |
+| `check_drive_file_public_access` | Complete | Check public sharing status |
 
 </td>
 </tr>
