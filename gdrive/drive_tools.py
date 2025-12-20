@@ -4,8 +4,12 @@ Google Drive MCP Tools
 This module provides MCP tools for interacting with Google Drive API.
 """
 
-import logging
 import asyncio
+import logging
+import io
+import httpx
+import base64
+
 from typing import Optional, List, Dict, Any
 from tempfile import NamedTemporaryFile
 from urllib.parse import urlparse
@@ -14,12 +18,10 @@ from pathlib import Path
 
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseDownload, MediaIoBaseUpload
-import io
-import httpx
-import base64
 
 from auth.service_decorator import require_google_service
 from auth.oauth_config import is_stateless_mode
+from core.attachment_storage import get_attachment_storage, get_attachment_url
 from core.utils import extract_office_xml_text, handle_http_errors
 from core.server import server
 from core.config import get_transport_mode
@@ -28,6 +30,7 @@ from gdrive.drive_helpers import (
     build_drive_list_params,
     check_public_link_permission,
     format_permission_info,
+    get_drive_image_url,
     resolve_drive_item,
     resolve_folder_id,
     validate_expiration_time,
@@ -337,8 +340,6 @@ async def get_drive_file_download_url(
 
     # Save file and generate URL
     try:
-        from core.attachment_storage import get_attachment_storage, get_attachment_url
-
         storage = get_attachment_storage()
 
         # Encode bytes to base64 (as expected by AttachmentStorage)
@@ -854,7 +855,6 @@ async def check_drive_file_public_access(
     )
 
     permissions = file_metadata.get("permissions", [])
-    from gdrive.drive_helpers import check_public_link_permission, get_drive_image_url
 
     has_public_link = check_public_link_permission(permissions)
 
