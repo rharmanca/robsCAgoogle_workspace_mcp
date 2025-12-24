@@ -441,6 +441,7 @@ async def get_events(
         link = item.get("htmlLink", "No Link")
         description = item.get("description", "No Description")
         location = item.get("location", "No Location")
+        color_id = item.get("colorId", "None")
         attendees = item.get("attendees", [])
         attendee_emails = (
             ", ".join([a.get("email", "") for a in attendees]) if attendees else "None"
@@ -454,6 +455,7 @@ async def get_events(
             f"- Ends: {end}\n"
             f"- Description: {description}\n"
             f"- Location: {location}\n"
+            f"- Color ID: {color_id}\n"
             f"- Attendees: {attendee_emails}\n"
             f"- Attendee Details: {attendee_details_str}\n"
         )
@@ -743,6 +745,35 @@ async def create_event(
     return confirmation_message
 
 
+def _normalize_attendees(
+    attendees: Optional[Union[List[str], List[Dict[str, Any]]]],
+) -> Optional[List[Dict[str, Any]]]:
+    """
+    Normalize attendees input to list of attendee objects.
+
+    Accepts either:
+    - List of email strings: ["user@example.com", "other@example.com"]
+    - List of attendee objects: [{"email": "user@example.com", "responseStatus": "accepted"}]
+    - Mixed list of both formats
+
+    Returns list of attendee dicts with at minimum 'email' key.
+    """
+    if attendees is None:
+        return None
+
+    normalized = []
+    for att in attendees:
+        if isinstance(att, str):
+            normalized.append({"email": att})
+        elif isinstance(att, dict) and "email" in att:
+            normalized.append(att)
+        else:
+            logger.warning(
+                f"[_normalize_attendees] Invalid attendee format: {att}, skipping"
+            )
+    return normalized
+
+
 @server.tool()
 @handle_http_errors("modify_event", service_type="calendar")
 @require_google_service("calendar", "calendar_events")
@@ -756,13 +787,14 @@ async def modify_event(
     end_time: Optional[str] = None,
     description: Optional[str] = None,
     location: Optional[str] = None,
-    attendees: Optional[List[str]] = None,
+    attendees: Optional[Union[List[str], List[Dict[str, Any]]]] = None,
     timezone: Optional[str] = None,
     add_google_meet: Optional[bool] = None,
     reminders: Optional[Union[str, List[Dict[str, Any]]]] = None,
     use_default_reminders: Optional[bool] = None,
     transparency: Optional[str] = None,
     visibility: Optional[str] = None,
+    color_id: Optional[str] = None,
 ) -> str:
     """
     Modifies an existing event.
@@ -776,13 +808,14 @@ async def modify_event(
         end_time (Optional[str]): New end time (RFC3339, e.g., "2023-10-27T11:00:00-07:00" or "2023-10-28" for all-day).
         description (Optional[str]): New event description.
         location (Optional[str]): New event location.
-        attendees (Optional[List[str]]): New attendee email addresses.
+        attendees (Optional[Union[List[str], List[Dict[str, Any]]]]): Attendees as email strings or objects with metadata. Supports: ["email@example.com"] or [{"email": "email@example.com", "responseStatus": "accepted", "organizer": true, "optional": true}]. When using objects, existing metadata (responseStatus, organizer, optional) is preserved. New attendees default to responseStatus="needsAction".
         timezone (Optional[str]): New timezone (e.g., "America/New_York").
         add_google_meet (Optional[bool]): Whether to add or remove Google Meet video conference. If True, adds Google Meet; if False, removes it; if None, leaves unchanged.
         reminders (Optional[Union[str, List[Dict[str, Any]]]]): JSON string or list of reminder objects to replace existing reminders. Each should have 'method' ("popup" or "email") and 'minutes' (0-40320). Max 5 reminders. Example: '[{"method": "popup", "minutes": 15}]' or [{"method": "popup", "minutes": 15}]
         use_default_reminders (Optional[bool]): Whether to use calendar's default reminders. If specified, overrides current reminder settings.
         transparency (Optional[str]): Event transparency for busy/free status. "opaque" shows as Busy, "transparent" shows as Available/Free. If None, preserves existing transparency setting.
         visibility (Optional[str]): Event visibility. "default" uses calendar default, "public" is visible to all, "private" is visible only to attendees, "confidential" is same as private (legacy). If None, preserves existing visibility setting.
+        color_id (Optional[str]): Event color ID (1-11). If None, preserves existing color.
 
     Returns:
         str: Confirmation message of the successful event modification with event link.
@@ -811,8 +844,14 @@ async def modify_event(
         event_body["description"] = description
     if location is not None:
         event_body["location"] = location
-    if attendees is not None:
-        event_body["attendees"] = [{"email": email} for email in attendees]
+
+    # Normalize attendees - accepts both email strings and full attendee objects
+    normalized_attendees = _normalize_attendees(attendees)
+    if normalized_attendees is not None:
+        event_body["attendees"] = normalized_attendees
+
+    if color_id is not None:
+        event_body["colorId"] = color_id
 
     # Handle reminders
     if reminders is not None or use_default_reminders is not None:
@@ -905,6 +944,7 @@ async def modify_event(
                 "location": location,
                 # Use the already-normalized attendee objects (if provided); otherwise preserve existing
                 "attendees": event_body.get("attendees"),
+                "colorId": color_id,
             },
         )
 
