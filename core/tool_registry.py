@@ -90,16 +90,42 @@ def filter_server_tools(server):
         if hasattr(tool_manager, "_tools"):
             tool_registry = tool_manager._tools
 
+            from auth.scopes import is_read_only_mode, get_all_read_only_scopes
+
+            read_only_mode = is_read_only_mode()
+            allowed_scopes = set(get_all_read_only_scopes()) if read_only_mode else None
+
             tools_to_remove = []
-            for tool_name in list(tool_registry.keys()):
+            for tool_name, tool_func in tool_registry.items():
+                # 1. Tier filtering
                 if not is_tool_enabled(tool_name):
                     tools_to_remove.append(tool_name)
+                    continue
+
+                # 2. Read-only filtering
+                if read_only_mode:
+                    # Check if tool has required scopes attached (from @require_google_service)
+                    # Note: FastMCP wraps functions in Tool objects, so we need to check .fn if available
+                    func_to_check = tool_func
+                    if hasattr(tool_func, "fn"):
+                        func_to_check = tool_func.fn
+                    
+                    required_scopes = getattr(func_to_check, "_required_google_scopes", [])
+                    
+                    if required_scopes:
+                        # If ANY required scope is not in the allowed read-only scopes, disable the tool
+                        if not all(scope in allowed_scopes for scope in required_scopes):
+                            logger.info(
+                                f"Read-only mode: Disabling tool '{tool_name}' (requires write scopes: {required_scopes})"
+                            )
+                            tools_to_remove.append(tool_name)
 
             for tool_name in tools_to_remove:
-                del tool_registry[tool_name]
-                tools_removed += 1
+                if tool_name in tool_registry:
+                    del tool_registry[tool_name]
+                    tools_removed += 1
 
     if tools_removed > 0:
         logger.info(
-            f"Tool tier filtering: removed {tools_removed} tools, {len(enabled_tools)} enabled"
+            f"Tool filtering: removed {tools_removed} tools. Mode: {'Read-Only' if is_read_only_mode() else 'Full'}"
         )

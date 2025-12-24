@@ -522,6 +522,13 @@ uv run main.py --tools sheets docs
 uv run main.py --single-user --tools gmail
 ```
 
+
+**🔒 Read-Only Mode**
+```bash
+# Requests only read-only scopes & disables write tools
+uv run main.py --read-only
+```
+
 **★ Tool Tiers**
 ```bash
 uv run main.py --tool-tier core      # ● Essential tools only

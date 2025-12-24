@@ -113,6 +113,20 @@ TOOL_SCOPES_MAP = {
     "search": CUSTOM_SEARCH_SCOPES,
 }
 
+# Tool-to-read-only-scopes mapping
+TOOL_READONLY_SCOPES_MAP = {
+    "gmail": [GMAIL_READONLY_SCOPE],
+    "drive": [DRIVE_READONLY_SCOPE],
+    "calendar": [CALENDAR_READONLY_SCOPE],
+    "docs": [DOCS_READONLY_SCOPE],
+    "sheets": [SHEETS_READONLY_SCOPE],
+    "chat": [CHAT_READONLY_SCOPE],
+    "forms": [FORMS_BODY_READONLY_SCOPE, FORMS_RESPONSES_READONLY_SCOPE],
+    "slides": [SLIDES_READONLY_SCOPE],
+    "tasks": [TASKS_READONLY_SCOPE],
+    "search": CUSTOM_SEARCH_SCOPES,
+}
+
 
 def set_enabled_tools(enabled_tools):
     """
@@ -126,6 +140,35 @@ def set_enabled_tools(enabled_tools):
     logger.info(f"Enabled tools set for scope management: {enabled_tools}")
 
 
+# Global variable to store read-only mode (set by main.py)
+_READ_ONLY_MODE = False
+
+
+def set_read_only(enabled: bool):
+    """
+    Set the global read-only mode.
+
+    Args:
+        enabled: Boolean indicating if read-only mode should be enabled.
+    """
+    global _READ_ONLY_MODE
+    _READ_ONLY_MODE = enabled
+    logger.info(f"Read-only mode set to: {enabled}")
+
+
+def is_read_only_mode() -> bool:
+    """Check if read-only mode is enabled."""
+    return _READ_ONLY_MODE
+
+
+def get_all_read_only_scopes() -> list[str]:
+    """Get all possible read-only scopes across all tools."""
+    all_scopes = set(BASE_SCOPES)
+    for scopes in TOOL_READONLY_SCOPES_MAP.values():
+        all_scopes.update(scopes)
+    return list(all_scopes)
+
+
 def get_current_scopes():
     """
     Returns scopes for currently enabled tools.
@@ -134,24 +177,7 @@ def get_current_scopes():
     Returns:
         List of unique scopes for the enabled tools plus base scopes.
     """
-    enabled_tools = _ENABLED_TOOLS
-    if enabled_tools is None:
-        # Default behavior - return all scopes
-        enabled_tools = TOOL_SCOPES_MAP.keys()
-
-    # Start with base scopes (always required)
-    scopes = BASE_SCOPES.copy()
-
-    # Add scopes for each enabled tool
-    for tool in enabled_tools:
-        if tool in TOOL_SCOPES_MAP:
-            scopes.extend(TOOL_SCOPES_MAP[tool])
-
-    logger.debug(
-        f"Generated scopes for tools {list(enabled_tools)}: {len(set(scopes))} unique scopes"
-    )
-    # Return unique scopes
-    return list(set(scopes))
+    return get_scopes_for_tools(_ENABLED_TOOLS)
 
 
 def get_scopes_for_tools(enabled_tools=None):
@@ -171,11 +197,18 @@ def get_scopes_for_tools(enabled_tools=None):
     # Start with base scopes (always required)
     scopes = BASE_SCOPES.copy()
 
+    # Determine which map to use based on read-only mode
+    scope_map = TOOL_READONLY_SCOPES_MAP if _READ_ONLY_MODE else TOOL_SCOPES_MAP
+    mode_str = "read-only" if _READ_ONLY_MODE else "full"
+
     # Add scopes for each enabled tool
     for tool in enabled_tools:
-        if tool in TOOL_SCOPES_MAP:
-            scopes.extend(TOOL_SCOPES_MAP[tool])
+        if tool in scope_map:
+            scopes.extend(scope_map[tool])
 
+    logger.debug(
+        f"Generated {mode_str} scopes for tools {list(enabled_tools)}: {len(set(scopes))} unique scopes"
+    )
     # Return unique scopes
     return list(set(scopes))
 
