@@ -9,6 +9,8 @@ import logging
 import io
 import httpx
 import base64
+import ipaddress
+import socket
 
 from typing import Optional, List, Dict, Any
 from tempfile import NamedTemporaryFile
@@ -678,6 +680,258 @@ async def create_drive_file(
     confirmation_message = f"Successfully created file '{created_file.get('name', file_name)}' (ID: {created_file.get('id', 'N/A')}) in folder '{folder_id}' for {user_google_email}. Link: {link}"
     logger.info(f"Successfully created file. Link: {link}")
     return confirmation_message
+
+
+# Mapping of file extensions to source MIME types for Google Docs conversion
+GOOGLE_DOCS_IMPORT_FORMATS = {
+    ".md": "text/markdown",
+    ".markdown": "text/markdown",
+    ".txt": "text/plain",
+    ".text": "text/plain",
+    ".html": "text/html",
+    ".htm": "text/html",
+    ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ".doc": "application/msword",
+    ".rtf": "application/rtf",
+    ".odt": "application/vnd.oasis.opendocument.text",
+}
+
+GOOGLE_DOCS_MIME_TYPE = "application/vnd.google-apps.document"
+
+
+def _validate_url_not_internal(url: str) -> None:
+    """
+    Validate that a URL doesn't point to internal/private networks (SSRF protection).
+
+    Raises:
+        ValueError: If URL points to localhost or private IP ranges
+    """
+    parsed = urlparse(url)
+    hostname = parsed.hostname
+
+    if not hostname:
+        raise ValueError("Invalid URL: no hostname")
+
+    # Block localhost variants
+    if hostname.lower() in ("localhost", "127.0.0.1", "::1", "0.0.0.0"):
+        raise ValueError("URLs pointing to localhost are not allowed")
+
+    # Resolve hostname and check if it's a private IP
+    try:
+        ip = ipaddress.ip_address(socket.gethostbyname(hostname))
+        if ip.is_private or ip.is_loopback or ip.is_reserved:
+            raise ValueError(
+                f"URLs pointing to private/internal networks are not allowed: {hostname}"
+            )
+    except socket.gaierror:
+        pass  # Can't resolve, let httpx handle it
+
+
+def _detect_source_format(file_name: str, content: Optional[str] = None) -> str:
+    """
+    Detect the source MIME type based on file extension.
+    Falls back to text/plain if unknown.
+    """
+    ext = Path(file_name).suffix.lower()
+    if ext in GOOGLE_DOCS_IMPORT_FORMATS:
+        return GOOGLE_DOCS_IMPORT_FORMATS[ext]
+
+    # If content is provided and looks like markdown, use markdown
+    if content and (content.startswith("#") or "```" in content or "**" in content):
+        return "text/markdown"
+
+    return "text/plain"
+
+
+@server.tool()
+@handle_http_errors("import_to_google_doc", service_type="drive")
+@require_google_service("drive", "drive_file")
+async def import_to_google_doc(
+    service,
+    user_google_email: str,
+    file_name: str,
+    content: Optional[str] = None,
+    file_path: Optional[str] = None,
+    file_url: Optional[str] = None,
+    source_format: Optional[str] = None,
+    folder_id: str = "root",
+) -> str:
+    """
+    Imports a file (Markdown, DOCX, TXT, HTML, RTF, ODT) into Google Docs format with automatic conversion.
+
+    Google Drive automatically converts the source file to native Google Docs format,
+    preserving formatting like headings, lists, bold, italic, etc.
+
+    Args:
+        user_google_email (str): The user's Google email address. Required.
+        file_name (str): The name for the new Google Doc (extension will be ignored).
+        content (Optional[str]): Text content for text-based formats (MD, TXT, HTML).
+        file_path (Optional[str]): Local file path for binary formats (DOCX, ODT). Supports file:// URLs.
+        file_url (Optional[str]): Remote URL to fetch the file from (http/https).
+        source_format (Optional[str]): Source format hint ('md', 'markdown', 'docx', 'txt', 'html', 'rtf', 'odt').
+                                       Auto-detected from file_name extension if not provided.
+        folder_id (str): The ID of the parent folder. Defaults to 'root'.
+
+    Returns:
+        str: Confirmation message with the new Google Doc link.
+
+    Examples:
+        # Import markdown content directly
+        import_to_google_doc(file_name="My Doc.md", content="# Title\\n\\nHello **world**")
+
+        # Import a local DOCX file
+        import_to_google_doc(file_name="Report", file_path="/path/to/report.docx")
+
+        # Import from URL
+        import_to_google_doc(file_name="Remote Doc", file_url="https://example.com/doc.md")
+    """
+    logger.info(
+        f"[import_to_google_doc] Invoked. Email: '{user_google_email}', "
+        f"File Name: '{file_name}', Source Format: '{source_format}', Folder ID: '{folder_id}'"
+    )
+
+    # Validate inputs
+    source_count = sum(1 for x in [content, file_path, file_url] if x is not None)
+    if source_count == 0:
+        raise ValueError("You must provide one of: 'content', 'file_path', or 'file_url'.")
+    if source_count > 1:
+        raise ValueError("Provide only one of: 'content', 'file_path', or 'file_url'.")
+
+    # Determine source MIME type
+    if source_format:
+        # Normalize format hint
+        format_key = f".{source_format.lower().lstrip('.')}"
+        if format_key in GOOGLE_DOCS_IMPORT_FORMATS:
+            source_mime_type = GOOGLE_DOCS_IMPORT_FORMATS[format_key]
+        else:
+            raise ValueError(
+                f"Unsupported source_format: '{source_format}'. "
+                f"Supported: {', '.join(ext.lstrip('.') for ext in GOOGLE_DOCS_IMPORT_FORMATS.keys())}"
+            )
+    else:
+        # Auto-detect from file_name, file_path, or file_url
+        detection_name = file_path or file_url or file_name
+        source_mime_type = _detect_source_format(detection_name, content)
+
+    logger.info(f"[import_to_google_doc] Detected source MIME type: {source_mime_type}")
+
+    # Clean up file name (remove extension since it becomes a Google Doc)
+    doc_name = Path(file_name).stem if Path(file_name).suffix else file_name
+
+    # Resolve folder
+    resolved_folder_id = await resolve_folder_id(service, folder_id)
+
+    # File metadata - destination is Google Docs format
+    file_metadata = {
+        "name": doc_name,
+        "parents": [resolved_folder_id],
+        "mimeType": GOOGLE_DOCS_MIME_TYPE,  # Target format = Google Docs
+    }
+
+    file_data: bytes
+
+    # Handle content (string input for text formats)
+    if content is not None:
+        file_data = content.encode("utf-8")
+        logger.info(f"[import_to_google_doc] Using content: {len(file_data)} bytes")
+
+    # Handle file_path (local file)
+    elif file_path is not None:
+        parsed_url = urlparse(file_path)
+
+        # Handle file:// URL format
+        if parsed_url.scheme == "file":
+            raw_path = parsed_url.path or ""
+            netloc = parsed_url.netloc
+            if netloc and netloc.lower() != "localhost":
+                raw_path = f"//{netloc}{raw_path}"
+            actual_path = url2pathname(raw_path)
+        elif parsed_url.scheme == "":
+            # Regular path
+            actual_path = file_path
+        else:
+            raise ValueError(f"file_path should be a local path or file:// URL, got: {file_path}")
+
+        path_obj = Path(actual_path)
+        if not path_obj.exists():
+            raise FileNotFoundError(f"File not found: {actual_path}")
+        if not path_obj.is_file():
+            raise ValueError(f"Path is not a file: {actual_path}")
+
+        file_data = await asyncio.to_thread(path_obj.read_bytes)
+        logger.info(f"[import_to_google_doc] Read local file: {len(file_data)} bytes")
+
+        # Re-detect format from actual file if not specified
+        if not source_format:
+            source_mime_type = _detect_source_format(actual_path)
+            logger.info(f"[import_to_google_doc] Re-detected from path: {source_mime_type}")
+
+    # Handle file_url (remote file)
+    elif file_url is not None:
+        parsed_url = urlparse(file_url)
+        if parsed_url.scheme not in ("http", "https"):
+            raise ValueError(f"file_url must be http:// or https://, got: {file_url}")
+
+        # SSRF protection: block internal/private network URLs
+        _validate_url_not_internal(file_url)
+
+        async with httpx.AsyncClient(follow_redirects=True) as client:
+            resp = await client.get(file_url)
+            if resp.status_code != 200:
+                raise Exception(f"Failed to fetch file from URL: {file_url} (status {resp.status_code})")
+            file_data = resp.content
+
+        logger.info(f"[import_to_google_doc] Downloaded from URL: {len(file_data)} bytes")
+
+        # Re-detect format from URL if not specified
+        if not source_format:
+            source_mime_type = _detect_source_format(file_url)
+            logger.info(f"[import_to_google_doc] Re-detected from URL: {source_mime_type}")
+
+    # Upload with conversion
+    media = MediaIoBaseUpload(
+        io.BytesIO(file_data),
+        mimetype=source_mime_type,  # Source format
+        resumable=True,
+        chunksize=UPLOAD_CHUNK_SIZE_BYTES,
+    )
+
+    logger.info(
+        f"[import_to_google_doc] Uploading to Google Drive with conversion: "
+        f"{source_mime_type} → {GOOGLE_DOCS_MIME_TYPE}"
+    )
+
+    created_file = await asyncio.to_thread(
+        service.files()
+        .create(
+            body=file_metadata,
+            media_body=media,
+            fields="id, name, webViewLink, mimeType",
+            supportsAllDrives=True,
+        )
+        .execute
+    )
+
+    result_mime = created_file.get("mimeType", "unknown")
+    if result_mime != GOOGLE_DOCS_MIME_TYPE:
+        logger.warning(
+            f"[import_to_google_doc] Conversion may have failed. "
+            f"Expected {GOOGLE_DOCS_MIME_TYPE}, got {result_mime}"
+        )
+
+    link = created_file.get("webViewLink", "No link available")
+    doc_id = created_file.get("id", "N/A")
+
+    confirmation = (
+        f"✅ Successfully imported '{doc_name}' as Google Doc\n"
+        f"   Document ID: {doc_id}\n"
+        f"   Source format: {source_mime_type}\n"
+        f"   Folder: {folder_id}\n"
+        f"   Link: {link}"
+    )
+
+    logger.info(f"[import_to_google_doc] Success. Link: {link}")
+    return confirmation
 
 
 @server.tool()
