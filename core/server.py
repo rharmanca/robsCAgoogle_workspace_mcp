@@ -168,7 +168,8 @@ def configure_server_for_http():
                         "WORKSPACE_MCP_OAUTH_PROXY_VALKEY_USE_TLS", ""
                     ).strip()
                     valkey_use_tls = (
-                        _parse_bool_env(valkey_use_tls_raw) if valkey_use_tls_raw 
+                        _parse_bool_env(valkey_use_tls_raw)
+                        if valkey_use_tls_raw
                         else valkey_port == 6380
                     )
 
@@ -340,7 +341,7 @@ def configure_server_for_http():
             # else: client_storage remains None, FastMCP uses its default
 
             # Ensure JWT signing key is always derived for all storage backends
-            if 'jwt_signing_key' not in locals():
+            if "jwt_signing_key" not in locals():
                 jwt_signing_key = validate_and_derive_jwt_key(
                     jwt_signing_key_override, config.client_secret
                 )
