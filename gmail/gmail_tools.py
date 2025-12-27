@@ -216,7 +216,6 @@ def _extract_headers(payload: dict, header_names: List[str]) -> Dict[str, str]:
     """
     headers = {}
     target_headers = {name.lower(): name for name in header_names}
-    
     for header in payload.get("headers", []):
         header_name_lower = header["name"].lower()
         if header_name_lower in target_headers:
