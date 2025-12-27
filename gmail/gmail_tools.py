@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
 GMAIL_BATCH_SIZE = 25
 GMAIL_REQUEST_DELAY = 0.1
 HTML_BODY_TRUNCATE_LIMIT = 20000
+GMAIL_METADATA_HEADERS = ["Subject", "From", "To", "Cc", "Message-ID"]
 
 
 class _HTMLTextExtractor(HTMLParser):
@@ -214,9 +215,12 @@ def _extract_headers(payload: dict, header_names: List[str]) -> Dict[str, str]:
         Dict mapping header names to their values
     """
     headers = {}
+    target_headers = {name.lower(): name for name in header_names}
     for header in payload.get("headers", []):
-        if header["name"] in header_names:
-            headers[header["name"]] = header["value"]
+        header_name_lower = header["name"].lower()
+        if header_name_lower in target_headers:
+            # Store using the original requested casing
+            headers[target_headers[header_name_lower]] = header["value"]
     return headers
 
 
@@ -473,19 +477,19 @@ async def get_gmail_message_content(
             userId="me",
             id=message_id,
             format="metadata",
-            metadataHeaders=["Subject", "From", "To", "Cc"],
+            metadataHeaders=GMAIL_METADATA_HEADERS,
         )
         .execute
     )
 
-    headers = {
-        h["name"]: h["value"]
-        for h in message_metadata.get("payload", {}).get("headers", [])
-    }
+    headers = _extract_headers(
+        message_metadata.get("payload", {}), GMAIL_METADATA_HEADERS
+    )
     subject = headers.get("Subject", "(no subject)")
     sender = headers.get("From", "(unknown sender)")
     to = headers.get("To", "")
     cc = headers.get("Cc", "")
+    rfc822_msg_id = headers.get("Message-ID", "")
 
     # Now fetch the full message to get the body parts
     message_full = await asyncio.to_thread(
@@ -515,6 +519,9 @@ async def get_gmail_message_content(
         f"Subject: {subject}",
         f"From:    {sender}",
     ]
+
+    if rfc822_msg_id:
+        content_lines.append(f"Message-ID: {rfc822_msg_id}")
 
     if to:
         content_lines.append(f"To:      {to}")
@@ -591,7 +598,7 @@ async def get_gmail_messages_content_batch(
                             userId="me",
                             id=mid,
                             format="metadata",
-                            metadataHeaders=["Subject", "From", "To", "Cc"],
+                            metadataHeaders=GMAIL_METADATA_HEADERS,
                         )
                     )
                 else:
@@ -623,7 +630,7 @@ async def get_gmail_messages_content_batch(
                                     userId="me",
                                     id=mid,
                                     format="metadata",
-                                    metadataHeaders=["Subject", "From", "To", "Cc"],
+                                    metadataHeaders=GMAIL_METADATA_HEADERS,
                                 )
                                 .execute
                             )
@@ -674,15 +681,19 @@ async def get_gmail_messages_content_batch(
                 payload = message.get("payload", {})
 
                 if format == "metadata":
-                    headers = _extract_headers(payload, ["Subject", "From", "To", "Cc"])
+                    headers = _extract_headers(payload, GMAIL_METADATA_HEADERS)
                     subject = headers.get("Subject", "(no subject)")
                     sender = headers.get("From", "(unknown sender)")
                     to = headers.get("To", "")
                     cc = headers.get("Cc", "")
+                    rfc822_msg_id = headers.get("Message-ID", "")
 
                     msg_output = (
                         f"Message ID: {mid}\nSubject: {subject}\nFrom: {sender}\n"
                     )
+                    if rfc822_msg_id:
+                        msg_output += f"Message-ID: {rfc822_msg_id}\n"
+
                     if to:
                         msg_output += f"To: {to}\n"
                     if cc:
@@ -692,11 +703,12 @@ async def get_gmail_messages_content_batch(
                     output_messages.append(msg_output)
                 else:
                     # Full format - extract body too
-                    headers = _extract_headers(payload, ["Subject", "From", "To", "Cc"])
+                    headers = _extract_headers(payload, GMAIL_METADATA_HEADERS)
                     subject = headers.get("Subject", "(no subject)")
                     sender = headers.get("From", "(unknown sender)")
                     to = headers.get("To", "")
                     cc = headers.get("Cc", "")
+                    rfc822_msg_id = headers.get("Message-ID", "")
 
                     # Extract both text and HTML bodies using enhanced helper function
                     bodies = _extract_message_bodies(payload)
@@ -709,6 +721,9 @@ async def get_gmail_messages_content_batch(
                     msg_output = (
                         f"Message ID: {mid}\nSubject: {subject}\nFrom: {sender}\n"
                     )
+                    if rfc822_msg_id:
+                        msg_output += f"Message-ID: {rfc822_msg_id}\n"
+
                     if to:
                         msg_output += f"To: {to}\n"
                     if cc:
