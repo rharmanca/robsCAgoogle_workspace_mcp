@@ -1004,6 +1004,52 @@ This mode is ideal for:
 
 **Claude Code**: No additional configuration needed with desktop OAuth client.
 
+### OAuth Proxy Storage Backends
+
+The server supports pluggable storage backends for OAuth proxy state management via FastMCP 2.13.0+. Choose a backend based on your deployment needs.
+
+**Available Backends:**
+
+| Backend | Best For | Persistence | Multi-Server |
+|---------|----------|-------------|--------------|
+| Memory | Development, testing | ❌ | ❌ |
+| Disk | Single-server production | ✅ | ❌ |
+| Valkey/Redis | Distributed production | ✅ | ✅ |
+
+**Configuration:**
+
+```bash
+# Memory storage (fast, no persistence)
+export WORKSPACE_MCP_OAUTH_PROXY_STORAGE_BACKEND=memory
+
+# Disk storage (persists across restarts)
+export WORKSPACE_MCP_OAUTH_PROXY_STORAGE_BACKEND=disk
+export WORKSPACE_MCP_OAUTH_PROXY_DISK_DIRECTORY=~/.fastmcp/oauth-proxy
+
+# Valkey/Redis storage (distributed, multi-server)
+export WORKSPACE_MCP_OAUTH_PROXY_STORAGE_BACKEND=valkey
+export WORKSPACE_MCP_OAUTH_PROXY_VALKEY_HOST=redis.example.com
+export WORKSPACE_MCP_OAUTH_PROXY_VALKEY_PORT=6379
+```
+
+<details>
+<summary>🔐 <b>Valkey/Redis Configuration Options</b></summary>
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `WORKSPACE_MCP_OAUTH_PROXY_VALKEY_HOST` | localhost | Valkey/Redis host |
+| `WORKSPACE_MCP_OAUTH_PROXY_VALKEY_PORT` | 6379 | Port (6380 auto-enables TLS) |
+| `WORKSPACE_MCP_OAUTH_PROXY_VALKEY_DB` | 0 | Database number |
+| `WORKSPACE_MCP_OAUTH_PROXY_VALKEY_USE_TLS` | auto | Enable TLS (auto if port 6380) |
+| `WORKSPACE_MCP_OAUTH_PROXY_VALKEY_USERNAME` | - | Authentication username |
+| `WORKSPACE_MCP_OAUTH_PROXY_VALKEY_PASSWORD` | - | Authentication password |
+| `WORKSPACE_MCP_OAUTH_PROXY_VALKEY_REQUEST_TIMEOUT_MS` | 5000 | Request timeout for remote hosts |
+| `WORKSPACE_MCP_OAUTH_PROXY_VALKEY_CONNECTION_TIMEOUT_MS` | 10000 | Connection timeout for remote hosts |
+
+**Encryption:** Disk and Valkey storage are encrypted with Fernet. The encryption key is derived from `FASTMCP_SERVER_AUTH_GOOGLE_JWT_SIGNING_KEY` if set, otherwise from `GOOGLE_OAUTH_CLIENT_SECRET`.
+
+</details>
+
 ### External OAuth 2.1 Provider Mode
 
 The server supports an external OAuth 2.1 provider mode for scenarios where authentication is handled by an external system. In this mode, the MCP server does not manage the OAuth flow itself but expects valid bearer tokens in the Authorization header of tool calls.
