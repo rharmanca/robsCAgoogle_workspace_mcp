@@ -110,9 +110,11 @@ def configure_server_for_http():
                 os.getenv("FASTMCP_SERVER_AUTH_GOOGLE_JWT_SIGNING_KEY", "").strip()
                 or None
             )
-            storage_backend = os.getenv(
-                "WORKSPACE_MCP_OAUTH_PROXY_STORAGE_BACKEND", ""
-            ).strip().lower()
+            storage_backend = (
+                os.getenv("WORKSPACE_MCP_OAUTH_PROXY_STORAGE_BACKEND", "")
+                .strip()
+                .lower()
+            )
             valkey_host = os.getenv("WORKSPACE_MCP_OAUTH_PROXY_VALKEY_HOST", "").strip()
 
             # Determine storage backend: valkey, disk, memory (default)
@@ -281,7 +283,9 @@ def configure_server_for_http():
             elif use_disk:
                 try:
                     from key_value.aio.stores.disk import DiskStore
-                    from key_value.aio.wrappers.encryption import FernetEncryptionWrapper
+                    from key_value.aio.wrappers.encryption import (
+                        FernetEncryptionWrapper,
+                    )
                     from cryptography.fernet import Fernet
                     from fastmcp.server.auth.jwt_issuer import derive_jwt_key
 
@@ -294,7 +298,9 @@ def configure_server_for_http():
                         if fastmcp_home:
                             disk_directory = os.path.join(fastmcp_home, "oauth-proxy")
                         else:
-                            disk_directory = os.path.expanduser("~/.fastmcp/oauth-proxy")
+                            disk_directory = os.path.expanduser(
+                                "~/.fastmcp/oauth-proxy"
+                            )
 
                     client_storage = DiskStore(directory=disk_directory)
 
@@ -331,8 +337,11 @@ def configure_server_for_http():
                     )
             elif storage_backend == "memory":
                 from key_value.aio.stores.memory import MemoryStore
+
                 client_storage = MemoryStore()
-                logger.info("OAuth 2.1: Using MemoryStore for FastMCP OAuth proxy client_storage")
+                logger.info(
+                    "OAuth 2.1: Using MemoryStore for FastMCP OAuth proxy client_storage"
+                )
             # else: client_storage remains None, FastMCP uses its default
 
             # Check if external OAuth provider is configured
