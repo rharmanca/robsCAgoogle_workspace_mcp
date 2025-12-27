@@ -9,6 +9,10 @@ import os
 import sys
 from dotenv import load_dotenv
 
+# Load environment variables BEFORE any other imports that might read them
+dotenv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+load_dotenv(dotenv_path=dotenv_path)
+
 from auth.oauth_config import reload_oauth_config, is_stateless_mode
 from core.log_formatter import EnhancedLogFormatter, configure_file_logging
 from core.utils import check_credentials_directory_permissions
@@ -48,10 +52,6 @@ def enforce_fastmcp_cloud_defaults():
 
     return enforced
 
-
-# Load environment variables
-dotenv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
-load_dotenv(dotenv_path=dotenv_path)
 
 _fastmcp_cloud_overrides = enforce_fastmcp_cloud_defaults()
 
