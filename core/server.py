@@ -102,7 +102,9 @@ def configure_server_for_http():
             logger.warning("OAuth 2.1 enabled but OAuth credentials not configured")
             return
 
-        def validate_and_derive_jwt_key(jwt_signing_key_override: str | None, client_secret: str) -> bytes:
+        def validate_and_derive_jwt_key(
+            jwt_signing_key_override: str | None, client_secret: str
+        ) -> bytes:
             """Validate JWT signing key override and derive the final JWT key."""
             if jwt_signing_key_override:
                 if len(jwt_signing_key_override) < 12:
@@ -242,7 +244,9 @@ def configure_server_for_http():
                                 )
                             )
 
-                    jwt_signing_key = validate_and_derive_jwt_key(jwt_signing_key_override, config.client_secret)
+                    jwt_signing_key = validate_and_derive_jwt_key(
+                        jwt_signing_key_override, config.client_secret
+                    )
 
                     storage_encryption_key = derive_jwt_key(
                         high_entropy_material=jwt_signing_key.decode(),
@@ -308,7 +312,9 @@ def configure_server_for_http():
 
                     client_storage = DiskStore(directory=disk_directory)
 
-                    jwt_signing_key = validate_and_derive_jwt_key(jwt_signing_key_override, config.client_secret)
+                    jwt_signing_key = validate_and_derive_jwt_key(
+                        jwt_signing_key_override, config.client_secret
+                    )
 
                     storage_encryption_key = derive_jwt_key(
                         high_entropy_material=jwt_signing_key.decode(),
