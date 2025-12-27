@@ -771,7 +771,7 @@ def _normalize_attendees(
             logger.warning(
                 f"[_normalize_attendees] Invalid attendee format: {att}, skipping"
             )
-    return normalized
+    return normalized if normalized else None
 
 
 @server.tool()
@@ -944,7 +944,7 @@ async def modify_event(
                 "location": location,
                 # Use the already-normalized attendee objects (if provided); otherwise preserve existing
                 "attendees": event_body.get("attendees"),
-                "colorId": color_id,
+                "colorId": event_body.get("colorId"),
             },
         )
 
