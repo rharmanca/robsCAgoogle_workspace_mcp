@@ -63,6 +63,11 @@ auth_info_middleware = AuthInfoMiddleware()
 server.add_middleware(auth_info_middleware)
 
 
+def _parse_bool_env(value: str) -> bool:
+    """Parse environment variable string to boolean."""
+    return value.lower() in ("1", "true", "yes", "on")
+
+
 def set_transport_mode(mode: str):
     """Sets the transport mode for the server."""
     _set_transport_mode(mode)
@@ -123,6 +128,11 @@ def configure_server_for_http():
                 )
 
         try:
+            # Import common dependencies for storage backends
+            from key_value.aio.wrappers.encryption import FernetEncryptionWrapper
+            from cryptography.fernet import Fernet
+            from fastmcp.server.auth.jwt_issuer import derive_jwt_key
+
             required_scopes: List[str] = sorted(get_current_scopes())
 
             client_storage = None
@@ -144,11 +154,6 @@ def configure_server_for_http():
             if use_valkey:
                 try:
                     from key_value.aio.stores.valkey import ValkeyStore
-                    from key_value.aio.wrappers.encryption import (
-                        FernetEncryptionWrapper,
-                    )
-                    from cryptography.fernet import Fernet
-                    from fastmcp.server.auth.jwt_issuer import derive_jwt_key
 
                     valkey_port_raw = os.getenv(
                         "WORKSPACE_MCP_OAUTH_PROXY_VALKEY_PORT", "6379"
@@ -162,15 +167,10 @@ def configure_server_for_http():
                     valkey_use_tls_raw = os.getenv(
                         "WORKSPACE_MCP_OAUTH_PROXY_VALKEY_USE_TLS", ""
                     ).strip()
-                    if valkey_use_tls_raw:
-                        valkey_use_tls = valkey_use_tls_raw.lower() in (
-                            "1",
-                            "true",
-                            "yes",
-                            "on",
-                        )
-                    else:
-                        valkey_use_tls = valkey_port == 6380
+                    valkey_use_tls = (
+                        _parse_bool_env(valkey_use_tls_raw) if valkey_use_tls_raw 
+                        else valkey_port == 6380
+                    )
 
                     valkey_request_timeout_ms_raw = os.getenv(
                         "WORKSPACE_MCP_OAUTH_PROXY_VALKEY_REQUEST_TIMEOUT_MS", ""
@@ -291,11 +291,6 @@ def configure_server_for_http():
             elif use_disk:
                 try:
                     from key_value.aio.stores.disk import DiskStore
-                    from key_value.aio.wrappers.encryption import (
-                        FernetEncryptionWrapper,
-                    )
-                    from cryptography.fernet import Fernet
-                    from fastmcp.server.auth.jwt_issuer import derive_jwt_key
 
                     disk_directory = os.getenv(
                         "WORKSPACE_MCP_OAUTH_PROXY_DISK_DIRECTORY", ""
@@ -344,6 +339,12 @@ def configure_server_for_http():
                 )
             # else: client_storage remains None, FastMCP uses its default
 
+            # Ensure JWT signing key is always derived for all storage backends
+            if 'jwt_signing_key' not in locals():
+                jwt_signing_key = validate_and_derive_jwt_key(
+                    jwt_signing_key_override, config.client_secret
+                )
+
             # Check if external OAuth provider is configured
             if config.is_external_oauth21_provider():
                 # External OAuth mode: use custom provider that handles ya29.* access tokens
@@ -373,7 +374,7 @@ def configure_server_for_http():
                     redirect_path=config.redirect_path,
                     required_scopes=required_scopes,
                     client_storage=client_storage,
-                    jwt_signing_key=jwt_signing_key_override,
+                    jwt_signing_key=jwt_signing_key,
                 )
                 # Enable protocol-level auth
                 server.auth = provider
