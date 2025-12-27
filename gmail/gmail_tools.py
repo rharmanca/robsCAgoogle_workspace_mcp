@@ -681,9 +681,7 @@ async def get_gmail_messages_content_batch(
                 payload = message.get("payload", {})
 
                 if format == "metadata":
-                    headers = _extract_headers(
-                        payload, GMAIL_METADATA_HEADERS
-                    )
+                    headers = _extract_headers(payload, GMAIL_METADATA_HEADERS)
                     subject = headers.get("Subject", "(no subject)")
                     sender = headers.get("From", "(unknown sender)")
                     to = headers.get("To", "")
@@ -705,9 +703,7 @@ async def get_gmail_messages_content_batch(
                     output_messages.append(msg_output)
                 else:
                     # Full format - extract body too
-                    headers = _extract_headers(
-                        payload, GMAIL_METADATA_HEADERS
-                    )
+                    headers = _extract_headers(payload, GMAIL_METADATA_HEADERS)
                     subject = headers.get("Subject", "(no subject)")
                     sender = headers.get("From", "(unknown sender)")
                     to = headers.get("To", "")
