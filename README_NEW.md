@@ -326,6 +326,25 @@ docker run -p 8000:8000 \
 }
 ```
 
+### LM Studio
+
+```json
+{
+  "mcpServers": {
+    "google_workspace": {
+      "command": "uvx",
+      "args": ["workspace-mcp"],
+      "env": {
+        "GOOGLE_OAUTH_CLIENT_ID": "your-client-id",
+        "GOOGLE_OAUTH_CLIENT_SECRET": "your-secret",
+        "OAUTHLIB_INSECURE_TRANSPORT": "1",
+        "USER_GOOGLE_EMAIL": "you@example.com"
+      }
+    }
+  }
+}
+```
+
 ### VS Code
 
 ```json

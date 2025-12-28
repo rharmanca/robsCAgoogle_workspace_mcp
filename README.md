@@ -650,7 +650,7 @@ cp .env.oauth21 .env
 
 **Loading Priority**
 1. Environment variables (`export VAR=value`)
-2. `.env` file in project root (warning - if you run via `uvx` rather than `uv run` from the repo directory, you are spawning a standalone process not associated with your clone of the repo and it will not find your .env file without specifying it directly) 
+2. `.env` file in project root (warning - if you run via `uvx` rather than `uv run` from the repo directory, you are spawning a standalone process not associated with your clone of the repo and it will not find your .env file without specifying it directly)
 3. `client_secret.json` via `GOOGLE_CLIENT_SECRET_PATH`
 4. Default `client_secret.json` in project root
 
@@ -894,6 +894,27 @@ If you are unable to for some reason, you can configure it manually via `claude_
 ```
 </details>
 
+### Connect to LM Studio
+
+Add a new MCP server in LM Studio (Settings → MCP Servers) using the same JSON format:
+
+```json
+{
+  "mcpServers": {
+    "google_workspace": {
+      "command": "uvx",
+      "args": ["workspace-mcp"],
+      "env": {
+        "GOOGLE_OAUTH_CLIENT_ID": "your-client-id",
+        "GOOGLE_OAUTH_CLIENT_SECRET": "your-secret",
+        "OAUTHLIB_INSECURE_TRANSPORT": "1",
+      }
+    }
+  }
+}
+```
+
+
 ### 2. Advanced / Cross-Platform Installation
 
 If you’re developing, deploying to servers, or using another MCP-capable client, keep reading.
@@ -1031,6 +1052,9 @@ export WORKSPACE_MCP_OAUTH_PROXY_STORAGE_BACKEND=valkey
 export WORKSPACE_MCP_OAUTH_PROXY_VALKEY_HOST=redis.example.com
 export WORKSPACE_MCP_OAUTH_PROXY_VALKEY_PORT=6379
 ```
+
+> Valkey support is optional. Install `workspace-mcp[valkey]` (or `py-key-value-aio[valkey]`) only if you enable the Valkey backend.
+> Windows: building `valkey-glide` from source requires MSVC C++ build tools with C11 support. If you see `aws-lc-sys` C11 errors, set `CFLAGS=/std:c11`.
 
 <details>
 <summary>🔐 <b>Valkey/Redis Configuration Options</b></summary>
