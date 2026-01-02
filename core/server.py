@@ -176,6 +176,132 @@ async def health_check(request: Request):
     )
 
 
+@server.custom_route("/auth", methods=["GET"])
+async def auth_initiate(request: Request):
+    """
+    Browser-based authentication initiation endpoint.
+    Generates OAuth URL and returns an HTML page with a link to authenticate.
+    """
+    import os
+    from starlette.responses import RedirectResponse
+    from auth.google_auth import create_oauth_flow, check_client_secrets
+    from auth.oauth21_session_store import get_oauth21_session_store
+    from auth.scopes import get_current_scopes
+
+    # Check for client secrets
+    error_message = check_client_secrets()
+    if error_message:
+        return HTMLResponse(
+            f"""
+            <html>
+            <head><title>Authentication Error</title></head>
+            <body style="font-family: sans-serif; padding: 40px; max-width: 600px; margin: 0 auto;">
+                <h1 style="color: #d32f2f;">Configuration Error</h1>
+                <p>{error_message}</p>
+            </body>
+            </html>
+            """,
+            status_code=500,
+        )
+
+    try:
+        # Generate OAuth state
+        oauth_state = os.urandom(16).hex()
+
+        # Get redirect URI
+        redirect_uri = get_oauth_redirect_uri_for_current_mode()
+
+        # Create OAuth flow
+        flow = create_oauth_flow(
+            scopes=get_current_scopes(),
+            redirect_uri=redirect_uri,
+            state=oauth_state,
+        )
+
+        # Generate authorization URL
+        auth_url, _ = flow.authorization_url(access_type="offline", prompt="consent")
+
+        # Store the OAuth state
+        store = get_oauth21_session_store()
+        store.store_oauth_state(oauth_state, session_id=None)
+
+        logger.info(f"Auth endpoint: Generated OAuth URL with state {oauth_state[:8]}...")
+
+        # Return HTML page with auth link
+        return HTMLResponse(
+            f"""
+            <html>
+            <head>
+                <title>Google Workspace MCP - Authenticate</title>
+                <style>
+                    body {{
+                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                        padding: 40px;
+                        max-width: 600px;
+                        margin: 0 auto;
+                        background: #f5f5f5;
+                    }}
+                    .container {{
+                        background: white;
+                        padding: 40px;
+                        border-radius: 8px;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                    }}
+                    h1 {{
+                        color: #1a73e8;
+                        margin-bottom: 20px;
+                    }}
+                    .btn {{
+                        display: inline-block;
+                        background: #1a73e8;
+                        color: white;
+                        padding: 12px 24px;
+                        border-radius: 4px;
+                        text-decoration: none;
+                        font-weight: 500;
+                        margin-top: 20px;
+                    }}
+                    .btn:hover {{
+                        background: #1557b0;
+                    }}
+                    .note {{
+                        color: #666;
+                        font-size: 14px;
+                        margin-top: 20px;
+                    }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <h1>🔐 Google Workspace MCP</h1>
+                    <p>Click the button below to authenticate with your Google account.</p>
+                    <p>This will grant the MCP server access to your Google Workspace services.</p>
+                    <a href="{auth_url}" class="btn">Sign in with Google</a>
+                    <p class="note">
+                        After authentication, you'll be redirected back to confirm your email address.
+                    </p>
+                </div>
+            </body>
+            </html>
+            """
+        )
+
+    except Exception as e:
+        logger.error(f"Error in auth initiate endpoint: {e}", exc_info=True)
+        return HTMLResponse(
+            f"""
+            <html>
+            <head><title>Authentication Error</title></head>
+            <body style="font-family: sans-serif; padding: 40px; max-width: 600px; margin: 0 auto;">
+                <h1 style="color: #d32f2f;">Error</h1>
+                <p>Failed to initiate authentication: {str(e)}</p>
+            </body>
+            </html>
+            """,
+            status_code=500,
+        )
+
+
 @server.custom_route("/attachments/{file_id}", methods=["GET"])
 async def serve_attachment(file_id: str, request: Request):
     """Serve a stored attachment file."""
