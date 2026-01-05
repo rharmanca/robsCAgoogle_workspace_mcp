@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 GMAIL_BATCH_SIZE = 25
 GMAIL_REQUEST_DELAY = 0.1
 HTML_BODY_TRUNCATE_LIMIT = 20000
-GMAIL_METADATA_HEADERS = ["Subject", "From", "To", "Cc", "Message-ID"]
+GMAIL_METADATA_HEADERS = ["Subject", "From", "To", "Cc", "Message-ID", "Date"]
 
 
 class _HTMLTextExtractor(HTMLParser):
@@ -461,7 +461,7 @@ async def get_gmail_message_content(
         user_google_email (str): The user's Google email address. Required.
 
     Returns:
-        str: The message details including subject, sender, recipients (To, Cc), and body content.
+        str: The message details including subject, sender, date, Message-ID, recipients (To, Cc), and body content.
     """
     logger.info(
         f"[get_gmail_message_content] Invoked. Message ID: '{message_id}', Email: '{user_google_email}'"
@@ -518,6 +518,7 @@ async def get_gmail_message_content(
     content_lines = [
         f"Subject: {subject}",
         f"From:    {sender}",
+        f"Date:    {headers.get('Date', '(unknown date)')}",
     ]
 
     if rfc822_msg_id:
@@ -565,7 +566,7 @@ async def get_gmail_messages_content_batch(
         format (Literal["full", "metadata"]): Message format. "full" includes body, "metadata" only headers.
 
     Returns:
-        str: A formatted list of message contents including subject, sender, recipients (To, Cc), and body (if full format).
+        str: A formatted list of message contents including subject, sender, date, Message-ID, recipients (To, Cc), and body (if full format).
     """
     logger.info(
         f"[get_gmail_messages_content_batch] Invoked. Message count: {len(message_ids)}, Email: '{user_google_email}'"
@@ -690,6 +691,7 @@ async def get_gmail_messages_content_batch(
 
                     msg_output = (
                         f"Message ID: {mid}\nSubject: {subject}\nFrom: {sender}\n"
+                        f"Date: {headers.get('Date', '(unknown date)')}\n"
                     )
                     if rfc822_msg_id:
                         msg_output += f"Message-ID: {rfc822_msg_id}\n"
@@ -720,6 +722,7 @@ async def get_gmail_messages_content_batch(
 
                     msg_output = (
                         f"Message ID: {mid}\nSubject: {subject}\nFrom: {sender}\n"
+                        f"Date: {headers.get('Date', '(unknown date)')}\n"
                     )
                     if rfc822_msg_id:
                         msg_output += f"Message-ID: {rfc822_msg_id}\n"
