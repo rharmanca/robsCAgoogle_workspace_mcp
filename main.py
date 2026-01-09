@@ -95,6 +95,7 @@ def main():
         nargs="*",
         choices=[
             "gmail",
+            "gmail_index",
             "drive",
             "calendar",
             "docs",
@@ -175,6 +176,7 @@ def main():
     # Import tool modules to register them with the MCP server via decorators
     tool_imports = {
         "gmail": lambda: import_module("gmail.gmail_tools"),
+        "gmail_index": lambda: import_module("gmail.gmail_index_tools"),
         "drive": lambda: import_module("gdrive.drive_tools"),
         "calendar": lambda: import_module("gcalendar.calendar_tools"),
         "docs": lambda: import_module("gdocs.docs_tools"),
@@ -188,6 +190,7 @@ def main():
 
     tool_icons = {
         "gmail": "📧",
+        "gmail_index": "🔎",
         "drive": "📁",
         "calendar": "📅",
         "docs": "📄",

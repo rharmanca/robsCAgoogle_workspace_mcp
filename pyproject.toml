@@ -23,6 +23,8 @@ dependencies = [
  "qdrant-client>=1.7.0",
  "redis>=5.0.0",
  "sentence-transformers>=2.2.0",
+ # Email indexing dependencies
+ "chromadb>=0.4.0",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",

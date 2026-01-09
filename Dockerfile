@@ -24,6 +24,11 @@ RUN mkdir -p /app/store_creds \
     && chown -R app:app /app/store_creds \
     && chmod 755 /app/store_creds
 
+# Create directory for email index data (SQLite + ChromaDB)
+RUN mkdir -p /app/email_index_data \
+    && chown -R app:app /app/email_index_data \
+    && chmod 755 /app/email_index_data
+
 USER app
 
 # Expose port (use default of 8000 if PORT not set)
@@ -39,6 +44,8 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
 # Set environment variables for Python startup args
 ENV TOOL_TIER=""
 ENV TOOLS=""
+# Path for email index persistent storage (SQLite + ChromaDB)
+ENV EMAIL_INDEX_DATA_DIR="/app/email_index_data"
 
 # Use entrypoint for the base command and CMD for args
 ENTRYPOINT ["/bin/sh", "-c"]
