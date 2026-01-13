@@ -97,13 +97,13 @@ async def _get_script_project_impl(
     )
 
     title = project.get("title", "Untitled")
-    script_id = project.get("scriptId", "Unknown")
+    project_script_id = project.get("scriptId", "Unknown")
     creator = project.get("creator", {}).get("email", "Unknown")
     create_time = project.get("createTime", "Unknown")
     update_time = project.get("updateTime", "Unknown")
 
     output = [
-        f"Project: {title} (ID: {script_id})",
+        f"Project: {title} (ID: {project_script_id})",
         f"Creator: {creator}",
         f"Created: {create_time}",
         f"Modified: {update_time}",
