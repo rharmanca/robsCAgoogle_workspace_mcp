@@ -15,27 +15,14 @@ from core.utils import handle_http_errors
 logger = logging.getLogger(__name__)
 
 
-@server.tool()
-@handle_http_errors("list_script_projects", is_read_only=True, service_type="script")
-@require_google_service("script", "script_readonly")
-async def list_script_projects(
+# Internal implementation functions for testing
+async def _list_script_projects_impl(
     service: Any,
     user_google_email: str,
     page_size: int = 50,
     page_token: Optional[str] = None,
 ) -> str:
-    """
-    Lists Google Apps Script projects accessible to the user.
-
-    Args:
-        service: Injected Google API service client
-        user_google_email: User's email address
-        page_size: Number of results per page (default: 50)
-        page_token: Token for pagination (optional)
-
-    Returns:
-        str: Formatted list of script projects
-    """
+    """Internal implementation for list_script_projects."""
     logger.info(
         f"[list_script_projects] Email: {user_google_email}, PageSize: {page_size}"
     )
@@ -74,24 +61,35 @@ async def list_script_projects(
 
 
 @server.tool()
-@handle_http_errors("get_script_project", is_read_only=True, service_type="script")
+@handle_http_errors("list_script_projects", is_read_only=True, service_type="script")
 @require_google_service("script", "script_readonly")
-async def get_script_project(
+async def list_script_projects(
     service: Any,
     user_google_email: str,
-    script_id: str,
+    page_size: int = 50,
+    page_token: Optional[str] = None,
 ) -> str:
     """
-    Retrieves complete project details including all source files.
+    Lists Google Apps Script projects accessible to the user.
 
     Args:
         service: Injected Google API service client
         user_google_email: User's email address
-        script_id: The script project ID
+        page_size: Number of results per page (default: 50)
+        page_token: Token for pagination (optional)
 
     Returns:
-        str: Formatted project details with all file contents
+        str: Formatted list of script projects
     """
+    return await _list_script_projects_impl(service, user_google_email, page_size, page_token)
+
+
+async def _get_script_project_impl(
+    service: Any,
+    user_google_email: str,
+    script_id: str,
+) -> str:
+    """Internal implementation for get_script_project."""
     logger.info(f"[get_script_project] Email: {user_google_email}, ID: {script_id}")
 
     project = await asyncio.to_thread(
@@ -129,26 +127,34 @@ async def get_script_project(
 
 
 @server.tool()
-@handle_http_errors("get_script_content", is_read_only=True, service_type="script")
+@handle_http_errors("get_script_project", is_read_only=True, service_type="script")
 @require_google_service("script", "script_readonly")
-async def get_script_content(
+async def get_script_project(
     service: Any,
     user_google_email: str,
     script_id: str,
-    file_name: str,
 ) -> str:
     """
-    Retrieves content of a specific file within a project.
+    Retrieves complete project details including all source files.
 
     Args:
         service: Injected Google API service client
         user_google_email: User's email address
         script_id: The script project ID
-        file_name: Name of the file to retrieve
 
     Returns:
-        str: File content as string
+        str: Formatted project details with all file contents
     """
+    return await _get_script_project_impl(service, user_google_email, script_id)
+
+
+async def _get_script_content_impl(
+    service: Any,
+    user_google_email: str,
+    script_id: str,
+    file_name: str,
+) -> str:
+    """Internal implementation for get_script_content."""
     logger.info(
         f"[get_script_content] Email: {user_google_email}, ID: {script_id}, File: {file_name}"
     )
@@ -178,26 +184,36 @@ async def get_script_content(
 
 
 @server.tool()
-@handle_http_errors("create_script_project", service_type="script")
-@require_google_service("script", "script_projects")
-async def create_script_project(
+@handle_http_errors("get_script_content", is_read_only=True, service_type="script")
+@require_google_service("script", "script_readonly")
+async def get_script_content(
+    service: Any,
+    user_google_email: str,
+    script_id: str,
+    file_name: str,
+) -> str:
+    """
+    Retrieves content of a specific file within a project.
+
+    Args:
+        service: Injected Google API service client
+        user_google_email: User's email address
+        script_id: The script project ID
+        file_name: Name of the file to retrieve
+
+    Returns:
+        str: File content as string
+    """
+    return await _get_script_content_impl(service, user_google_email, script_id, file_name)
+
+
+async def _create_script_project_impl(
     service: Any,
     user_google_email: str,
     title: str,
     parent_id: Optional[str] = None,
 ) -> str:
-    """
-    Creates a new Apps Script project.
-
-    Args:
-        service: Injected Google API service client
-        user_google_email: User's email address
-        title: Project title
-        parent_id: Optional Drive folder ID or bound container ID
-
-    Returns:
-        str: Formatted string with new project details
-    """
+    """Internal implementation for create_script_project."""
     logger.info(
         f"[create_script_project] Email: {user_google_email}, Title: {title}"
     )
@@ -225,26 +241,36 @@ async def create_script_project(
 
 
 @server.tool()
-@handle_http_errors("update_script_content", service_type="script")
+@handle_http_errors("create_script_project", service_type="script")
 @require_google_service("script", "script_projects")
-async def update_script_content(
+async def create_script_project(
+    service: Any,
+    user_google_email: str,
+    title: str,
+    parent_id: Optional[str] = None,
+) -> str:
+    """
+    Creates a new Apps Script project.
+
+    Args:
+        service: Injected Google API service client
+        user_google_email: User's email address
+        title: Project title
+        parent_id: Optional Drive folder ID or bound container ID
+
+    Returns:
+        str: Formatted string with new project details
+    """
+    return await _create_script_project_impl(service, user_google_email, title, parent_id)
+
+
+async def _update_script_content_impl(
     service: Any,
     user_google_email: str,
     script_id: str,
     files: List[Dict[str, str]],
 ) -> str:
-    """
-    Updates or creates files in a script project.
-
-    Args:
-        service: Injected Google API service client
-        user_google_email: User's email address
-        script_id: The script project ID
-        files: List of file objects with name, type, and source
-
-    Returns:
-        str: Formatted string confirming update with file list
-    """
+    """Internal implementation for update_script_content."""
     logger.info(
         f"[update_script_content] Email: {user_google_email}, ID: {script_id}, Files: {len(files)}"
     )
@@ -267,9 +293,30 @@ async def update_script_content(
 
 
 @server.tool()
-@handle_http_errors("run_script_function", service_type="script")
+@handle_http_errors("update_script_content", service_type="script")
 @require_google_service("script", "script_projects")
-async def run_script_function(
+async def update_script_content(
+    service: Any,
+    user_google_email: str,
+    script_id: str,
+    files: List[Dict[str, str]],
+) -> str:
+    """
+    Updates or creates files in a script project.
+
+    Args:
+        service: Injected Google API service client
+        user_google_email: User's email address
+        script_id: The script project ID
+        files: List of file objects with name, type, and source
+
+    Returns:
+        str: Formatted string confirming update with file list
+    """
+    return await _update_script_content_impl(service, user_google_email, script_id, files)
+
+
+async def _run_script_function_impl(
     service: Any,
     user_google_email: str,
     script_id: str,
@@ -277,20 +324,7 @@ async def run_script_function(
     parameters: Optional[List[Any]] = None,
     dev_mode: bool = False,
 ) -> str:
-    """
-    Executes a function in a deployed script.
-
-    Args:
-        service: Injected Google API service client
-        user_google_email: User's email address
-        script_id: The script project ID
-        function_name: Name of function to execute
-        parameters: Optional list of parameters to pass
-        dev_mode: Whether to run latest code vs deployed version
-
-    Returns:
-        str: Formatted string with execution result or error
-    """
+    """Internal implementation for run_script_function."""
     logger.info(
         f"[run_script_function] Email: {user_google_email}, ID: {script_id}, Function: {function_name}"
     )
@@ -326,28 +360,41 @@ async def run_script_function(
 
 
 @server.tool()
-@handle_http_errors("create_deployment", service_type="script")
-@require_google_service("script", "script_deployments")
-async def create_deployment(
+@handle_http_errors("run_script_function", service_type="script")
+@require_google_service("script", "script_projects")
+async def run_script_function(
+    service: Any,
+    user_google_email: str,
+    script_id: str,
+    function_name: str,
+    parameters: Optional[List[Any]] = None,
+    dev_mode: bool = False,
+) -> str:
+    """
+    Executes a function in a deployed script.
+
+    Args:
+        service: Injected Google API service client
+        user_google_email: User's email address
+        script_id: The script project ID
+        function_name: Name of function to execute
+        parameters: Optional list of parameters to pass
+        dev_mode: Whether to run latest code vs deployed version
+
+    Returns:
+        str: Formatted string with execution result or error
+    """
+    return await _run_script_function_impl(service, user_google_email, script_id, function_name, parameters, dev_mode)
+
+
+async def _create_deployment_impl(
     service: Any,
     user_google_email: str,
     script_id: str,
     description: str,
     version_description: Optional[str] = None,
 ) -> str:
-    """
-    Creates a new deployment of the script.
-
-    Args:
-        service: Injected Google API service client
-        user_google_email: User's email address
-        script_id: The script project ID
-        description: Deployment description
-        version_description: Optional version description
-
-    Returns:
-        str: Formatted string with deployment details
-    """
+    """Internal implementation for create_deployment."""
     logger.info(
         f"[create_deployment] Email: {user_google_email}, ID: {script_id}, Desc: {description}"
     )
@@ -378,26 +425,37 @@ async def create_deployment(
 
 
 @server.tool()
-@handle_http_errors(
-    "list_deployments", is_read_only=True, service_type="script"
-)
-@require_google_service("script", "script_deployments_readonly")
-async def list_deployments(
+@handle_http_errors("create_deployment", service_type="script")
+@require_google_service("script", "script_deployments")
+async def create_deployment(
     service: Any,
     user_google_email: str,
     script_id: str,
+    description: str,
+    version_description: Optional[str] = None,
 ) -> str:
     """
-    Lists all deployments for a script project.
+    Creates a new deployment of the script.
 
     Args:
         service: Injected Google API service client
         user_google_email: User's email address
         script_id: The script project ID
+        description: Deployment description
+        version_description: Optional version description
 
     Returns:
-        str: Formatted string with deployment list
+        str: Formatted string with deployment details
     """
+    return await _create_deployment_impl(service, user_google_email, script_id, description, version_description)
+
+
+async def _list_deployments_impl(
+    service: Any,
+    user_google_email: str,
+    script_id: str,
+) -> str:
+    """Internal implementation for list_deployments."""
     logger.info(f"[list_deployments] Email: {user_google_email}, ID: {script_id}")
 
     response = await asyncio.to_thread(
@@ -425,28 +483,37 @@ async def list_deployments(
 
 
 @server.tool()
-@handle_http_errors("update_deployment", service_type="script")
-@require_google_service("script", "script_deployments")
-async def update_deployment(
+@handle_http_errors(
+    "list_deployments", is_read_only=True, service_type="script"
+)
+@require_google_service("script", "script_deployments_readonly")
+async def list_deployments(
+    service: Any,
+    user_google_email: str,
+    script_id: str,
+) -> str:
+    """
+    Lists all deployments for a script project.
+
+    Args:
+        service: Injected Google API service client
+        user_google_email: User's email address
+        script_id: The script project ID
+
+    Returns:
+        str: Formatted string with deployment list
+    """
+    return await _list_deployments_impl(service, user_google_email, script_id)
+
+
+async def _update_deployment_impl(
     service: Any,
     user_google_email: str,
     script_id: str,
     deployment_id: str,
     description: Optional[str] = None,
 ) -> str:
-    """
-    Updates an existing deployment configuration.
-
-    Args:
-        service: Injected Google API service client
-        user_google_email: User's email address
-        script_id: The script project ID
-        deployment_id: The deployment ID to update
-        description: Optional new description
-
-    Returns:
-        str: Formatted string confirming update
-    """
+    """Internal implementation for update_deployment."""
     logger.info(
         f"[update_deployment] Email: {user_google_email}, Script: {script_id}, Deployment: {deployment_id}"
     )
@@ -473,6 +540,56 @@ async def update_deployment(
 
 
 @server.tool()
+@handle_http_errors("update_deployment", service_type="script")
+@require_google_service("script", "script_deployments")
+async def update_deployment(
+    service: Any,
+    user_google_email: str,
+    script_id: str,
+    deployment_id: str,
+    description: Optional[str] = None,
+) -> str:
+    """
+    Updates an existing deployment configuration.
+
+    Args:
+        service: Injected Google API service client
+        user_google_email: User's email address
+        script_id: The script project ID
+        deployment_id: The deployment ID to update
+        description: Optional new description
+
+    Returns:
+        str: Formatted string confirming update
+    """
+    return await _update_deployment_impl(service, user_google_email, script_id, deployment_id, description)
+
+
+async def _delete_deployment_impl(
+    service: Any,
+    user_google_email: str,
+    script_id: str,
+    deployment_id: str,
+) -> str:
+    """Internal implementation for delete_deployment."""
+    logger.info(
+        f"[delete_deployment] Email: {user_google_email}, Script: {script_id}, Deployment: {deployment_id}"
+    )
+
+    await asyncio.to_thread(
+        service.projects()
+        .deployments()
+        .delete(scriptId=script_id, deploymentId=deployment_id)
+        .execute
+    )
+
+    output = f"Deleted deployment: {deployment_id} from script: {script_id}"
+
+    logger.info(f"[delete_deployment] Deleted deployment {deployment_id}")
+    return output
+
+
+@server.tool()
 @handle_http_errors("delete_deployment", service_type="script")
 @require_google_service("script", "script_deployments")
 async def delete_deployment(
@@ -493,46 +610,16 @@ async def delete_deployment(
     Returns:
         str: Confirmation message
     """
-    logger.info(
-        f"[delete_deployment] Email: {user_google_email}, Script: {script_id}, Deployment: {deployment_id}"
-    )
-
-    await asyncio.to_thread(
-        service.projects()
-        .deployments()
-        .delete(scriptId=script_id, deploymentId=deployment_id)
-        .execute
-    )
-
-    output = f"Deleted deployment: {deployment_id} from script: {script_id}"
-
-    logger.info(f"[delete_deployment] Deleted deployment {deployment_id}")
-    return output
+    return await _delete_deployment_impl(service, user_google_email, script_id, deployment_id)
 
 
-@server.tool()
-@handle_http_errors(
-    "list_script_processes", is_read_only=True, service_type="script"
-)
-@require_google_service("script", "script_readonly")
-async def list_script_processes(
+async def _list_script_processes_impl(
     service: Any,
     user_google_email: str,
     page_size: int = 50,
     script_id: Optional[str] = None,
 ) -> str:
-    """
-    Lists recent execution processes for user's scripts.
-
-    Args:
-        service: Injected Google API service client
-        user_google_email: User's email address
-        page_size: Number of results (default: 50)
-        script_id: Optional filter by script ID
-
-    Returns:
-        str: Formatted string with process list
-    """
+    """Internal implementation for list_script_processes."""
     logger.info(
         f"[list_script_processes] Email: {user_google_email}, PageSize: {page_size}"
     )
@@ -568,3 +655,29 @@ async def list_script_processes(
 
     logger.info(f"[list_script_processes] Found {len(processes)} processes")
     return "\n".join(output)
+
+
+@server.tool()
+@handle_http_errors(
+    "list_script_processes", is_read_only=True, service_type="script"
+)
+@require_google_service("script", "script_readonly")
+async def list_script_processes(
+    service: Any,
+    user_google_email: str,
+    page_size: int = 50,
+    script_id: Optional[str] = None,
+) -> str:
+    """
+    Lists recent execution processes for user's scripts.
+
+    Args:
+        service: Injected Google API service client
+        user_google_email: User's email address
+        page_size: Number of results (default: 50)
+        script_id: Optional filter by script ID
+
+    Returns:
+        str: Formatted string with process list
+    """
+    return await _list_script_processes_impl(service, user_google_email, page_size, script_id)
