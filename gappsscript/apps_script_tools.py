@@ -22,30 +22,41 @@ async def _list_script_projects_impl(
     page_size: int = 50,
     page_token: Optional[str] = None,
 ) -> str:
-    """Internal implementation for list_script_projects."""
+    """Internal implementation for list_script_projects.
+
+    Uses Drive API to find Apps Script files since the Script API
+    does not have a projects.list method.
+    """
     logger.info(
         f"[list_script_projects] Email: {user_google_email}, PageSize: {page_size}"
     )
 
-    request_params = {"pageSize": page_size}
+    # Search for Apps Script files using Drive API
+    query = "mimeType='application/vnd.google-apps.script' and trashed=false"
+    request_params = {
+        "q": query,
+        "pageSize": page_size,
+        "fields": "nextPageToken, files(id, name, createdTime, modifiedTime)",
+        "orderBy": "modifiedTime desc",
+    }
     if page_token:
         request_params["pageToken"] = page_token
 
     response = await asyncio.to_thread(
-        service.projects().list(**request_params).execute
+        service.files().list(**request_params).execute
     )
 
-    projects = response.get("projects", [])
+    files = response.get("files", [])
 
-    if not projects:
+    if not files:
         return "No Apps Script projects found."
 
-    output = [f"Found {len(projects)} Apps Script projects:"]
-    for project in projects:
-        title = project.get("title", "Untitled")
-        script_id = project.get("scriptId", "Unknown ID")
-        create_time = project.get("createTime", "Unknown")
-        update_time = project.get("updateTime", "Unknown")
+    output = [f"Found {len(files)} Apps Script projects:"]
+    for file in files:
+        title = file.get("name", "Untitled")
+        script_id = file.get("id", "Unknown ID")
+        create_time = file.get("createdTime", "Unknown")
+        update_time = file.get("modifiedTime", "Unknown")
 
         output.append(
             f"- {title} (ID: {script_id}) Created: {create_time} Modified: {update_time}"
@@ -55,14 +66,14 @@ async def _list_script_projects_impl(
         output.append(f"\nNext page token: {response['nextPageToken']}")
 
     logger.info(
-        f"[list_script_projects] Found {len(projects)} projects for {user_google_email}"
+        f"[list_script_projects] Found {len(files)} projects for {user_google_email}"
     )
     return "\n".join(output)
 
 
 @server.tool()
-@handle_http_errors("list_script_projects", is_read_only=True, service_type="script")
-@require_google_service("script", "script_readonly")
+@handle_http_errors("list_script_projects", is_read_only=True, service_type="drive")
+@require_google_service("drive", "drive_read")
 async def list_script_projects(
     service: Any,
     user_google_email: str,
@@ -71,6 +82,8 @@ async def list_script_projects(
 ) -> str:
     """
     Lists Google Apps Script projects accessible to the user.
+
+    Uses Drive API to find Apps Script files.
 
     Args:
         service: Injected Google API service client
@@ -394,29 +407,44 @@ async def _create_deployment_impl(
     description: str,
     version_description: Optional[str] = None,
 ) -> str:
-    """Internal implementation for create_deployment."""
+    """Internal implementation for create_deployment.
+
+    Creates a new version first, then creates a deployment using that version.
+    """
     logger.info(
         f"[create_deployment] Email: {user_google_email}, ID: {script_id}, Desc: {description}"
     )
 
-    request_body = {"description": description}
+    # First, create a new version
+    version_body = {"description": version_description or description}
+    version = await asyncio.to_thread(
+        service.projects()
+        .versions()
+        .create(scriptId=script_id, body=version_body)
+        .execute
+    )
+    version_number = version.get("versionNumber")
+    logger.info(f"[create_deployment] Created version {version_number}")
 
-    if version_description:
-        request_body["versionNumber"] = {"description": version_description}
+    # Now create the deployment with the version number
+    deployment_body = {
+        "versionNumber": version_number,
+        "description": description,
+    }
 
     deployment = await asyncio.to_thread(
         service.projects()
         .deployments()
-        .create(scriptId=script_id, body=request_body)
+        .create(scriptId=script_id, body=deployment_body)
         .execute
     )
 
     deployment_id = deployment.get("deploymentId", "Unknown")
-    deployment_config = deployment.get("deploymentConfig", {})
 
     output = [
         f"Created deployment for script: {script_id}",
         f"Deployment ID: {deployment_id}",
+        f"Version: {version_number}",
         f"Description: {description}",
     ]
 
