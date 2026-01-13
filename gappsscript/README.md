@@ -6,6 +6,63 @@ This module provides Model Context Protocol (MCP) tools for interacting with Goo
 
 Google Apps Script allows automation and extension of Google Workspace applications. This MCP integration provides 11 tools across core and extended tiers for complete Apps Script lifecycle management.
 
+## Why Apps Script?
+
+Apps Script is the automation glue of Google Workspace. While individual service APIs (Docs, Sheets, Gmail) operate on single resources, Apps Script enables:
+
+- **Cross-app automation** - Orchestrate workflows across Sheets, Gmail, Calendar, Forms, and Drive
+- **Persistent logic** - Host custom business rules inside Google's environment
+- **Scheduled execution** - Run automations on time-based or event-driven triggers
+- **Advanced integration** - Access functionality not available through standard APIs
+
+This MCP integration allows AI agents to author, debug, deploy, and operate these automations end-to-end - something not possible with individual Workspace APIs alone.
+
+### What This Enables
+
+| Without Apps Script MCP | With Apps Script MCP |
+|------------------------|---------------------|
+| Read/update Sheets, Docs, Gmail individually | Create long-lived automations across services |
+| No persistent automation logic | Host business logic that executes repeatedly |
+| Manual workflow orchestration | Automated multi-step workflows |
+| No execution history | Debug via execution logs and status |
+| No deployment versioning | Manage deployments and roll back versions |
+
+### Complete Workflow Example
+
+**Scenario:** Automated weekly report system
+
+```
+User: "Create a script that runs every Monday at 9 AM. It should:
+1. Read data from the 'Sales' spreadsheet
+2. Calculate weekly totals and growth percentages
+3. Generate a summary with the top 5 performers
+4. Email the report to team@company.com
+5. Log any errors to a monitoring sheet"
+```
+
+The AI agent:
+1. Creates a new Apps Script project
+2. Generates the complete automation code
+3. Deploys the script
+4. Sets up the time-based trigger
+5. Tests execution and monitors results
+
+All through natural language - no JavaScript knowledge required.
+
+### AI Agent Workflow Pattern
+
+The MCP client typically follows this pattern when working with Apps Script:
+
+1. **Inspect** - Read existing script code and project structure
+2. **Analyze** - Understand current functionality and identify issues
+3. **Propose** - Generate code changes or new functionality
+4. **Update** - Modify files atomically with complete version control
+5. **Execute** - Run functions to test changes
+6. **Deploy** - Create versioned deployments for production use
+7. **Monitor** - Check execution logs and debug failures
+
+This ensures safe, auditable automation management.
+
 ## Features
 
 ### Project Management
@@ -30,6 +87,23 @@ Google Apps Script allows automation and extension of Google Workspace applicati
 - View recent script executions
 - Check execution status and results
 - Monitor for errors and failures
+
+## Limitations & Non-Goals
+
+**Current Limitations**
+- Trigger management (create/update/delete time-based or event triggers) is not supported
+- Real-time debugging and breakpoints are not available
+- Advanced service enablement must be done manually in the script editor
+
+**Non-Goals**
+- This integration does not replace the Apps Script editor UI
+- Does not execute arbitrary JavaScript outside defined script functions
+- Does not provide IDE features like autocomplete or syntax highlighting
+
+**Workarounds**
+- Triggers can be created by including trigger setup code in the script itself
+- Advanced services can be enabled via the manifest file (appsscript.json)
+- Debugging is supported through execution logs and error monitoring
 
 ## Prerequisites
 
@@ -171,30 +245,61 @@ Description: Production release
 
 ## Common Workflows
 
-### 1. Create and Deploy New Automation
+### 1. Create Automated Workflow (Complete Example)
+
+**Scenario:** Form submission handler that sends customized emails
 
 ```
-1. "Create a new Apps Script called 'Sales Report Generator'"
-2. "Add code that generates a weekly sales report from Sheet X"
-3. "Run the generateReport function to test it"
-4. "Create a production deployment"
+User: "When someone submits the Contact Form:
+1. Get their email and department from the form response
+2. Look up their manager in the Team Directory spreadsheet
+3. Send a welcome email to the submitter
+4. Send a notification to their manager
+5. Log the interaction in the Onboarding Tracker sheet"
 ```
+
+**AI Agent Steps:**
+```
+1. "Create a new Apps Script bound to the Contact Form"
+2. "Add a function that reads form submissions"
+3. "Connect to the Team Directory spreadsheet to look up managers"
+4. "Generate personalized email templates for both messages"
+5. "Add logging to the Onboarding Tracker"
+6. "Run the function to test it with sample data"
+7. "Create a production deployment"
+```
+
+Result: Complete automation created and deployed without writing code.
 
 ### 2. Debug Existing Script
 
 ```
-1. "Show me the code for my expense tracker script"
-2. "What errors occurred in recent executions?"
-3. "Fix the error in the calculateTotal function"
-4. "Run calculateTotal to verify the fix"
+User: "My expense tracker script is failing"
+AI: "Show me the code for the expense tracker script"
+AI: "What errors occurred in recent executions?"
+AI: "The calculateTotal function has a division by zero error on line 23"
+AI: "Fix the error by adding a check for zero values"
+AI: "Run calculateTotal to verify the fix"
+User: "Create a new deployment with the bug fix"
 ```
 
-### 3. Version Management
+### 3. Modify and Extend Automation
 
 ```
-1. "List all deployments for script abc123"
-2. "Create a new deployment with description 'Bug fix v1.1'"
-3. "Update the production deployment to use the latest version"
+User: "Update my weekly report script to include sales data from the Q1 sheet"
+AI: "Read the current report generation script"
+AI: "Add Q1 data fetching to the generateReport function"
+AI: "Test the updated function"
+User: "Looks good, deploy it"
+AI: "Create a new deployment with description 'Added Q1 sales data'"
+```
+
+### 4. Run Existing Business Logic
+
+```
+User: "Run the monthlyCleanup function in my Data Management script"
+User: "What does the calculateCommission function do?"
+User: "Execute reconcileAccounts with parameters: ['2024', 'January']"
 ```
 
 ## File Types
@@ -280,12 +385,22 @@ python tests/gappsscript/manual_test.py
 
 Note: Manual tests create real projects in your account. Delete test projects after running.
 
-## API Reference
+## References
 
-Full API documentation:
-- [Apps Script API Overview](https://developers.google.com/apps-script/api)
-- [REST API Reference](https://developers.google.com/apps-script/api/reference/rest)
-- [OAuth Scopes](https://developers.google.com/apps-script/api/how-tos/authorization)
+### Apps Script Documentation
+- [Apps Script Overview](https://developers.google.com/apps-script/overview) - Introduction and capabilities
+- [Apps Script Guides](https://developers.google.com/apps-script/guides/services) - Service-specific guides
+- [Apps Script Reference](https://developers.google.com/apps-script/reference) - Complete API reference
+
+### Apps Script API (for this MCP integration)
+- [Apps Script API Overview](https://developers.google.com/apps-script/api) - API features and concepts
+- [REST API Reference](https://developers.google.com/apps-script/api/reference/rest) - Endpoint documentation
+- [OAuth Scopes](https://developers.google.com/apps-script/api/how-tos/authorization) - Required permissions
+
+### Useful Resources
+- [Apps Script Quotas](https://developers.google.com/apps-script/guides/services/quotas) - Usage limits and restrictions
+- [Best Practices](https://developers.google.com/apps-script/guides/support/best-practices) - Performance and optimization
+- [Troubleshooting](https://developers.google.com/apps-script/guides/support/troubleshooting) - Common issues and solutions
 
 ## Troubleshooting
 

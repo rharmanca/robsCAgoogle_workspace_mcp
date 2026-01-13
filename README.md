@@ -78,10 +78,11 @@ A production-ready MCP server that integrates all major Google Workspace service
 ---
 
 **<span style="color:#72898f">◆</span> Apps Script**
-- Script project creation, reading & modification
-- Function execution with parameters
-- Deployment management & version control
-- Execution monitoring & process history
+- Automate cross-application workflows with custom code
+- Execute existing business logic and custom functions
+- Manage script projects, deployments & versions
+- Debug and modify Apps Script code programmatically
+- Bridge Google Workspace services through automation
 
 </td>
 <td width="50%" valign="top">
