@@ -29,20 +29,20 @@ from gappsscript.apps_script_tools import (
 
 @pytest.mark.asyncio
 async def test_list_script_projects():
-    """Test listing Apps Script projects"""
+    """Test listing Apps Script projects via Drive API"""
     mock_service = Mock()
     mock_response = {
-        "projects": [
+        "files": [
             {
-                "scriptId": "test123",
-                "title": "Test Project",
-                "createTime": "2025-01-10T10:00:00Z",
-                "updateTime": "2026-01-12T15:30:00Z",
+                "id": "test123",
+                "name": "Test Project",
+                "createdTime": "2025-01-10T10:00:00Z",
+                "modifiedTime": "2026-01-12T15:30:00Z",
             },
         ]
     }
 
-    mock_service.projects().list().execute.return_value = mock_response
+    mock_service.files().list().execute.return_value = mock_response
 
     result = await _list_script_projects_impl(
         service=mock_service, user_google_email="test@example.com", page_size=50
