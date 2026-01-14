@@ -73,6 +73,9 @@ SCRIPT_DEPLOYMENTS_SCOPE = "https://www.googleapis.com/auth/script.deployments"
 SCRIPT_DEPLOYMENTS_READONLY_SCOPE = (
     "https://www.googleapis.com/auth/script.deployments.readonly"
 )
+SCRIPT_PROCESSES_READONLY_SCOPE = (
+    "https://www.googleapis.com/auth/script.processes"
+)
 
 # Base OAuth scopes required for user identification
 BASE_SCOPES = [USERINFO_EMAIL_SCOPE, USERINFO_PROFILE_SCOPE, OPENID_SCOPE]
@@ -114,6 +117,8 @@ SCRIPT_SCOPES = [
     SCRIPT_PROJECTS_READONLY_SCOPE,
     SCRIPT_DEPLOYMENTS_SCOPE,
     SCRIPT_DEPLOYMENTS_READONLY_SCOPE,
+    SCRIPT_PROCESSES_READONLY_SCOPE,  # Required for list_script_processes
+    DRIVE_READONLY_SCOPE,  # Required for list_script_projects (uses Drive API)
 ]
 
 # Tool-to-scopes mapping

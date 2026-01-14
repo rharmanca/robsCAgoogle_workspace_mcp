@@ -1,14 +1,18 @@
 """
-Manual test script for Apps Script integration
+Manual E2E test script for Apps Script integration.
 
-This script allows manual testing of Apps Script tools against real Google API.
+This script tests Apps Script tools against the real Google API.
 Requires valid OAuth credentials and enabled Apps Script API.
 
 Usage:
     python tests/gappsscript/manual_test.py
 
-Note: This will interact with real Apps Script projects.
-      Use with caution and in a test environment.
+Environment Variables:
+    GOOGLE_CLIENT_SECRET_PATH: Path to client_secret.json (default: ./client_secret.json)
+    GOOGLE_TOKEN_PATH: Path to store OAuth token (default: ./test_token.pickle)
+
+Note: This will create real Apps Script projects in your account.
+      Delete test projects manually after running.
 """
 
 import asyncio
@@ -36,18 +40,26 @@ SCOPES = [
 # Allow http://localhost for OAuth (required for headless auth)
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 
+# Default paths (can be overridden via environment variables)
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+DEFAULT_CLIENT_SECRET = os.path.join(PROJECT_ROOT, "client_secret.json")
+DEFAULT_TOKEN_PATH = os.path.join(PROJECT_ROOT, "test_token.pickle")
+
 
 def get_credentials():
     """
     Get OAuth credentials for Apps Script API.
 
+    Credential paths can be configured via environment variables:
+    - GOOGLE_CLIENT_SECRET_PATH: Path to client_secret.json
+    - GOOGLE_TOKEN_PATH: Path to store/load OAuth token
+
     Returns:
         Credentials object
     """
     creds = None
-    secrets_dir = os.path.expanduser("~/.secrets")
-    token_path = os.path.join(secrets_dir, "apps_script_token.pickle")
-    client_secret_path = os.path.join(secrets_dir, "client_secret.json")
+    token_path = os.environ.get("GOOGLE_TOKEN_PATH", DEFAULT_TOKEN_PATH)
+    client_secret_path = os.environ.get("GOOGLE_CLIENT_SECRET_PATH", DEFAULT_CLIENT_SECRET)
 
     if os.path.exists(token_path):
         with open(token_path, "rb") as token:
@@ -59,12 +71,12 @@ def get_credentials():
         else:
             if not os.path.exists(client_secret_path):
                 print(f"Error: {client_secret_path} not found")
-                print(
-                    "Please download OAuth credentials from Google Cloud Console"
-                )
-                print(
-                    f"and save as {client_secret_path}"
-                )
+                print("\nTo fix this:")
+                print("1. Go to Google Cloud Console > APIs & Services > Credentials")
+                print("2. Create an OAuth 2.0 Client ID (Desktop application type)")
+                print("3. Download the JSON and save as client_secret.json")
+                print(f"\nExpected path: {client_secret_path}")
+                print("\nOr set GOOGLE_CLIENT_SECRET_PATH environment variable")
                 sys.exit(1)
 
             flow = InstalledAppFlow.from_client_secrets_file(

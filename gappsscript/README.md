@@ -107,10 +107,29 @@ This ensures safe, auditable automation management.
 
 ## Prerequisites
 
-### 1. Enable Apps Script API
+### 1. Google Cloud Project Setup
 
-Visit Google Cloud Console and enable the Apps Script API:
-[Enable Apps Script API](https://console.cloud.google.com/flows/enableapi?apiid=script.googleapis.com)
+Before using the Apps Script MCP tools, configure your Google Cloud project:
+
+**Step 1: Enable Required APIs**
+
+Enable these APIs in your Google Cloud Console:
+
+1. [Apps Script API](https://console.cloud.google.com/flows/enableapi?apiid=script.googleapis.com) (required for all operations)
+2. [Google Drive API](https://console.cloud.google.com/flows/enableapi?apiid=drive.googleapis.com) (required for listing projects)
+
+**Step 2: Create OAuth Credentials**
+
+1. Go to [APIs & Services > Credentials](https://console.cloud.google.com/apis/credentials)
+2. Click "Create Credentials" > "OAuth client ID"
+3. Select "Desktop application" as the application type
+4. Download the JSON file and save as `client_secret.json`
+
+**Step 3: Configure OAuth Consent Screen**
+
+1. Go to [OAuth consent screen](https://console.cloud.google.com/apis/credentials/consent)
+2. Add yourself as a test user (required for unverified apps)
+3. Add the required scopes (see below)
 
 ### 2. OAuth Scopes
 
@@ -121,9 +140,27 @@ https://www.googleapis.com/auth/script.projects
 https://www.googleapis.com/auth/script.projects.readonly
 https://www.googleapis.com/auth/script.deployments
 https://www.googleapis.com/auth/script.deployments.readonly
+https://www.googleapis.com/auth/script.processes
+https://www.googleapis.com/auth/drive.readonly
 ```
 
 These are automatically requested when using the appscript tool tier.
+
+### 3. Running the MCP Server
+
+Start the server with Apps Script tools enabled:
+
+```bash
+uv run main.py --tools appscript --single-user
+```
+
+Or include with other tools:
+
+```bash
+uv run main.py --tools appscript drive sheets
+```
+
+On first use, you will be prompted to authorize the application. Complete the OAuth flow in your browser.
 
 ## Tool Tiers
 
@@ -329,6 +366,28 @@ The `run_script_function` tool can only execute functions that are defined in th
 1. Add function to script via `update_script_content`
 2. Execute the function via `run_script_function`
 3. Optionally remove the function after execution
+
+### run_script_function Requires API Executable Deployment
+
+The `run_script_function` tool requires additional manual configuration in the Apps Script editor:
+
+**Why this limitation exists:**
+Google requires scripts to be explicitly deployed as "API Executable" before they can be invoked via the Apps Script API. This is a security measure to prevent unauthorized code execution.
+
+**To enable API execution:**
+
+1. Open the script in the Apps Script editor
+2. Go to Project Settings (gear icon)
+3. Under "Google Cloud Platform (GCP) Project", click "Change project"
+4. Enter your GCP project number (found in Cloud Console dashboard)
+5. Click "Deploy" > "New deployment"
+6. Select type: "API Executable"
+7. Set "Who has access" to "Anyone" or "Anyone with Google account"
+8. Click "Deploy"
+
+After completing these steps, the `run_script_function` tool will work for that script.
+
+**Note:** All other tools (create, update, list, deploy) work without this manual step. Only function execution via API requires the API Executable deployment.
 
 ## Error Handling
 
