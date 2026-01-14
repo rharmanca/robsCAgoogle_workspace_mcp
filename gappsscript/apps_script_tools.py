@@ -669,11 +669,9 @@ async def _list_script_processes_impl(
 
     for i, process in enumerate(processes, 1):
         function_name = process.get("functionName", "Unknown")
-        process_type = process.get("processType", "Unknown")
         process_status = process.get("processStatus", "Unknown")
         start_time = process.get("startTime", "Unknown")
         duration = process.get("duration", "Unknown")
-        user_access_level = process.get("userAccessLevel", "Unknown")
 
         output.append(f"{i}. {function_name}")
         output.append(f"   Status: {process_status}")

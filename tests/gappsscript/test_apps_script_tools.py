@@ -145,12 +145,17 @@ async def test_run_script_function():
 async def test_create_deployment():
     """Test creating deployment"""
     mock_service = Mock()
-    mock_response = {
+
+    # Mock version creation (called first)
+    mock_version_response = {"versionNumber": 1}
+    mock_service.projects().versions().create().execute.return_value = mock_version_response
+
+    # Mock deployment creation (called second)
+    mock_deploy_response = {
         "deploymentId": "deploy123",
         "deploymentConfig": {},
     }
-
-    mock_service.projects().deployments().create().execute.return_value = mock_response
+    mock_service.projects().deployments().create().execute.return_value = mock_deploy_response
 
     result = await _create_deployment_impl(
         service=mock_service,
@@ -161,6 +166,7 @@ async def test_create_deployment():
 
     assert "Deployment ID: deploy123" in result
     assert "Test deployment" in result
+    assert "Version: 1" in result
 
 
 @pytest.mark.asyncio
