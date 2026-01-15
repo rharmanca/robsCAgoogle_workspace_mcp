@@ -73,9 +73,7 @@ SCRIPT_DEPLOYMENTS_SCOPE = "https://www.googleapis.com/auth/script.deployments"
 SCRIPT_DEPLOYMENTS_READONLY_SCOPE = (
     "https://www.googleapis.com/auth/script.deployments.readonly"
 )
-SCRIPT_PROCESSES_READONLY_SCOPE = (
-    "https://www.googleapis.com/auth/script.processes"
-)
+SCRIPT_PROCESSES_READONLY_SCOPE = "https://www.googleapis.com/auth/script.processes"
 SCRIPT_METRICS_SCOPE = "https://www.googleapis.com/auth/script.metrics"
 
 # Base OAuth scopes required for user identification

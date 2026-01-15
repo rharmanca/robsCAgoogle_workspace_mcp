@@ -22,7 +22,6 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 from googleapiclient.discovery import build
-from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 import pickle
@@ -59,7 +58,9 @@ def get_credentials():
     """
     creds = None
     token_path = os.environ.get("GOOGLE_TOKEN_PATH", DEFAULT_TOKEN_PATH)
-    client_secret_path = os.environ.get("GOOGLE_CLIENT_SECRET_PATH", DEFAULT_CLIENT_SECRET)
+    client_secret_path = os.environ.get(
+        "GOOGLE_CLIENT_SECRET_PATH", DEFAULT_CLIENT_SECRET
+    )
 
     if os.path.exists(token_path):
         with open(token_path, "rb") as token:
@@ -79,16 +80,14 @@ def get_credentials():
                 print("\nOr set GOOGLE_CLIENT_SECRET_PATH environment variable")
                 sys.exit(1)
 
-            flow = InstalledAppFlow.from_client_secrets_file(
-                client_secret_path, SCOPES
-            )
+            flow = InstalledAppFlow.from_client_secrets_file(client_secret_path, SCOPES)
             # Set redirect URI to match client_secret.json
             flow.redirect_uri = "http://localhost"
             # Headless flow: user copies redirect URL after auth
             auth_url, _ = flow.authorization_url(prompt="consent")
-            print("\n" + "="*60)
+            print("\n" + "=" * 60)
             print("HEADLESS AUTH")
-            print("="*60)
+            print("=" * 60)
             print("\n1. Open this URL in any browser:\n")
             print(auth_url)
             print("\n2. Sign in and authorize the app")
@@ -187,7 +186,7 @@ async def test_update_content(service, script_id):
   Logger.log('Hello from MCP test!');
   return 'Test successful';
 }""",
-        }
+        },
     ]
 
     try:
@@ -296,9 +295,9 @@ async def cleanup_test_project(service, script_id):
 
 async def run_all_tests():
     """Run all manual tests"""
-    print("="*60)
+    print("=" * 60)
     print("Apps Script MCP Manual Test Suite")
-    print("="*60)
+    print("=" * 60)
 
     print("\nGetting OAuth credentials...")
     creds = get_credentials()
@@ -340,16 +339,19 @@ async def run_all_tests():
         if test_script_id:
             await cleanup_test_project(script_service, test_script_id)
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("Manual Test Suite Complete")
-    print("="*60)
+    print("=" * 60)
 
 
 def main():
     """Main entry point"""
     import argparse
+
     parser = argparse.ArgumentParser(description="Manual E2E test for Apps Script")
-    parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompt")
+    parser.add_argument(
+        "--yes", "-y", action="store_true", help="Skip confirmation prompt"
+    )
     args = parser.parse_args()
 
     print("\nIMPORTANT: This script will:")

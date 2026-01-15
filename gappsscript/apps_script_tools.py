@@ -42,9 +42,7 @@ async def _list_script_projects_impl(
     if page_token:
         request_params["pageToken"] = page_token
 
-    response = await asyncio.to_thread(
-        service.files().list(**request_params).execute
-    )
+    response = await asyncio.to_thread(service.files().list(**request_params).execute)
 
     files = response.get("files", [])
 
@@ -94,7 +92,9 @@ async def list_script_projects(
     Returns:
         str: Formatted list of script projects
     """
-    return await _list_script_projects_impl(service, user_google_email, page_size, page_token)
+    return await _list_script_projects_impl(
+        service, user_google_email, page_size, page_token
+    )
 
 
 async def _get_script_project_impl(
@@ -217,7 +217,9 @@ async def get_script_content(
     Returns:
         str: File content as string
     """
-    return await _get_script_content_impl(service, user_google_email, script_id, file_name)
+    return await _get_script_content_impl(
+        service, user_google_email, script_id, file_name
+    )
 
 
 async def _create_script_project_impl(
@@ -227,9 +229,7 @@ async def _create_script_project_impl(
     parent_id: Optional[str] = None,
 ) -> str:
     """Internal implementation for create_script_project."""
-    logger.info(
-        f"[create_script_project] Email: {user_google_email}, Title: {title}"
-    )
+    logger.info(f"[create_script_project] Email: {user_google_email}, Title: {title}")
 
     request_body = {"title": title}
 
@@ -274,7 +274,9 @@ async def create_script_project(
     Returns:
         str: Formatted string with new project details
     """
-    return await _create_script_project_impl(service, user_google_email, title, parent_id)
+    return await _create_script_project_impl(
+        service, user_google_email, title, parent_id
+    )
 
 
 async def _update_script_content_impl(
@@ -326,7 +328,9 @@ async def update_script_content(
     Returns:
         str: Formatted string confirming update with file list
     """
-    return await _update_script_content_impl(service, user_google_email, script_id, files)
+    return await _update_script_content_impl(
+        service, user_google_email, script_id, files
+    )
 
 
 async def _run_script_function_impl(
@@ -355,7 +359,9 @@ async def _run_script_function_impl(
         if "error" in response:
             error_details = response["error"]
             error_message = error_details.get("message", "Unknown error")
-            return f"Execution failed\nFunction: {function_name}\nError: {error_message}"
+            return (
+                f"Execution failed\nFunction: {function_name}\nError: {error_message}"
+            )
 
         result = response.get("response", {}).get("result")
         output = [
@@ -397,7 +403,9 @@ async def run_script_function(
     Returns:
         str: Formatted string with execution result or error
     """
-    return await _run_script_function_impl(service, user_google_email, script_id, function_name, parameters, dev_mode)
+    return await _run_script_function_impl(
+        service, user_google_email, script_id, function_name, parameters, dev_mode
+    )
 
 
 async def _create_deployment_impl(
@@ -475,7 +483,9 @@ async def create_deployment(
     Returns:
         str: Formatted string with deployment details
     """
-    return await _create_deployment_impl(service, user_google_email, script_id, description, version_description)
+    return await _create_deployment_impl(
+        service, user_google_email, script_id, description, version_description
+    )
 
 
 async def _list_deployments_impl(
@@ -511,9 +521,7 @@ async def _list_deployments_impl(
 
 
 @server.tool()
-@handle_http_errors(
-    "list_deployments", is_read_only=True, service_type="script"
-)
+@handle_http_errors("list_deployments", is_read_only=True, service_type="script")
 @require_google_service("script", "script_deployments_readonly")
 async def list_deployments(
     service: Any,
@@ -590,7 +598,9 @@ async def update_deployment(
     Returns:
         str: Formatted string confirming update
     """
-    return await _update_deployment_impl(service, user_google_email, script_id, deployment_id, description)
+    return await _update_deployment_impl(
+        service, user_google_email, script_id, deployment_id, description
+    )
 
 
 async def _delete_deployment_impl(
@@ -638,7 +648,9 @@ async def delete_deployment(
     Returns:
         str: Confirmation message
     """
-    return await _delete_deployment_impl(service, user_google_email, script_id, deployment_id)
+    return await _delete_deployment_impl(
+        service, user_google_email, script_id, deployment_id
+    )
 
 
 async def _list_script_processes_impl(
@@ -684,9 +696,7 @@ async def _list_script_processes_impl(
 
 
 @server.tool()
-@handle_http_errors(
-    "list_script_processes", is_read_only=True, service_type="script"
-)
+@handle_http_errors("list_script_processes", is_read_only=True, service_type="script")
 @require_google_service("script", "script_readonly")
 async def list_script_processes(
     service: Any,
@@ -706,7 +716,9 @@ async def list_script_processes(
     Returns:
         str: Formatted string with process list
     """
-    return await _list_script_processes_impl(service, user_google_email, page_size, script_id)
+    return await _list_script_processes_impl(
+        service, user_google_email, page_size, script_id
+    )
 
 
 # ============================================================================
@@ -766,9 +778,7 @@ async def _list_versions_impl(
     script_id: str,
 ) -> str:
     """Internal implementation for list_versions."""
-    logger.info(
-        f"[list_versions] Email: {user_google_email}, ScriptID: {script_id}"
-    )
+    logger.info(f"[list_versions] Email: {user_google_email}, ScriptID: {script_id}")
 
     response = await asyncio.to_thread(
         service.projects().versions().list(scriptId=script_id).execute
@@ -826,9 +836,7 @@ async def _create_version_impl(
     description: Optional[str] = None,
 ) -> str:
     """Internal implementation for create_version."""
-    logger.info(
-        f"[create_version] Email: {user_google_email}, ScriptID: {script_id}"
-    )
+    logger.info(f"[create_version] Email: {user_google_email}, ScriptID: {script_id}")
 
     request_body = {}
     if description:
@@ -878,7 +886,9 @@ async def create_version(
     Returns:
         str: Formatted string with new version details
     """
-    return await _create_version_impl(service, user_google_email, script_id, description)
+    return await _create_version_impl(
+        service, user_google_email, script_id, description
+    )
 
 
 async def _get_version_impl(
@@ -934,7 +944,9 @@ async def get_version(
     Returns:
         str: Formatted string with version details
     """
-    return await _get_version_impl(service, user_google_email, script_id, version_number)
+    return await _get_version_impl(
+        service, user_google_email, script_id, version_number
+    )
 
 
 # ============================================================================
@@ -959,12 +971,14 @@ async def _get_script_metrics_impl(
     }
 
     response = await asyncio.to_thread(
-        service.projects()
-        .getMetrics(**request_params)
-        .execute
+        service.projects().getMetrics(**request_params).execute
     )
 
-    output = [f"Metrics for script: {script_id}", f"Granularity: {metrics_granularity}", ""]
+    output = [
+        f"Metrics for script: {script_id}",
+        f"Granularity: {metrics_granularity}",
+        "",
+    ]
 
     # Active users
     active_users = response.get("activeUsers", [])
@@ -1030,7 +1044,9 @@ async def get_script_metrics(
     Returns:
         str: Formatted string with metrics data
     """
-    return await _get_script_metrics_impl(service, user_google_email, script_id, metrics_granularity)
+    return await _get_script_metrics_impl(
+        service, user_google_email, script_id, metrics_granularity
+    )
 
 
 # ============================================================================
@@ -1048,153 +1064,153 @@ def _generate_trigger_code_impl(
 
     if trigger_type == "on_open":
         code_lines = [
-            f"// Simple trigger - just rename your function to 'onOpen'",
-            f"// This runs automatically when the document is opened",
-            f"function onOpen(e) {{",
+            "// Simple trigger - just rename your function to 'onOpen'",
+            "// This runs automatically when the document is opened",
+            "function onOpen(e) {",
             f"  {function_name}();",
-            f"}}",
+            "}",
         ]
     elif trigger_type == "on_edit":
         code_lines = [
-            f"// Simple trigger - just rename your function to 'onEdit'",
-            f"// This runs automatically when a user edits the spreadsheet",
-            f"function onEdit(e) {{",
+            "// Simple trigger - just rename your function to 'onEdit'",
+            "// This runs automatically when a user edits the spreadsheet",
+            "function onEdit(e) {",
             f"  {function_name}();",
-            f"}}",
+            "}",
         ]
     elif trigger_type == "time_minutes":
         interval = schedule or "5"
         code_lines = [
-            f"// Run this function ONCE to install the trigger",
+            "// Run this function ONCE to install the trigger",
             f"function createTimeTrigger_{function_name}() {{",
-            f"  // Delete existing triggers for this function first",
-            f"  const triggers = ScriptApp.getProjectTriggers();",
-            f"  triggers.forEach(trigger => {{",
+            "  // Delete existing triggers for this function first",
+            "  const triggers = ScriptApp.getProjectTriggers();",
+            "  triggers.forEach(trigger => {",
             f"    if (trigger.getHandlerFunction() === '{function_name}') {{",
-            f"      ScriptApp.deleteTrigger(trigger);",
-            f"    }}",
-            f"  }});",
-            f"",
+            "      ScriptApp.deleteTrigger(trigger);",
+            "    }",
+            "  });",
+            "",
             f"  // Create new trigger - runs every {interval} minutes",
             f"  ScriptApp.newTrigger('{function_name}')",
-            f"    .timeBased()",
+            "    .timeBased()",
             f"    .everyMinutes({interval})",
-            f"    .create();",
-            f"",
+            "    .create();",
+            "",
             f"  Logger.log('Trigger created: {function_name} will run every {interval} minutes');",
-            f"}}",
+            "}",
         ]
     elif trigger_type == "time_hours":
         interval = schedule or "1"
         code_lines = [
-            f"// Run this function ONCE to install the trigger",
+            "// Run this function ONCE to install the trigger",
             f"function createTimeTrigger_{function_name}() {{",
-            f"  // Delete existing triggers for this function first",
-            f"  const triggers = ScriptApp.getProjectTriggers();",
-            f"  triggers.forEach(trigger => {{",
+            "  // Delete existing triggers for this function first",
+            "  const triggers = ScriptApp.getProjectTriggers();",
+            "  triggers.forEach(trigger => {",
             f"    if (trigger.getHandlerFunction() === '{function_name}') {{",
-            f"      ScriptApp.deleteTrigger(trigger);",
-            f"    }}",
-            f"  }});",
-            f"",
+            "      ScriptApp.deleteTrigger(trigger);",
+            "    }",
+            "  });",
+            "",
             f"  // Create new trigger - runs every {interval} hour(s)",
             f"  ScriptApp.newTrigger('{function_name}')",
-            f"    .timeBased()",
+            "    .timeBased()",
             f"    .everyHours({interval})",
-            f"    .create();",
-            f"",
+            "    .create();",
+            "",
             f"  Logger.log('Trigger created: {function_name} will run every {interval} hour(s)');",
-            f"}}",
+            "}",
         ]
     elif trigger_type == "time_daily":
         hour = schedule or "9"
         code_lines = [
-            f"// Run this function ONCE to install the trigger",
+            "// Run this function ONCE to install the trigger",
             f"function createDailyTrigger_{function_name}() {{",
-            f"  // Delete existing triggers for this function first",
-            f"  const triggers = ScriptApp.getProjectTriggers();",
-            f"  triggers.forEach(trigger => {{",
+            "  // Delete existing triggers for this function first",
+            "  const triggers = ScriptApp.getProjectTriggers();",
+            "  triggers.forEach(trigger => {",
             f"    if (trigger.getHandlerFunction() === '{function_name}') {{",
-            f"      ScriptApp.deleteTrigger(trigger);",
-            f"    }}",
-            f"  }});",
-            f"",
+            "      ScriptApp.deleteTrigger(trigger);",
+            "    }",
+            "  });",
+            "",
             f"  // Create new trigger - runs daily at {hour}:00",
             f"  ScriptApp.newTrigger('{function_name}')",
-            f"    .timeBased()",
+            "    .timeBased()",
             f"    .atHour({hour})",
-            f"    .everyDays(1)",
-            f"    .create();",
-            f"",
+            "    .everyDays(1)",
+            "    .create();",
+            "",
             f"  Logger.log('Trigger created: {function_name} will run daily at {hour}:00');",
-            f"}}",
+            "}",
         ]
     elif trigger_type == "time_weekly":
         day = schedule.upper() if schedule else "MONDAY"
         code_lines = [
-            f"// Run this function ONCE to install the trigger",
+            "// Run this function ONCE to install the trigger",
             f"function createWeeklyTrigger_{function_name}() {{",
-            f"  // Delete existing triggers for this function first",
-            f"  const triggers = ScriptApp.getProjectTriggers();",
-            f"  triggers.forEach(trigger => {{",
+            "  // Delete existing triggers for this function first",
+            "  const triggers = ScriptApp.getProjectTriggers();",
+            "  triggers.forEach(trigger => {",
             f"    if (trigger.getHandlerFunction() === '{function_name}') {{",
-            f"      ScriptApp.deleteTrigger(trigger);",
-            f"    }}",
-            f"  }});",
-            f"",
+            "      ScriptApp.deleteTrigger(trigger);",
+            "    }",
+            "  });",
+            "",
             f"  // Create new trigger - runs weekly on {day}",
             f"  ScriptApp.newTrigger('{function_name}')",
-            f"    .timeBased()",
+            "    .timeBased()",
             f"    .onWeekDay(ScriptApp.WeekDay.{day})",
-            f"    .atHour(9)",
-            f"    .create();",
-            f"",
+            "    .atHour(9)",
+            "    .create();",
+            "",
             f"  Logger.log('Trigger created: {function_name} will run every {day} at 9:00');",
-            f"}}",
+            "}",
         ]
     elif trigger_type == "on_form_submit":
         code_lines = [
-            f"// Run this function ONCE to install the trigger",
-            f"// This must be run from a script BOUND to the Google Form",
+            "// Run this function ONCE to install the trigger",
+            "// This must be run from a script BOUND to the Google Form",
             f"function createFormSubmitTrigger_{function_name}() {{",
-            f"  // Delete existing triggers for this function first",
-            f"  const triggers = ScriptApp.getProjectTriggers();",
-            f"  triggers.forEach(trigger => {{",
+            "  // Delete existing triggers for this function first",
+            "  const triggers = ScriptApp.getProjectTriggers();",
+            "  triggers.forEach(trigger => {",
             f"    if (trigger.getHandlerFunction() === '{function_name}') {{",
-            f"      ScriptApp.deleteTrigger(trigger);",
-            f"    }}",
-            f"  }});",
-            f"",
-            f"  // Create new trigger - runs when form is submitted",
+            "      ScriptApp.deleteTrigger(trigger);",
+            "    }",
+            "  });",
+            "",
+            "  // Create new trigger - runs when form is submitted",
             f"  ScriptApp.newTrigger('{function_name}')",
-            f"    .forForm(FormApp.getActiveForm())",
-            f"    .onFormSubmit()",
-            f"    .create();",
-            f"",
+            "    .forForm(FormApp.getActiveForm())",
+            "    .onFormSubmit()",
+            "    .create();",
+            "",
             f"  Logger.log('Trigger created: {function_name} will run on form submit');",
-            f"}}",
+            "}",
         ]
     elif trigger_type == "on_change":
         code_lines = [
-            f"// Run this function ONCE to install the trigger",
-            f"// This must be run from a script BOUND to a Google Sheet",
+            "// Run this function ONCE to install the trigger",
+            "// This must be run from a script BOUND to a Google Sheet",
             f"function createChangeTrigger_{function_name}() {{",
-            f"  // Delete existing triggers for this function first",
-            f"  const triggers = ScriptApp.getProjectTriggers();",
-            f"  triggers.forEach(trigger => {{",
+            "  // Delete existing triggers for this function first",
+            "  const triggers = ScriptApp.getProjectTriggers();",
+            "  triggers.forEach(trigger => {",
             f"    if (trigger.getHandlerFunction() === '{function_name}') {{",
-            f"      ScriptApp.deleteTrigger(trigger);",
-            f"    }}",
-            f"  }});",
-            f"",
-            f"  // Create new trigger - runs when spreadsheet changes",
+            "      ScriptApp.deleteTrigger(trigger);",
+            "    }",
+            "  });",
+            "",
+            "  // Create new trigger - runs when spreadsheet changes",
             f"  ScriptApp.newTrigger('{function_name}')",
-            f"    .forSpreadsheet(SpreadsheetApp.getActive())",
-            f"    .onChange()",
-            f"    .create();",
-            f"",
+            "    .forSpreadsheet(SpreadsheetApp.getActive())",
+            "    .onChange()",
+            "    .create();",
+            "",
             f"  Logger.log('Trigger created: {function_name} will run on spreadsheet change');",
-            f"}}",
+            "}",
         ]
     else:
         return (
@@ -1243,7 +1259,7 @@ def _generate_trigger_code_impl(
             "=" * 50,
             "",
             "1. Add this code to your script using update_script_content",
-            f"2. Run the setup function ONCE (manually in Apps Script editor or via run_script_function)",
+            "2. Run the setup function ONCE (manually in Apps Script editor or via run_script_function)",
             "3. The trigger will then run automatically on schedule",
             "",
             "To check installed triggers: Apps Script editor > Triggers (clock icon)",

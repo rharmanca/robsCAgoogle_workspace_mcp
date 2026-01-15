@@ -15,7 +15,6 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../.
 from gappsscript.apps_script_tools import (
     _list_script_projects_impl,
     _get_script_project_impl,
-    _get_script_content_impl,
     _create_script_project_impl,
     _update_script_content_impl,
     _run_script_function_impl,
@@ -154,14 +153,18 @@ async def test_create_deployment():
 
     # Mock version creation (called first)
     mock_version_response = {"versionNumber": 1}
-    mock_service.projects().versions().create().execute.return_value = mock_version_response
+    mock_service.projects().versions().create().execute.return_value = (
+        mock_version_response
+    )
 
     # Mock deployment creation (called second)
     mock_deploy_response = {
         "deploymentId": "deploy123",
         "deploymentConfig": {},
     }
-    mock_service.projects().deployments().create().execute.return_value = mock_deploy_response
+    mock_service.projects().deployments().create().execute.return_value = (
+        mock_deploy_response
+    )
 
     result = await _create_deployment_impl(
         service=mock_service,
