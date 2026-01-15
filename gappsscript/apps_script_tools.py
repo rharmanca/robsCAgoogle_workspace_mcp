@@ -707,3 +707,587 @@ async def list_script_processes(
         str: Formatted string with process list
     """
     return await _list_script_processes_impl(service, user_google_email, page_size, script_id)
+
+
+# ============================================================================
+# Delete Script Project
+# ============================================================================
+
+
+async def _delete_script_project_impl(
+    service: Any,
+    user_google_email: str,
+    script_id: str,
+) -> str:
+    """Internal implementation for delete_script_project."""
+    logger.info(
+        f"[delete_script_project] Email: {user_google_email}, ScriptID: {script_id}"
+    )
+
+    # Apps Script projects are stored as Drive files
+    await asyncio.to_thread(service.files().delete(fileId=script_id).execute)
+
+    logger.info(f"[delete_script_project] Deleted script {script_id}")
+    return f"Deleted Apps Script project: {script_id}"
+
+
+@server.tool()
+@handle_http_errors("delete_script_project", is_read_only=False, service_type="drive")
+@require_google_service("drive", "drive_full")
+async def delete_script_project(
+    service: Any,
+    user_google_email: str,
+    script_id: str,
+) -> str:
+    """
+    Deletes an Apps Script project.
+
+    This permanently deletes the script project. The action cannot be undone.
+
+    Args:
+        service: Injected Google API service client
+        user_google_email: User's email address
+        script_id: The script project ID to delete
+
+    Returns:
+        str: Confirmation message
+    """
+    return await _delete_script_project_impl(service, user_google_email, script_id)
+
+
+# ============================================================================
+# Version Management
+# ============================================================================
+
+
+async def _list_versions_impl(
+    service: Any,
+    user_google_email: str,
+    script_id: str,
+) -> str:
+    """Internal implementation for list_versions."""
+    logger.info(
+        f"[list_versions] Email: {user_google_email}, ScriptID: {script_id}"
+    )
+
+    response = await asyncio.to_thread(
+        service.projects().versions().list(scriptId=script_id).execute
+    )
+
+    versions = response.get("versions", [])
+
+    if not versions:
+        return f"No versions found for script: {script_id}"
+
+    output = [f"Versions for script: {script_id}", ""]
+
+    for version in versions:
+        version_number = version.get("versionNumber", "Unknown")
+        description = version.get("description", "No description")
+        create_time = version.get("createTime", "Unknown")
+
+        output.append(f"Version {version_number}: {description}")
+        output.append(f"   Created: {create_time}")
+        output.append("")
+
+    logger.info(f"[list_versions] Found {len(versions)} versions")
+    return "\n".join(output)
+
+
+@server.tool()
+@handle_http_errors("list_versions", is_read_only=True, service_type="script")
+@require_google_service("script", "script_readonly")
+async def list_versions(
+    service: Any,
+    user_google_email: str,
+    script_id: str,
+) -> str:
+    """
+    Lists all versions of a script project.
+
+    Versions are immutable snapshots of your script code.
+    They are created when you deploy or explicitly create a version.
+
+    Args:
+        service: Injected Google API service client
+        user_google_email: User's email address
+        script_id: The script project ID
+
+    Returns:
+        str: Formatted string with version list
+    """
+    return await _list_versions_impl(service, user_google_email, script_id)
+
+
+async def _create_version_impl(
+    service: Any,
+    user_google_email: str,
+    script_id: str,
+    description: Optional[str] = None,
+) -> str:
+    """Internal implementation for create_version."""
+    logger.info(
+        f"[create_version] Email: {user_google_email}, ScriptID: {script_id}"
+    )
+
+    request_body = {}
+    if description:
+        request_body["description"] = description
+
+    version = await asyncio.to_thread(
+        service.projects()
+        .versions()
+        .create(scriptId=script_id, body=request_body)
+        .execute
+    )
+
+    version_number = version.get("versionNumber", "Unknown")
+    create_time = version.get("createTime", "Unknown")
+
+    output = [
+        f"Created version {version_number} for script: {script_id}",
+        f"Description: {description or 'No description'}",
+        f"Created: {create_time}",
+    ]
+
+    logger.info(f"[create_version] Created version {version_number}")
+    return "\n".join(output)
+
+
+@server.tool()
+@handle_http_errors("create_version", is_read_only=False, service_type="script")
+@require_google_service("script", "script_full")
+async def create_version(
+    service: Any,
+    user_google_email: str,
+    script_id: str,
+    description: Optional[str] = None,
+) -> str:
+    """
+    Creates a new immutable version of a script project.
+
+    Versions capture a snapshot of the current script code.
+    Once created, versions cannot be modified.
+
+    Args:
+        service: Injected Google API service client
+        user_google_email: User's email address
+        script_id: The script project ID
+        description: Optional description for this version
+
+    Returns:
+        str: Formatted string with new version details
+    """
+    return await _create_version_impl(service, user_google_email, script_id, description)
+
+
+async def _get_version_impl(
+    service: Any,
+    user_google_email: str,
+    script_id: str,
+    version_number: int,
+) -> str:
+    """Internal implementation for get_version."""
+    logger.info(
+        f"[get_version] Email: {user_google_email}, ScriptID: {script_id}, Version: {version_number}"
+    )
+
+    version = await asyncio.to_thread(
+        service.projects()
+        .versions()
+        .get(scriptId=script_id, versionNumber=version_number)
+        .execute
+    )
+
+    ver_num = version.get("versionNumber", "Unknown")
+    description = version.get("description", "No description")
+    create_time = version.get("createTime", "Unknown")
+
+    output = [
+        f"Version {ver_num} of script: {script_id}",
+        f"Description: {description}",
+        f"Created: {create_time}",
+    ]
+
+    logger.info(f"[get_version] Retrieved version {ver_num}")
+    return "\n".join(output)
+
+
+@server.tool()
+@handle_http_errors("get_version", is_read_only=True, service_type="script")
+@require_google_service("script", "script_readonly")
+async def get_version(
+    service: Any,
+    user_google_email: str,
+    script_id: str,
+    version_number: int,
+) -> str:
+    """
+    Gets details of a specific version.
+
+    Args:
+        service: Injected Google API service client
+        user_google_email: User's email address
+        script_id: The script project ID
+        version_number: The version number to retrieve (1, 2, 3, etc.)
+
+    Returns:
+        str: Formatted string with version details
+    """
+    return await _get_version_impl(service, user_google_email, script_id, version_number)
+
+
+# ============================================================================
+# Metrics
+# ============================================================================
+
+
+async def _get_script_metrics_impl(
+    service: Any,
+    user_google_email: str,
+    script_id: str,
+    metrics_granularity: str = "DAILY",
+) -> str:
+    """Internal implementation for get_script_metrics."""
+    logger.info(
+        f"[get_script_metrics] Email: {user_google_email}, ScriptID: {script_id}, Granularity: {metrics_granularity}"
+    )
+
+    request_params = {
+        "scriptId": script_id,
+        "metricsGranularity": metrics_granularity,
+    }
+
+    response = await asyncio.to_thread(
+        service.projects()
+        .getMetrics(**request_params)
+        .execute
+    )
+
+    output = [f"Metrics for script: {script_id}", f"Granularity: {metrics_granularity}", ""]
+
+    # Active users
+    active_users = response.get("activeUsers", [])
+    if active_users:
+        output.append("Active Users:")
+        for metric in active_users:
+            start_time = metric.get("startTime", "Unknown")
+            end_time = metric.get("endTime", "Unknown")
+            value = metric.get("value", "0")
+            output.append(f"  {start_time} to {end_time}: {value} users")
+        output.append("")
+
+    # Total executions
+    total_executions = response.get("totalExecutions", [])
+    if total_executions:
+        output.append("Total Executions:")
+        for metric in total_executions:
+            start_time = metric.get("startTime", "Unknown")
+            end_time = metric.get("endTime", "Unknown")
+            value = metric.get("value", "0")
+            output.append(f"  {start_time} to {end_time}: {value} executions")
+        output.append("")
+
+    # Failed executions
+    failed_executions = response.get("failedExecutions", [])
+    if failed_executions:
+        output.append("Failed Executions:")
+        for metric in failed_executions:
+            start_time = metric.get("startTime", "Unknown")
+            end_time = metric.get("endTime", "Unknown")
+            value = metric.get("value", "0")
+            output.append(f"  {start_time} to {end_time}: {value} failures")
+        output.append("")
+
+    if not active_users and not total_executions and not failed_executions:
+        output.append("No metrics data available for this script.")
+
+    logger.info(f"[get_script_metrics] Retrieved metrics for {script_id}")
+    return "\n".join(output)
+
+
+@server.tool()
+@handle_http_errors("get_script_metrics", is_read_only=True, service_type="script")
+@require_google_service("script", "script_readonly")
+async def get_script_metrics(
+    service: Any,
+    user_google_email: str,
+    script_id: str,
+    metrics_granularity: str = "DAILY",
+) -> str:
+    """
+    Gets execution metrics for a script project.
+
+    Returns analytics data including active users, total executions,
+    and failed executions over time.
+
+    Args:
+        service: Injected Google API service client
+        user_google_email: User's email address
+        script_id: The script project ID
+        metrics_granularity: Granularity of metrics - "DAILY" or "WEEKLY"
+
+    Returns:
+        str: Formatted string with metrics data
+    """
+    return await _get_script_metrics_impl(service, user_google_email, script_id, metrics_granularity)
+
+
+# ============================================================================
+# Trigger Code Generation
+# ============================================================================
+
+
+def _generate_trigger_code_impl(
+    trigger_type: str,
+    function_name: str,
+    schedule: str = "",
+) -> str:
+    """Internal implementation for generate_trigger_code."""
+    code_lines = []
+
+    if trigger_type == "on_open":
+        code_lines = [
+            f"// Simple trigger - just rename your function to 'onOpen'",
+            f"// This runs automatically when the document is opened",
+            f"function onOpen(e) {{",
+            f"  {function_name}();",
+            f"}}",
+        ]
+    elif trigger_type == "on_edit":
+        code_lines = [
+            f"// Simple trigger - just rename your function to 'onEdit'",
+            f"// This runs automatically when a user edits the spreadsheet",
+            f"function onEdit(e) {{",
+            f"  {function_name}();",
+            f"}}",
+        ]
+    elif trigger_type == "time_minutes":
+        interval = schedule or "5"
+        code_lines = [
+            f"// Run this function ONCE to install the trigger",
+            f"function createTimeTrigger_{function_name}() {{",
+            f"  // Delete existing triggers for this function first",
+            f"  const triggers = ScriptApp.getProjectTriggers();",
+            f"  triggers.forEach(trigger => {{",
+            f"    if (trigger.getHandlerFunction() === '{function_name}') {{",
+            f"      ScriptApp.deleteTrigger(trigger);",
+            f"    }}",
+            f"  }});",
+            f"",
+            f"  // Create new trigger - runs every {interval} minutes",
+            f"  ScriptApp.newTrigger('{function_name}')",
+            f"    .timeBased()",
+            f"    .everyMinutes({interval})",
+            f"    .create();",
+            f"",
+            f"  Logger.log('Trigger created: {function_name} will run every {interval} minutes');",
+            f"}}",
+        ]
+    elif trigger_type == "time_hours":
+        interval = schedule or "1"
+        code_lines = [
+            f"// Run this function ONCE to install the trigger",
+            f"function createTimeTrigger_{function_name}() {{",
+            f"  // Delete existing triggers for this function first",
+            f"  const triggers = ScriptApp.getProjectTriggers();",
+            f"  triggers.forEach(trigger => {{",
+            f"    if (trigger.getHandlerFunction() === '{function_name}') {{",
+            f"      ScriptApp.deleteTrigger(trigger);",
+            f"    }}",
+            f"  }});",
+            f"",
+            f"  // Create new trigger - runs every {interval} hour(s)",
+            f"  ScriptApp.newTrigger('{function_name}')",
+            f"    .timeBased()",
+            f"    .everyHours({interval})",
+            f"    .create();",
+            f"",
+            f"  Logger.log('Trigger created: {function_name} will run every {interval} hour(s)');",
+            f"}}",
+        ]
+    elif trigger_type == "time_daily":
+        hour = schedule or "9"
+        code_lines = [
+            f"// Run this function ONCE to install the trigger",
+            f"function createDailyTrigger_{function_name}() {{",
+            f"  // Delete existing triggers for this function first",
+            f"  const triggers = ScriptApp.getProjectTriggers();",
+            f"  triggers.forEach(trigger => {{",
+            f"    if (trigger.getHandlerFunction() === '{function_name}') {{",
+            f"      ScriptApp.deleteTrigger(trigger);",
+            f"    }}",
+            f"  }});",
+            f"",
+            f"  // Create new trigger - runs daily at {hour}:00",
+            f"  ScriptApp.newTrigger('{function_name}')",
+            f"    .timeBased()",
+            f"    .atHour({hour})",
+            f"    .everyDays(1)",
+            f"    .create();",
+            f"",
+            f"  Logger.log('Trigger created: {function_name} will run daily at {hour}:00');",
+            f"}}",
+        ]
+    elif trigger_type == "time_weekly":
+        day = schedule.upper() if schedule else "MONDAY"
+        code_lines = [
+            f"// Run this function ONCE to install the trigger",
+            f"function createWeeklyTrigger_{function_name}() {{",
+            f"  // Delete existing triggers for this function first",
+            f"  const triggers = ScriptApp.getProjectTriggers();",
+            f"  triggers.forEach(trigger => {{",
+            f"    if (trigger.getHandlerFunction() === '{function_name}') {{",
+            f"      ScriptApp.deleteTrigger(trigger);",
+            f"    }}",
+            f"  }});",
+            f"",
+            f"  // Create new trigger - runs weekly on {day}",
+            f"  ScriptApp.newTrigger('{function_name}')",
+            f"    .timeBased()",
+            f"    .onWeekDay(ScriptApp.WeekDay.{day})",
+            f"    .atHour(9)",
+            f"    .create();",
+            f"",
+            f"  Logger.log('Trigger created: {function_name} will run every {day} at 9:00');",
+            f"}}",
+        ]
+    elif trigger_type == "on_form_submit":
+        code_lines = [
+            f"// Run this function ONCE to install the trigger",
+            f"// This must be run from a script BOUND to the Google Form",
+            f"function createFormSubmitTrigger_{function_name}() {{",
+            f"  // Delete existing triggers for this function first",
+            f"  const triggers = ScriptApp.getProjectTriggers();",
+            f"  triggers.forEach(trigger => {{",
+            f"    if (trigger.getHandlerFunction() === '{function_name}') {{",
+            f"      ScriptApp.deleteTrigger(trigger);",
+            f"    }}",
+            f"  }});",
+            f"",
+            f"  // Create new trigger - runs when form is submitted",
+            f"  ScriptApp.newTrigger('{function_name}')",
+            f"    .forForm(FormApp.getActiveForm())",
+            f"    .onFormSubmit()",
+            f"    .create();",
+            f"",
+            f"  Logger.log('Trigger created: {function_name} will run on form submit');",
+            f"}}",
+        ]
+    elif trigger_type == "on_change":
+        code_lines = [
+            f"// Run this function ONCE to install the trigger",
+            f"// This must be run from a script BOUND to a Google Sheet",
+            f"function createChangeTrigger_{function_name}() {{",
+            f"  // Delete existing triggers for this function first",
+            f"  const triggers = ScriptApp.getProjectTriggers();",
+            f"  triggers.forEach(trigger => {{",
+            f"    if (trigger.getHandlerFunction() === '{function_name}') {{",
+            f"      ScriptApp.deleteTrigger(trigger);",
+            f"    }}",
+            f"  }});",
+            f"",
+            f"  // Create new trigger - runs when spreadsheet changes",
+            f"  ScriptApp.newTrigger('{function_name}')",
+            f"    .forSpreadsheet(SpreadsheetApp.getActive())",
+            f"    .onChange()",
+            f"    .create();",
+            f"",
+            f"  Logger.log('Trigger created: {function_name} will run on spreadsheet change');",
+            f"}}",
+        ]
+    else:
+        return (
+            f"Unknown trigger type: {trigger_type}\n\n"
+            "Valid types: time_minutes, time_hours, time_daily, time_weekly, "
+            "on_open, on_edit, on_form_submit, on_change"
+        )
+
+    code = "\n".join(code_lines)
+
+    instructions = []
+    if trigger_type.startswith("on_"):
+        if trigger_type in ("on_open", "on_edit"):
+            instructions = [
+                "SIMPLE TRIGGER",
+                "=" * 50,
+                "",
+                "Add this code to your script. Simple triggers run automatically",
+                "when the event occurs - no setup function needed.",
+                "",
+                "Note: Simple triggers have limitations:",
+                "- Cannot access services that require authorization",
+                "- Cannot run longer than 30 seconds",
+                "- Cannot make external HTTP requests",
+                "",
+                "For more capabilities, use an installable trigger instead.",
+                "",
+                "CODE TO ADD:",
+                "-" * 50,
+            ]
+        else:
+            instructions = [
+                "INSTALLABLE TRIGGER",
+                "=" * 50,
+                "",
+                "1. Add this code to your script",
+                f"2. Run the setup function once: createFormSubmitTrigger_{function_name}() or similar",
+                "3. The trigger will then run automatically",
+                "",
+                "CODE TO ADD:",
+                "-" * 50,
+            ]
+    else:
+        instructions = [
+            "INSTALLABLE TRIGGER",
+            "=" * 50,
+            "",
+            "1. Add this code to your script using update_script_content",
+            f"2. Run the setup function ONCE (manually in Apps Script editor or via run_script_function)",
+            "3. The trigger will then run automatically on schedule",
+            "",
+            "To check installed triggers: Apps Script editor > Triggers (clock icon)",
+            "",
+            "CODE TO ADD:",
+            "-" * 50,
+        ]
+
+    return "\n".join(instructions) + "\n\n" + code
+
+
+@server.tool()
+async def generate_trigger_code(
+    trigger_type: str,
+    function_name: str,
+    schedule: str = "",
+) -> str:
+    """
+    Generates Apps Script code for creating triggers.
+
+    The Apps Script API cannot create triggers directly - they must be created
+    from within Apps Script itself. This tool generates the code you need.
+
+    Args:
+        trigger_type: Type of trigger. One of:
+                      - "time_minutes" (run every N minutes: 1, 5, 10, 15, 30)
+                      - "time_hours" (run every N hours: 1, 2, 4, 6, 8, 12)
+                      - "time_daily" (run daily at a specific hour: 0-23)
+                      - "time_weekly" (run weekly on a specific day)
+                      - "on_open" (simple trigger - runs when document opens)
+                      - "on_edit" (simple trigger - runs when user edits)
+                      - "on_form_submit" (runs when form is submitted)
+                      - "on_change" (runs when content changes)
+
+        function_name: The function to run when trigger fires (e.g., "sendDailyReport")
+
+        schedule: Schedule details (depends on trigger_type):
+                  - For time_minutes: "1", "5", "10", "15", or "30"
+                  - For time_hours: "1", "2", "4", "6", "8", or "12"
+                  - For time_daily: hour as "0"-"23" (e.g., "9" for 9am)
+                  - For time_weekly: "MONDAY", "TUESDAY", etc.
+                  - For simple triggers (on_open, on_edit): not needed
+
+    Returns:
+        str: Apps Script code to create the trigger
+    """
+    return _generate_trigger_code_impl(trigger_type, function_name, schedule)

@@ -4,7 +4,7 @@ This module provides Model Context Protocol (MCP) tools for interacting with Goo
 
 ## Overview
 
-Google Apps Script allows automation and extension of Google Workspace applications. This MCP integration provides 11 tools across core and extended tiers for complete Apps Script lifecycle management.
+Google Apps Script allows automation and extension of Google Workspace applications. This MCP integration provides 17 tools across core and extended tiers for complete Apps Script lifecycle management.
 
 ## Why Apps Script?
 
@@ -70,6 +70,7 @@ This ensures safe, auditable automation management.
 - Get complete project details including all files
 - Create new standalone or bound script projects
 - Update script content (add/modify JavaScript files)
+- Delete script projects
 
 ### Execution
 - Execute functions with parameters
@@ -83,15 +84,26 @@ This ensures safe, auditable automation management.
 - Update deployment configurations
 - Delete outdated deployments
 
-### Monitoring
+### Version Management
+- List all versions of a script
+- Create immutable version snapshots
+- Get details of specific versions
+
+### Monitoring & Analytics
 - View recent script executions
 - Check execution status and results
 - Monitor for errors and failures
+- Get execution metrics (active users, total executions, failures)
+
+### Trigger Code Generation
+- Generate Apps Script code for time-based triggers (minutes, hours, daily, weekly)
+- Generate code for event triggers (onOpen, onEdit, onFormSubmit, onChange)
+- Provides ready-to-use code snippets with setup instructions
 
 ## Limitations & Non-Goals
 
 **Current Limitations**
-- Trigger management (create/update/delete time-based or event triggers) is not supported
+- Direct trigger management via API is not supported (use `generate_trigger_code` instead)
 - Real-time debugging and breakpoints are not available
 - Advanced service enablement must be done manually in the script editor
 
@@ -101,9 +113,9 @@ This ensures safe, auditable automation management.
 - Does not provide IDE features like autocomplete or syntax highlighting
 
 **Workarounds**
-- Triggers can be created by including trigger setup code in the script itself
+- Triggers: Use `generate_trigger_code` to get ready-to-use Apps Script code for any trigger type
 - Advanced services can be enabled via the manifest file (appsscript.json)
-- Debugging is supported through execution logs and error monitoring
+- Debugging is supported through execution logs, metrics, and error monitoring
 
 ## Prerequisites
 
@@ -141,7 +153,8 @@ https://www.googleapis.com/auth/script.projects.readonly
 https://www.googleapis.com/auth/script.deployments
 https://www.googleapis.com/auth/script.deployments.readonly
 https://www.googleapis.com/auth/script.processes
-https://www.googleapis.com/auth/drive.readonly
+https://www.googleapis.com/auth/script.metrics
+https://www.googleapis.com/auth/drive.file
 ```
 
 These are automatically requested when using the appscript tool tier.
@@ -173,15 +186,21 @@ Essential operations for reading, writing, and executing scripts:
 - `create_script_project`: Create new project
 - `update_script_content`: Modify project files
 - `run_script_function`: Execute functions
+- `generate_trigger_code`: Generate trigger setup code
 
 ### Extended Tier
-Advanced deployment and monitoring:
+Advanced deployment, versioning, and monitoring:
 
 - `create_deployment`: Create new deployment
 - `list_deployments`: List all deployments
 - `update_deployment`: Update deployment config
 - `delete_deployment`: Remove deployment
+- `delete_script_project`: Delete a project permanently
+- `list_versions`: List all versions
+- `create_version`: Create immutable version snapshot
+- `get_version`: Get version details
 - `list_script_processes`: View execution history
+- `get_script_metrics`: Get execution analytics
 
 ## Usage Examples
 

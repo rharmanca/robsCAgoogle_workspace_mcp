@@ -151,10 +151,16 @@ appscript:
     - create_script_project
     - update_script_content
     - run_script_function
+    - generate_trigger_code
   extended:
     - create_deployment
     - list_deployments
     - update_deployment
     - delete_deployment
+    - delete_script_project
+    - list_versions
+    - create_version
+    - get_version
     - list_script_processes
+    - get_script_metrics
   complete: []

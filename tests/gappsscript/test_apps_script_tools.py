@@ -24,6 +24,12 @@ from gappsscript.apps_script_tools import (
     _update_deployment_impl,
     _delete_deployment_impl,
     _list_script_processes_impl,
+    _delete_script_project_impl,
+    _list_versions_impl,
+    _create_version_impl,
+    _get_version_impl,
+    _get_script_metrics_impl,
+    _generate_trigger_code_impl,
 )
 
 
@@ -254,3 +260,162 @@ async def test_list_script_processes():
 
     assert "myFunction" in result
     assert "COMPLETED" in result
+
+
+@pytest.mark.asyncio
+async def test_delete_script_project():
+    """Test deleting a script project"""
+    mock_service = Mock()
+    mock_service.files().delete().execute.return_value = {}
+
+    result = await _delete_script_project_impl(
+        service=mock_service, user_google_email="test@example.com", script_id="test123"
+    )
+
+    assert "Deleted Apps Script project: test123" in result
+
+
+@pytest.mark.asyncio
+async def test_list_versions():
+    """Test listing script versions"""
+    mock_service = Mock()
+    mock_response = {
+        "versions": [
+            {
+                "versionNumber": 1,
+                "description": "Initial version",
+                "createTime": "2025-01-10T10:00:00Z",
+            },
+            {
+                "versionNumber": 2,
+                "description": "Bug fix",
+                "createTime": "2026-01-12T15:30:00Z",
+            },
+        ]
+    }
+
+    mock_service.projects().versions().list().execute.return_value = mock_response
+
+    result = await _list_versions_impl(
+        service=mock_service, user_google_email="test@example.com", script_id="test123"
+    )
+
+    assert "Version 1" in result
+    assert "Initial version" in result
+    assert "Version 2" in result
+    assert "Bug fix" in result
+
+
+@pytest.mark.asyncio
+async def test_create_version():
+    """Test creating a new version"""
+    mock_service = Mock()
+    mock_response = {
+        "versionNumber": 3,
+        "createTime": "2026-01-13T10:00:00Z",
+    }
+
+    mock_service.projects().versions().create().execute.return_value = mock_response
+
+    result = await _create_version_impl(
+        service=mock_service,
+        user_google_email="test@example.com",
+        script_id="test123",
+        description="New feature",
+    )
+
+    assert "Created version 3" in result
+    assert "New feature" in result
+
+
+@pytest.mark.asyncio
+async def test_get_version():
+    """Test getting a specific version"""
+    mock_service = Mock()
+    mock_response = {
+        "versionNumber": 2,
+        "description": "Bug fix",
+        "createTime": "2026-01-12T15:30:00Z",
+    }
+
+    mock_service.projects().versions().get().execute.return_value = mock_response
+
+    result = await _get_version_impl(
+        service=mock_service,
+        user_google_email="test@example.com",
+        script_id="test123",
+        version_number=2,
+    )
+
+    assert "Version 2" in result
+    assert "Bug fix" in result
+
+
+@pytest.mark.asyncio
+async def test_get_script_metrics():
+    """Test getting script metrics"""
+    mock_service = Mock()
+    mock_response = {
+        "activeUsers": [
+            {"startTime": "2026-01-01", "endTime": "2026-01-02", "value": "10"}
+        ],
+        "totalExecutions": [
+            {"startTime": "2026-01-01", "endTime": "2026-01-02", "value": "100"}
+        ],
+        "failedExecutions": [
+            {"startTime": "2026-01-01", "endTime": "2026-01-02", "value": "5"}
+        ],
+    }
+
+    mock_service.projects().getMetrics().execute.return_value = mock_response
+
+    result = await _get_script_metrics_impl(
+        service=mock_service,
+        user_google_email="test@example.com",
+        script_id="test123",
+        metrics_granularity="DAILY",
+    )
+
+    assert "Active Users" in result
+    assert "10 users" in result
+    assert "Total Executions" in result
+    assert "100 executions" in result
+    assert "Failed Executions" in result
+    assert "5 failures" in result
+
+
+def test_generate_trigger_code_daily():
+    """Test generating daily trigger code"""
+    result = _generate_trigger_code_impl(
+        trigger_type="time_daily",
+        function_name="sendReport",
+        schedule="9",
+    )
+
+    assert "INSTALLABLE TRIGGER" in result
+    assert "createDailyTrigger_sendReport" in result
+    assert "everyDays(1)" in result
+    assert "atHour(9)" in result
+
+
+def test_generate_trigger_code_on_edit():
+    """Test generating onEdit trigger code"""
+    result = _generate_trigger_code_impl(
+        trigger_type="on_edit",
+        function_name="processEdit",
+    )
+
+    assert "SIMPLE TRIGGER" in result
+    assert "function onEdit" in result
+    assert "processEdit()" in result
+
+
+def test_generate_trigger_code_invalid():
+    """Test generating trigger code with invalid type"""
+    result = _generate_trigger_code_impl(
+        trigger_type="invalid_type",
+        function_name="test",
+    )
+
+    assert "Unknown trigger type" in result
+    assert "Valid types:" in result
