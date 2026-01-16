@@ -13,7 +13,7 @@ import yaml
 
 logger = logging.getLogger(__name__)
 
-TierLevel = Literal["core", "extended", "complete"]
+TierLevel = Literal["core", "extended", "complete", "leo"]
 
 
 class ToolTierLoader:
@@ -109,6 +109,15 @@ class ToolTierLoader:
         Returns:
             List of tool names up to the specified tier level
         """
+        # Special handling for standalone tiers (e.g., "leo")
+        # These tiers are not cumulative and contain their own tool set
+        standalone_tiers = ["leo"]
+
+        if tier in standalone_tiers:
+            # For standalone tiers, return only the tools in that tier
+            return self.get_tools_for_tier(tier, services)
+
+        # For cumulative tiers (core, extended, complete), accumulate tools
         tier_order = ["core", "extended", "complete"]
         max_tier_index = tier_order.index(tier)
 
