@@ -58,11 +58,8 @@ docs:
     - find_and_replace_doc
     - list_docs_in_folder
     - insert_doc_elements
-    - format_text_style
     - format_paragraph_style
     - apply_heading_style
-    - create_list
-    - remove_list_formatting
   complete:
     - insert_doc_image
     - update_doc_headers_footers
