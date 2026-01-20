@@ -1,6 +1,6 @@
 # Progress: Google Workspace MCP Fork
 
-## Current Status: ✅ COMPLETE - FIX VERIFIED
+## Current Status: ⏳ WAITING FOR UPSTREAM PR
 
 **Objective:** Fix multi-account credential isolation bug in workspace-mcp
 
@@ -59,10 +59,17 @@
 - [x] Test with opencode configuration
 - [x] Verify different accounts return different data
 
-### Phase 4: Upstream Contribution
-- [ ] Push to our fork
-- [ ] Create PR to upstream repo
-- [ ] Reference issue #373
+### Phase 4: Upstream Contribution ✅
+- [x] Push to our fork (cvrt-gmbh/google_workspace_mcp)
+- [x] Create PR to upstream repo: https://github.com/taylorwilsdon/google_workspace_mcp/pull/374
+- [x] Reference issue #373
+
+### Phase 5: Post-Merge Cleanup (TODO)
+- [ ] Wait for PR #374 to be merged or declined
+- [ ] If merged: Update opencode.json to use `uvx workspace-mcp` instead of local fork
+- [ ] If merged: Move fork from `cvrt-gmbh/google_workspace_mcp` to `cvrt-jh/google_workspace_mcp` (single location)
+- [ ] If merged: Delete `cvrt-gmbh/mcp/workspace-mcp/` local directory
+- [ ] If declined: Keep fork in `cvrt-jh/` only, remove from `cvrt-gmbh/`
 
 ---
 
@@ -143,9 +150,11 @@ Both accounts authenticated successfully and return **different data**:
 
 ## Next Steps
 
-1. **Push to fork** - `git push origin main`
-2. **Create upstream PR** - Submit fix to taylorwilsdon/google_workspace_mcp
-3. **Reference issue #373** in PR description
+1. ~~**Push to fork** - `git push origin main`~~ ✅ Done
+2. ~~**Create upstream PR** - Submit fix to taylorwilsdon/google_workspace_mcp~~ ✅ Done: PR #374
+3. ~~**Reference issue #373** in PR description~~ ✅ Done
+4. **Wait for PR review** - Monitor https://github.com/taylorwilsdon/google_workspace_mcp/pull/374
+5. **After merge/decline:** Consolidate fork to `cvrt-jh/` only (not `cvrt-gmbh/`)
 
 ---
 
@@ -153,7 +162,13 @@ Both accounts authenticated successfully and return **different data**:
 
 - Upstream repo: https://github.com/taylorwilsdon/google_workspace_mcp
 - Issue filed: https://github.com/taylorwilsdon/google_workspace_mcp/issues/373
+- **Our PR:** https://github.com/taylorwilsdon/google_workspace_mcp/pull/374
+- Our fork: https://github.com/cvrt-gmbh/google_workspace_mcp
 - OpenCode issue: https://github.com/anomalyco/opencode/issues/9634
+
+## Notes
+
+**Fork Location:** Currently at `cvrt-gmbh/google_workspace_mcp` but should be moved to `cvrt-jh/` after PR is resolved. Personal forks belong in personal repo, not company repo.
 
 ---
 
