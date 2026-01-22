@@ -225,7 +225,7 @@ async def get_drive_file_download_url(
 
     For Google native files (Docs, Sheets, Slides), exports to a useful format:
     • Google Docs → PDF (default) or DOCX if export_format='docx'
-    • Google Sheets → XLSX (default) or CSV if export_format='csv'
+    • Google Sheets → XLSX (default), CSV if export_format='csv', or PDF if export_format='pdf'
     • Google Slides → PDF (default) or PPTX if export_format='pptx'
 
     For other files, downloads the original file format.
@@ -236,6 +236,7 @@ async def get_drive_file_download_url(
         export_format: Optional export format for Google native files.
                       Options: 'pdf', 'docx', 'xlsx', 'csv', 'pptx'.
                       If not specified, uses sensible defaults (PDF for Docs/Slides, XLSX for Sheets).
+                      For Sheets: supports 'csv', 'pdf', or 'xlsx' (default).
 
     Returns:
         str: Download URL and file metadata. The file is available at the URL for 1 hour.
@@ -280,6 +281,11 @@ async def get_drive_file_download_url(
             output_mime_type = export_mime_type
             if not output_filename.endswith(".csv"):
                 output_filename = f"{Path(output_filename).stem}.csv"
+        elif export_format == "pdf":
+            export_mime_type = "application/pdf"
+            output_mime_type = export_mime_type
+            if not output_filename.endswith(".pdf"):
+                output_filename = f"{Path(output_filename).stem}.pdf"
         else:
             # Default to XLSX
             export_mime_type = (
