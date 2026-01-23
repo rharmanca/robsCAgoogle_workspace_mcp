@@ -984,6 +984,10 @@ async def send_gmail_message(
     ),
     cc: Optional[str] = Body(None, description="Optional CC email address."),
     bcc: Optional[str] = Body(None, description="Optional BCC email address."),
+    from_email: Optional[str] = Body(
+        None,
+        description="Optional 'Send As' alias email address. Must be configured in Gmail settings (Settings > Accounts > Send mail as). If not provided, uses the authenticated user's email.",
+    ),
     thread_id: Optional[str] = Body(
         None, description="Optional Gmail thread ID to reply within."
     ),
@@ -1000,6 +1004,7 @@ async def send_gmail_message(
 ) -> str:
     """
     Sends an email using the user's Gmail account. Supports both new emails and replies with optional attachments.
+    Supports Gmail's "Send As" feature to send from configured alias addresses.
 
     Args:
         to (str): Recipient email address.
@@ -1017,7 +1022,10 @@ async def send_gmail_message(
               - 'mime_type' (optional): MIME type (defaults to 'application/octet-stream')
         cc (Optional[str]): Optional CC email address.
         bcc (Optional[str]): Optional BCC email address.
-        user_google_email (str): The user's Google email address. Required.
+        from_email (Optional[str]): Optional 'Send As' alias email address. The alias must be
+            configured in Gmail settings (Settings > Accounts > Send mail as). If not provided,
+            the email will be sent from the authenticated user's primary email address.
+        user_google_email (str): The user's Google email address. Required for authentication.
         thread_id (Optional[str]): Optional Gmail thread ID to reply within. When provided, sends a reply.
         in_reply_to (Optional[str]): Optional Message-ID of the message being replied to. Used for proper threading.
         references (Optional[str]): Optional chain of Message-IDs for proper threading. Should include all previous Message-IDs.
@@ -1035,6 +1043,14 @@ async def send_gmail_message(
             subject="Hello",
             body="<strong>Hi there!</strong>",
             body_format="html"
+        )
+
+        # Send from a configured alias (Send As)
+        send_gmail_message(
+            to="user@example.com",
+            subject="Business Inquiry",
+            body="Hello from my business address...",
+            from_email="business@mydomain.com"
         )
 
         # Send an email with CC and BCC
@@ -1083,6 +1099,8 @@ async def send_gmail_message(
     )
 
     # Prepare the email message
+    # Use from_email (Send As alias) if provided, otherwise default to authenticated user
+    sender_email = from_email or user_google_email
     raw_message, thread_id_final = _prepare_gmail_message(
         subject=subject,
         body=body,
@@ -1093,7 +1111,7 @@ async def send_gmail_message(
         in_reply_to=in_reply_to,
         references=references,
         body_format=body_format,
-        from_email=user_google_email,
+        from_email=sender_email,
         attachments=attachments if attachments else None,
     )
 
@@ -1129,6 +1147,10 @@ async def draft_gmail_message(
     to: Optional[str] = Body(None, description="Optional recipient email address."),
     cc: Optional[str] = Body(None, description="Optional CC email address."),
     bcc: Optional[str] = Body(None, description="Optional BCC email address."),
+    from_email: Optional[str] = Body(
+        None,
+        description="Optional 'Send As' alias email address. Must be configured in Gmail settings (Settings > Accounts > Send mail as). If not provided, uses the authenticated user's email.",
+    ),
     thread_id: Optional[str] = Body(
         None, description="Optional Gmail thread ID to reply within."
     ),
@@ -1145,15 +1167,19 @@ async def draft_gmail_message(
 ) -> str:
     """
     Creates a draft email in the user's Gmail account. Supports both new drafts and reply drafts with optional attachments.
+    Supports Gmail's "Send As" feature to draft from configured alias addresses.
 
     Args:
-        user_google_email (str): The user's Google email address. Required.
+        user_google_email (str): The user's Google email address. Required for authentication.
         subject (str): Email subject.
         body (str): Email body (plain text).
         body_format (Literal['plain', 'html']): Email body format. Defaults to 'plain'.
         to (Optional[str]): Optional recipient email address. Can be left empty for drafts.
         cc (Optional[str]): Optional CC email address.
         bcc (Optional[str]): Optional BCC email address.
+        from_email (Optional[str]): Optional 'Send As' alias email address. The alias must be
+            configured in Gmail settings (Settings > Accounts > Send mail as). If not provided,
+            the draft will be from the authenticated user's primary email address.
         thread_id (Optional[str]): Optional Gmail thread ID to reply within. When provided, creates a reply draft.
         in_reply_to (Optional[str]): Optional Message-ID of the message being replied to. Used for proper threading.
         references (Optional[str]): Optional chain of Message-IDs for proper threading. Should include all previous Message-IDs.
@@ -1173,6 +1199,14 @@ async def draft_gmail_message(
     Examples:
         # Create a new draft
         draft_gmail_message(subject="Hello", body="Hi there!", to="user@example.com")
+
+        # Create a draft from a configured alias (Send As)
+        draft_gmail_message(
+            subject="Business Inquiry",
+            body="Hello from my business address...",
+            to="user@example.com",
+            from_email="business@mydomain.com"
+        )
 
         # Create a plaintext draft with CC and BCC
         draft_gmail_message(
@@ -1207,7 +1241,7 @@ async def draft_gmail_message(
         draft_gmail_message(
             subject="Re: Meeting tomorrow",
             body="<strong>Thanks for the update!</strong>",
-            body_format="html,
+            body_format="html",
             to="user@example.com",
             thread_id="thread_123",
             in_reply_to="<message123@gmail.com>",
@@ -1219,6 +1253,8 @@ async def draft_gmail_message(
     )
 
     # Prepare the email message
+    # Use from_email (Send As alias) if provided, otherwise default to authenticated user
+    sender_email = from_email or user_google_email
     raw_message, thread_id_final = _prepare_gmail_message(
         subject=subject,
         body=body,
@@ -1229,7 +1265,7 @@ async def draft_gmail_message(
         thread_id=thread_id,
         in_reply_to=in_reply_to,
         references=references,
-        from_email=user_google_email,
+        from_email=sender_email,
         attachments=attachments,
     )
 
