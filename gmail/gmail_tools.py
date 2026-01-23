@@ -326,8 +326,13 @@ def _prepare_gmail_message(
                 part = MIMEBase(*mime_type.split("/"))
                 part.set_payload(file_data)
                 encoders.encode_base64(part)
+
+                # Sanitize filename to prevent header injection and ensure valid quoting
+                safe_filename = (filename or "").replace("\r", "").replace("\n", "")
+                safe_filename = safe_filename.replace("\\", "\\\\").replace('"', r"\"")
+
                 part.add_header(
-                    "Content-Disposition", f"attachment; filename={filename}"
+                    "Content-Disposition", f'attachment; filename="{safe_filename}"'
                 )
 
                 message.attach(part)
@@ -1133,8 +1138,8 @@ async def draft_gmail_message(
     references: Optional[str] = Body(
         None, description="Optional chain of Message-IDs for proper threading."
     ),
-    attachments: List[Dict[str, str]] = Body(
-        default_factory=list,
+    attachments: Optional[List[Dict[str, str]]] = Body(
+        None,
         description="Optional list of attachments. Each can have: 'path' (file path, auto-encodes), OR 'content' (base64) + 'filename'. Optional 'mime_type' (auto-detected from path if not provided).",
     ),
 ) -> str:
