@@ -102,7 +102,7 @@ def filter_server_tools(server):
             if oauth21_enabled and "start_google_auth" in tool_registry:
                 tools_to_remove.add("start_google_auth")
 
-            if "start_google_auth" in tools_to_remove and oauth21_enabled:
+            if "start_google_auth" in tools_to_remove:
                 logger.info("OAuth 2.1 enabled: disabling start_google_auth tool")
 
             for tool_name in tools_to_remove:
