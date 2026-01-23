@@ -988,9 +988,9 @@ async def send_gmail_message(
     references: Optional[str] = Body(
         None, description="Optional chain of Message-IDs for proper threading."
     ),
-    attachments_json: Optional[str] = Body(
+    attachments: Optional[List[Dict[str, str]]] = Body(
         None,
-        description='Optional JSON array of attachments. Each can have: "path" (file path, auto-encodes), OR "content" (base64) + "filename". Optional "mime_type". Example: \'[{"path": "/path/to/file.pdf"}]\' or \'[{"filename": "doc.pdf", "content": "base64data", "mime_type": "application/pdf"}]\'',
+        description='Optional list of attachments. Each can have: "path" (file path, auto-encodes), OR "content" (base64) + "filename". Optional "mime_type". Example: [{"path": "/path/to/file.pdf"}] or [{"filename": "doc.pdf", "content": "base64data", "mime_type": "application/pdf"}]',
     ),
 ) -> str:
     """
@@ -1074,7 +1074,7 @@ async def send_gmail_message(
         )
     """
     logger.info(
-        f"[send_gmail_message] Invoked. Email: '{user_google_email}', Subject: '{subject}', Attachments: {len(attachments)}"
+        f"[send_gmail_message] Invoked. Email: '{user_google_email}', Subject: '{subject}', Attachments: {len(attachments) if attachments else 0}"
     )
 
     # Prepare the email message
