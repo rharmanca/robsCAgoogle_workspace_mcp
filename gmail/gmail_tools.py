@@ -1006,7 +1006,7 @@ async def send_gmail_message(
         subject (str): Email subject.
         body (str): Email body content.
         body_format (Literal['plain', 'html']): Email body format. Defaults to 'plain'.
-        attachments (List[Dict[str, str]]): Optional list of attachments. Each dict can contain:
+        attachments (Optional[List[Dict[str, str]]]): Optional list of attachments. Each dict can contain:
             Option 1 - File path (auto-encodes):
               - 'path' (required): File path to attach
               - 'filename' (optional): Override filename
