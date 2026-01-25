@@ -103,6 +103,7 @@ def main():
             "forms",
             "slides",
             "tasks",
+            "contacts",
             "search",
             "appscript",
         ],
@@ -200,6 +201,7 @@ def main():
         "forms": lambda: import_module("gforms.forms_tools"),
         "slides": lambda: import_module("gslides.slides_tools"),
         "tasks": lambda: import_module("gtasks.tasks_tools"),
+        "contacts": lambda: import_module("gcontacts.contacts_tools"),
         "search": lambda: import_module("gsearch.search_tools"),
         "appscript": lambda: import_module("gappsscript.apps_script_tools"),
     }
@@ -214,6 +216,7 @@ def main():
         "forms": "📝",
         "slides": "🖼️",
         "tasks": "✓",
+        "contacts": "👤",
         "search": "🔍",
         "appscript": "📜",
     }
