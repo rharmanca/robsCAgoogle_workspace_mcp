@@ -1503,7 +1503,7 @@ async def copy_drive_file(
     parent_folder_id: str = "root",
 ) -> str:
     """
-    Creates a copy of an existing Google Drive file or folder.
+    Creates a copy of an existing Google Drive file.
 
     This tool copies the template document to a new location with an optional new name.
     The copy maintains all formatting and content from the original file.
