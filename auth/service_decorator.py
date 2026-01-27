@@ -633,7 +633,7 @@ def require_google_service(
                 error_message = _handle_token_refresh_error(
                     e, actual_user_email, service_name
                 )
-                raise Exception(error_message)
+                raise GoogleAuthenticationError(error_message)
 
         # Set the wrapper's signature to the one without 'service'
         wrapper.__signature__ = wrapper_sig
@@ -771,7 +771,7 @@ def require_multiple_services(service_configs: List[Dict[str, Any]]):
                 error_message = _handle_token_refresh_error(
                     e, user_google_email, "Multiple Services"
                 )
-                raise Exception(error_message)
+                raise GoogleAuthenticationError(error_message)
 
         # Set the wrapper's signature
         wrapper.__signature__ = wrapper_sig
