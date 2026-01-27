@@ -102,13 +102,12 @@ def filter_server_tools(server):
             if oauth21_enabled and "start_google_auth" in tool_registry:
                 tools_to_remove.add("start_google_auth")
 
-            if "start_google_auth" in tools_to_remove:
-                logger.info("OAuth 2.1 enabled: disabling start_google_auth tool")
-
             for tool_name in tools_to_remove:
                 if tool_name in tool_registry:
                     del tool_registry[tool_name]
                     tools_removed += 1
+                    if tool_name == "start_google_auth":
+                        logger.info("OAuth 2.1 enabled: disabling start_google_auth tool")
 
     if tools_removed > 0:
         enabled_count = len(enabled_tools) if enabled_tools is not None else "all"
