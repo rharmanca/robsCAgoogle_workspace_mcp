@@ -713,6 +713,7 @@ cp .env.oauth21 .env
 | `share_drive_file` | **Core** | Share file with users/groups/domains/anyone |
 | `get_drive_shareable_link` | **Core** | Get shareable links for a file |
 | `list_drive_items` | Extended | List folder contents |
+| `copy_drive_file` | Extended | Copy existing files (templates) with optional renaming |
 | `update_drive_file` | Extended | Update file metadata, move between folders |
 | `batch_share_drive_file` | Extended | Share file with multiple recipients |
 | `update_drive_permission` | Extended | Modify permission role |
