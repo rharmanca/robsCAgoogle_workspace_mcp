@@ -554,6 +554,9 @@ async def create_event(
     use_default_reminders: bool = True,
     transparency: Optional[str] = None,
     visibility: Optional[str] = None,
+    guests_can_modify: Optional[bool] = None,
+    guests_can_invite_others: Optional[bool] = None,
+    guests_can_see_other_guests: Optional[bool] = None,
 ) -> str:
     """
     Creates a new event.
@@ -574,6 +577,9 @@ async def create_event(
         use_default_reminders (bool): Whether to use calendar's default reminders. If False, uses custom reminders. Defaults to True.
         transparency (Optional[str]): Event transparency for busy/free status. "opaque" shows as Busy (default), "transparent" shows as Available/Free. Defaults to None (uses Google Calendar default).
         visibility (Optional[str]): Event visibility. "default" uses calendar default, "public" is visible to all, "private" is visible only to attendees, "confidential" is same as private (legacy). Defaults to None (uses Google Calendar default).
+        guests_can_modify (Optional[bool]): Whether attendees other than the organizer can modify the event. Defaults to None (uses Google Calendar default of False).
+        guests_can_invite_others (Optional[bool]): Whether attendees other than the organizer can invite others to the event. Defaults to None (uses Google Calendar default of True).
+        guests_can_see_other_guests (Optional[bool]): Whether attendees other than the organizer can see who the event's attendees are. Defaults to None (uses Google Calendar default of True).
 
     Returns:
         str: Confirmation message of the successful event creation with event link.
@@ -632,6 +638,21 @@ async def create_event(
 
     # Handle visibility validation
     _apply_visibility_if_valid(event_body, visibility, "create_event")
+
+    # Handle guest permissions
+    if guests_can_modify is not None:
+        event_body["guestsCanModify"] = guests_can_modify
+        logger.info(f"[create_event] Set guestsCanModify to {guests_can_modify}")
+    if guests_can_invite_others is not None:
+        event_body["guestsCanInviteOthers"] = guests_can_invite_others
+        logger.info(
+            f"[create_event] Set guestsCanInviteOthers to {guests_can_invite_others}"
+        )
+    if guests_can_see_other_guests is not None:
+        event_body["guestsCanSeeOtherGuests"] = guests_can_see_other_guests
+        logger.info(
+            f"[create_event] Set guestsCanSeeOtherGuests to {guests_can_see_other_guests}"
+        )
 
     if add_google_meet:
         request_id = str(uuid.uuid4())
@@ -795,6 +816,9 @@ async def modify_event(
     transparency: Optional[str] = None,
     visibility: Optional[str] = None,
     color_id: Optional[str] = None,
+    guests_can_modify: Optional[bool] = None,
+    guests_can_invite_others: Optional[bool] = None,
+    guests_can_see_other_guests: Optional[bool] = None,
 ) -> str:
     """
     Modifies an existing event.
@@ -816,6 +840,9 @@ async def modify_event(
         transparency (Optional[str]): Event transparency for busy/free status. "opaque" shows as Busy, "transparent" shows as Available/Free. If None, preserves existing transparency setting.
         visibility (Optional[str]): Event visibility. "default" uses calendar default, "public" is visible to all, "private" is visible only to attendees, "confidential" is same as private (legacy). If None, preserves existing visibility setting.
         color_id (Optional[str]): Event color ID (1-11). If None, preserves existing color.
+        guests_can_modify (Optional[bool]): Whether attendees other than the organizer can modify the event. If None, preserves existing setting.
+        guests_can_invite_others (Optional[bool]): Whether attendees other than the organizer can invite others to the event. If None, preserves existing setting.
+        guests_can_see_other_guests (Optional[bool]): Whether attendees other than the organizer can see who the event's attendees are. If None, preserves existing setting.
 
     Returns:
         str: Confirmation message of the successful event modification with event link.
@@ -903,6 +930,21 @@ async def modify_event(
 
     # Handle visibility validation
     _apply_visibility_if_valid(event_body, visibility, "modify_event")
+
+    # Handle guest permissions
+    if guests_can_modify is not None:
+        event_body["guestsCanModify"] = guests_can_modify
+        logger.info(f"[modify_event] Set guestsCanModify to {guests_can_modify}")
+    if guests_can_invite_others is not None:
+        event_body["guestsCanInviteOthers"] = guests_can_invite_others
+        logger.info(
+            f"[modify_event] Set guestsCanInviteOthers to {guests_can_invite_others}"
+        )
+    if guests_can_see_other_guests is not None:
+        event_body["guestsCanSeeOtherGuests"] = guests_can_see_other_guests
+        logger.info(
+            f"[modify_event] Set guestsCanSeeOtherGuests to {guests_can_see_other_guests}"
+        )
 
     if timezone is not None and "start" not in event_body and "end" not in event_body:
         # If timezone is provided but start/end times are not, we need to fetch the existing event
