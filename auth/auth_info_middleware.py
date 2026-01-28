@@ -8,6 +8,7 @@ import os
 import time
 from types import SimpleNamespace
 from fastmcp.server.middleware import Middleware, MiddlewareContext
+from fastmcp.server.dependencies import get_access_token
 from fastmcp.server.dependencies import get_http_headers
 
 from auth.oauth21_session_store import ensure_session_from_access_token
@@ -33,8 +34,6 @@ class AuthInfoMiddleware(Middleware):
             return
 
         # First check if FastMCP has already validated an access token
-        from fastmcp.server.dependencies import get_access_token
-        
         try:
             access_token = get_access_token()
             if access_token:
