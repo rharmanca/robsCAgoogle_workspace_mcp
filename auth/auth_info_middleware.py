@@ -36,19 +36,29 @@ class AuthInfoMiddleware(Middleware):
         try:
             access_token = get_access_token()
             if access_token:
-                logger.info(f"[AuthInfoMiddleware] FastMCP access_token found: {type(access_token)}")
-                user_email = getattr(access_token, 'email', None)
-                if not user_email and hasattr(access_token, 'claims'):
-                    user_email = access_token.claims.get('email')
-                
+                logger.info(
+                    f"[AuthInfoMiddleware] FastMCP access_token found: {type(access_token)}"
+                )
+                user_email = getattr(access_token, "email", None)
+                if not user_email and hasattr(access_token, "claims"):
+                    user_email = access_token.claims.get("email")
+
                 if user_email:
-                    logger.info(f"✓ Using FastMCP validated token for user: {user_email}")
-                    context.fastmcp_context.set_state("authenticated_user_email", user_email)
-                    context.fastmcp_context.set_state("authenticated_via", "fastmcp_oauth")
+                    logger.info(
+                        f"✓ Using FastMCP validated token for user: {user_email}"
+                    )
+                    context.fastmcp_context.set_state(
+                        "authenticated_user_email", user_email
+                    )
+                    context.fastmcp_context.set_state(
+                        "authenticated_via", "fastmcp_oauth"
+                    )
                     context.fastmcp_context.set_state("access_token", access_token)
                     return
                 else:
-                    logger.warning(f"FastMCP access_token found but no email. Attributes: {dir(access_token)}")
+                    logger.warning(
+                        f"FastMCP access_token found but no email. Attributes: {dir(access_token)}"
+                    )
         except Exception as e:
             logger.debug(f"Could not get FastMCP access_token: {e}")
 
@@ -56,7 +66,9 @@ class AuthInfoMiddleware(Middleware):
         try:
             # Use the new FastMCP method to get HTTP headers
             headers = get_http_headers()
-            logger.info(f"[AuthInfoMiddleware] get_http_headers() returned: {headers is not None}, keys: {list(headers.keys()) if headers else 'None'}")
+            logger.info(
+                f"[AuthInfoMiddleware] get_http_headers() returned: {headers is not None}, keys: {list(headers.keys()) if headers else 'None'}"
+            )
             if headers:
                 logger.debug("Processing HTTP headers for authentication")
 
@@ -154,7 +166,9 @@ class AuthInfoMiddleware(Middleware):
                                     logger.info(
                                         f"✓ Authenticated via Google OAuth: {user_email}"
                                     )
-                                    logger.debug(f"Context state after auth: authenticated_user_email={context.fastmcp_context.get_state('authenticated_user_email')}")
+                                    logger.debug(
+                                        f"Context state after auth: authenticated_user_email={context.fastmcp_context.get_state('authenticated_user_email')}"
+                                    )
                                     return
                                 else:
                                     logger.error("Failed to verify Google OAuth token")
@@ -239,7 +253,9 @@ class AuthInfoMiddleware(Middleware):
                                     "authenticated_via", "jwt_token"
                                 )
 
-                            logger.info(f"✓ JWT token processed successfully for user: {user_email}")
+                            logger.info(
+                                f"✓ JWT token processed successfully for user: {user_email}"
+                            )
                             return
 
                         except jwt.DecodeError as e:
