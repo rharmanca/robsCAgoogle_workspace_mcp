@@ -261,10 +261,12 @@ class AuthInfoMiddleware(Middleware):
                                     authenticated_user = user_email
                                     auth_via = "jwt_token"
 
-                            except jwt.DecodeError as e:
+                            except jwt.DecodeError:
                                 logger.error("Failed to decode JWT token")
                             except Exception as e:
-                                logger.error(f"Error processing JWT: {type(e).__name__}")
+                                logger.error(
+                                    f"Error processing JWT: {type(e).__name__}"
+                                )
                     else:
                         logger.debug("No Bearer token in Authorization header")
                 else:
