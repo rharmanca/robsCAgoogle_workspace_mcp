@@ -61,7 +61,7 @@ class AuthInfoMiddleware(Middleware):
                     auth_via = "fastmcp_oauth"
                 else:
                     logger.warning(
-                        f"FastMCP access_token found but no email. Attributes: {dir(access_token)}"
+                        f"FastMCP access_token found but no email. Type: {type(access_token).__name__}"
                     )
         except Exception as e:
             logger.debug(f"Could not get FastMCP access_token: {e}")
@@ -262,13 +262,9 @@ class AuthInfoMiddleware(Middleware):
                                     auth_via = "jwt_token"
 
                             except jwt.DecodeError as e:
-                                logger.error(
-                                    f"Failed to decode JWT: {e}", exc_info=True
-                                )
+                                logger.error("Failed to decode JWT token")
                             except Exception as e:
-                                logger.error(
-                                    f"Error processing JWT: {e}", exc_info=True
-                                )
+                                logger.error(f"Error processing JWT: {type(e).__name__}")
                     else:
                         logger.debug("No Bearer token in Authorization header")
                 else:
