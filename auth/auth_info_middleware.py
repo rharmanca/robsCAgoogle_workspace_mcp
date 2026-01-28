@@ -4,7 +4,6 @@ Authentication middleware to populate context state with user information
 
 import jwt
 import logging
-import os
 import time
 from types import SimpleNamespace
 from fastmcp.server.middleware import Middleware, MiddlewareContext
