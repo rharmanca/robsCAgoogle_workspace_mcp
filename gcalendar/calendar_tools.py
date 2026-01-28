@@ -1115,3 +1115,111 @@ async def delete_event(
     confirmation_message = f"Successfully deleted event (ID: {event_id}) from calendar '{calendar_id}' for {user_google_email}."
     logger.info(f"Event deleted successfully for {user_google_email}. ID: {event_id}")
     return confirmation_message
+
+
+@server.tool()
+@handle_http_errors("query_freebusy", is_read_only=True, service_type="calendar")
+@require_google_service("calendar", "calendar_read")
+async def query_freebusy(
+    service,
+    user_google_email: str,
+    time_min: str,
+    time_max: str,
+    calendar_ids: Optional[List[str]] = None,
+    group_expansion_max: Optional[int] = None,
+    calendar_expansion_max: Optional[int] = None,
+) -> str:
+    """
+    Returns free/busy information for a set of calendars.
+
+    Args:
+        user_google_email (str): The user's Google email address. Required.
+        time_min (str): The start of the interval for the query in RFC3339 format (e.g., '2024-05-12T10:00:00Z' or '2024-05-12').
+        time_max (str): The end of the interval for the query in RFC3339 format (e.g., '2024-05-12T18:00:00Z' or '2024-05-12').
+        calendar_ids (Optional[List[str]]): List of calendar identifiers to query. If not provided, queries the primary calendar. Use 'primary' for the user's primary calendar or specific calendar IDs obtained from `list_calendars`.
+        group_expansion_max (Optional[int]): Maximum number of calendar identifiers to be provided for a single group. Optional. An error is returned for a group with more members than this value. Maximum value is 100.
+        calendar_expansion_max (Optional[int]): Maximum number of calendars for which FreeBusy information is to be provided. Optional. Maximum value is 50.
+
+    Returns:
+        str: A formatted response showing free/busy information for each requested calendar, including busy time periods.
+    """
+    logger.info(
+        f"[query_freebusy] Invoked. Email: '{user_google_email}', time_min: '{time_min}', time_max: '{time_max}'"
+    )
+
+    # Format time parameters
+    formatted_time_min = _correct_time_format_for_api(time_min, "time_min")
+    formatted_time_max = _correct_time_format_for_api(time_max, "time_max")
+
+    # Default to primary calendar if no calendar IDs provided
+    if not calendar_ids:
+        calendar_ids = ["primary"]
+
+    # Build the request body
+    request_body: Dict[str, Any] = {
+        "timeMin": formatted_time_min,
+        "timeMax": formatted_time_max,
+        "items": [{"id": cal_id} for cal_id in calendar_ids],
+    }
+
+    if group_expansion_max is not None:
+        request_body["groupExpansionMax"] = group_expansion_max
+    if calendar_expansion_max is not None:
+        request_body["calendarExpansionMax"] = calendar_expansion_max
+
+    logger.info(
+        f"[query_freebusy] Request body: timeMin={formatted_time_min}, timeMax={formatted_time_max}, calendars={calendar_ids}"
+    )
+
+    # Execute the freebusy query
+    freebusy_result = await asyncio.to_thread(
+        lambda: service.freebusy().query(body=request_body).execute()
+    )
+
+    # Parse the response
+    calendars = freebusy_result.get("calendars", {})
+    time_min_result = freebusy_result.get("timeMin", formatted_time_min)
+    time_max_result = freebusy_result.get("timeMax", formatted_time_max)
+
+    if not calendars:
+        return f"No free/busy information found for the requested calendars for {user_google_email}."
+
+    # Format the output
+    output_lines = [
+        f"Free/Busy information for {user_google_email}:",
+        f"Time range: {time_min_result} to {time_max_result}",
+        "",
+    ]
+
+    for cal_id, cal_data in calendars.items():
+        output_lines.append(f"Calendar: {cal_id}")
+
+        # Check for errors
+        errors = cal_data.get("errors", [])
+        if errors:
+            output_lines.append("  Errors:")
+            for error in errors:
+                domain = error.get("domain", "unknown")
+                reason = error.get("reason", "unknown")
+                output_lines.append(f"    - {domain}: {reason}")
+            output_lines.append("")
+            continue
+
+        # Get busy periods
+        busy_periods = cal_data.get("busy", [])
+        if not busy_periods:
+            output_lines.append("  Status: Free (no busy periods)")
+        else:
+            output_lines.append(f"  Busy periods: {len(busy_periods)}")
+            for period in busy_periods:
+                start = period.get("start", "Unknown")
+                end = period.get("end", "Unknown")
+                output_lines.append(f"    - {start} to {end}")
+
+        output_lines.append("")
+
+    result_text = "\n".join(output_lines)
+    logger.info(
+        f"[query_freebusy] Successfully retrieved free/busy information for {len(calendars)} calendar(s)"
+    )
+    return result_text

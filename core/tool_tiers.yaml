@@ -47,8 +47,9 @@ calendar:
     - get_events
     - create_event
     - modify_event
-  extended:
+extended:
     - delete_event
+    - query_freebusy
   complete: []
 
 docs:
