@@ -102,7 +102,9 @@ class AuthInfoMiddleware(Middleware):
                                         # Extract user info from verified token
                                         user_email = None
                                         if hasattr(verified_auth, "claims"):
-                                            user_email = verified_auth.claims.get("email")
+                                            user_email = verified_auth.claims.get(
+                                                "email"
+                                            )
 
                                         # Get expires_at, defaulting to 1 hour from now if not available
                                         if hasattr(verified_auth, "expires_at"):
@@ -149,7 +151,8 @@ class AuthInfoMiddleware(Middleware):
                                             "access_token_obj", verified_auth
                                         )
                                         context.fastmcp_context.set_state(
-                                            "auth_provider_type", self.auth_provider_type
+                                            "auth_provider_type",
+                                            self.auth_provider_type,
                                         )
                                         context.fastmcp_context.set_state(
                                             "token_type", "google_oauth"
@@ -170,9 +173,13 @@ class AuthInfoMiddleware(Middleware):
                                         authenticated_user = user_email
                                         auth_via = "bearer_token"
                                     else:
-                                        logger.error("Failed to verify Google OAuth token")
+                                        logger.error(
+                                            "Failed to verify Google OAuth token"
+                                        )
                                 except Exception as e:
-                                    logger.error(f"Error verifying Google OAuth token: {e}")
+                                    logger.error(
+                                        f"Error verifying Google OAuth token: {e}"
+                                    )
                             else:
                                 logger.warning(
                                     "No auth provider available to verify Google token"
@@ -255,9 +262,13 @@ class AuthInfoMiddleware(Middleware):
                                     auth_via = "jwt_token"
 
                             except jwt.DecodeError as e:
-                                logger.error(f"Failed to decode JWT: {e}", exc_info=True)
+                                logger.error(
+                                    f"Failed to decode JWT: {e}", exc_info=True
+                                )
                             except Exception as e:
-                                logger.error(f"Error processing JWT: {e}", exc_info=True)
+                                logger.error(
+                                    f"Error processing JWT: {e}", exc_info=True
+                                )
                     else:
                         logger.debug("No Bearer token in Authorization header")
                 else:
@@ -348,7 +359,9 @@ class AuthInfoMiddleware(Middleware):
                         )
 
             # Check for MCP session binding
-            if not authenticated_user and hasattr(context.fastmcp_context, "session_id"):
+            if not authenticated_user and hasattr(
+                context.fastmcp_context, "session_id"
+            ):
                 mcp_session_id = context.fastmcp_context.session_id
                 if mcp_session_id:
                     try:
