@@ -106,6 +106,7 @@ forms:
   complete:
     - set_publish_settings
     - get_form_response
+    - batch_update_form
 
 slides:
   core:
