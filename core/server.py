@@ -385,6 +385,18 @@ def configure_server_for_http():
                     "OAuth 2.1 enabled using FastMCP GoogleProvider with protocol-level auth"
                 )
 
+                # Explicitly mount well-known routes from the OAuth provider
+                # These should be auto-mounted but we ensure they're available
+                try:
+                    well_known_routes = provider.get_well_known_routes()
+                    for route in well_known_routes:
+                        logger.info(f"Mounting OAuth well-known route: {route.path}")
+                        server.custom_route(route.path, methods=list(route.methods))(
+                            route.endpoint
+                        )
+                except Exception as e:
+                    logger.warning(f"Could not mount well-known routes: {e}")
+
             # Always set auth provider for token validation in middleware
             set_auth_provider(provider)
             _auth_provider = provider

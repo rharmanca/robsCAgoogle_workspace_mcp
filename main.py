@@ -288,9 +288,15 @@ def main():
         # Check for incompatible OAuth 2.1 mode
         if os.getenv("MCP_ENABLE_OAUTH21", "false").lower() == "true":
             safe_print("❌ Single-user mode is incompatible with OAuth 2.1 mode")
-            safe_print("   Single-user mode is for legacy clients that pass user emails")
-            safe_print("   OAuth 2.1 mode is for multi-user scenarios with bearer tokens")
-            safe_print("   Please choose one mode: either --single-user OR MCP_ENABLE_OAUTH21=true")
+            safe_print(
+                "   Single-user mode is for legacy clients that pass user emails"
+            )
+            safe_print(
+                "   OAuth 2.1 mode is for multi-user scenarios with bearer tokens"
+            )
+            safe_print(
+                "   Please choose one mode: either --single-user OR MCP_ENABLE_OAUTH21=true"
+            )
             sys.exit(1)
 
         if is_stateless_mode():
