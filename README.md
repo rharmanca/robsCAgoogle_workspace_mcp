@@ -515,6 +515,7 @@ uv run main.py \
   --single-user
 ```
 <sub>Simplified authentication</sub>
+<sub>⚠️ Cannot be used with OAuth 2.1 mode</sub>
 
 </td>
 </tr>
@@ -1002,6 +1003,14 @@ The server includes OAuth 2.1 support for bearer token authentication, enabling 
 - Building web applications or APIs on top of the MCP server
 - Production environments requiring secure session management
 - Browser-based clients requiring CORS support
+
+**⚠️ Important: OAuth 2.1 and Single-User Mode are mutually exclusive**
+
+OAuth 2.1 mode (`MCP_ENABLE_OAUTH21=true`) cannot be used together with the `--single-user` flag:
+- **Single-user mode**: For legacy clients that pass user emails in tool calls
+- **OAuth 2.1 mode**: For modern multi-user scenarios with bearer token authentication
+
+Choose one authentication method - using both will result in a startup error.
 
 **Enabling OAuth 2.1:**
 To enable OAuth 2.1, set the `MCP_ENABLE_OAUTH21` environment variable to `true`.
