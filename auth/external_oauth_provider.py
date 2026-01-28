@@ -3,17 +3,25 @@ External OAuth Provider for Google Workspace MCP
 
 Extends FastMCP's GoogleProvider to support external OAuth flows where
 access tokens (ya29.*) are issued by external systems and need validation.
+
+This provider acts as a Resource Server only - it validates tokens issued by
+Google's Authorization Server but does not issue tokens itself.
 """
 
 import logging
 import time
 from typing import Optional
 
+from pydantic import AnyHttpUrl
+from starlette.routing import Route
 from fastmcp.server.auth.providers.google import GoogleProvider
 from fastmcp.server.auth import AccessToken
 from google.oauth2.credentials import Credentials
 
 logger = logging.getLogger(__name__)
+
+# Google's OAuth 2.0 Authorization Server
+GOOGLE_ISSUER_URL = "https://accounts.google.com"
 
 
 class ExternalOAuthProvider(GoogleProvider):
@@ -22,14 +30,22 @@ class ExternalOAuthProvider(GoogleProvider):
 
     This provider handles ya29.* access tokens by calling Google's userinfo API,
     while maintaining compatibility with standard JWT ID tokens.
+    
+    Unlike the standard GoogleProvider, this acts as a Resource Server only:
+    - Does NOT create /authorize, /token, /register endpoints
+    - Only advertises Google's authorization server in metadata
+    - Only validates tokens, does not issue them
     """
 
-    def __init__(self, client_id: str, client_secret: str, **kwargs):
+    def __init__(self, client_id: str, client_secret: str, resource_server_url: str = None, **kwargs):
         """Initialize and store client credentials for token validation."""
+        self._resource_server_url = resource_server_url
         super().__init__(client_id=client_id, client_secret=client_secret, **kwargs)
         # Store credentials as they're not exposed by parent class
         self._client_id = client_id
         self._client_secret = client_secret
+        if self._resource_server_url:
+            self.resource_server_url = AnyHttpUrl(self._resource_server_url) if isinstance(self._resource_server_url, str) else self._resource_server_url
 
     async def verify_token(self, token: str) -> Optional[AccessToken]:
         """
@@ -97,3 +113,37 @@ class ExternalOAuthProvider(GoogleProvider):
 
         # For JWT tokens, use parent class implementation
         return await super().verify_token(token)
+
+    def get_routes(self, **kwargs) -> list[Route]:
+        """
+        Get OAuth routes for external provider mode.
+        
+        Returns only protected resource metadata routes that point to Google
+        as the authorization server. Does not create authorization server routes
+        (/authorize, /token, etc.) since tokens are issued by Google directly.
+        
+        Args:
+            **kwargs: Additional arguments passed by FastMCP (e.g., mcp_path)
+        
+        Returns:
+            List of routes - only protected resource metadata
+        """
+        from mcp.server.auth.routes import create_protected_resource_routes
+        
+        if not self.resource_server_url:
+            logger.warning("ExternalOAuthProvider: resource_server_url not set, no routes created")
+            return []
+        
+        # Create protected resource routes that point to Google as the authorization server
+        protected_routes = create_protected_resource_routes(
+            resource_url=self.resource_server_url,
+            authorization_servers=[AnyHttpUrl(GOOGLE_ISSUER_URL)],
+            scopes_supported=self.required_scopes,
+            resource_name="Google Workspace MCP",
+            resource_documentation=None,
+        )
+        
+        logger.info(
+            f"ExternalOAuthProvider: Created protected resource routes pointing to {GOOGLE_ISSUER_URL}"
+        )
+        return protected_routes
