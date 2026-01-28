@@ -32,15 +32,33 @@ class AuthInfoMiddleware(Middleware):
             logger.warning("No fastmcp_context available")
             return
 
-        # Return early if authentication state is already set
-        if context.fastmcp_context.get_state("authenticated_user_email"):
-            logger.info("Authentication state already set.")
-            return
+        # First check if FastMCP has already validated an access token
+        from fastmcp.server.dependencies import get_access_token
+        
+        try:
+            access_token = get_access_token()
+            if access_token:
+                logger.info(f"[AuthInfoMiddleware] FastMCP access_token found: {type(access_token)}")
+                user_email = getattr(access_token, 'email', None)
+                if not user_email and hasattr(access_token, 'claims'):
+                    user_email = access_token.claims.get('email')
+                
+                if user_email:
+                    logger.info(f"✓ Using FastMCP validated token for user: {user_email}")
+                    context.fastmcp_context.set_state("authenticated_user_email", user_email)
+                    context.fastmcp_context.set_state("authenticated_via", "fastmcp_oauth")
+                    context.fastmcp_context.set_state("access_token", access_token)
+                    return
+                else:
+                    logger.warning(f"FastMCP access_token found but no email. Attributes: {dir(access_token)}")
+        except Exception as e:
+            logger.debug(f"Could not get FastMCP access_token: {e}")
 
         # Try to get the HTTP request to extract Authorization header
         try:
             # Use the new FastMCP method to get HTTP headers
             headers = get_http_headers()
+            logger.info(f"[AuthInfoMiddleware] get_http_headers() returned: {headers is not None}, keys: {list(headers.keys()) if headers else 'None'}")
             if headers:
                 logger.debug("Processing HTTP headers for authentication")
 
@@ -48,7 +66,7 @@ class AuthInfoMiddleware(Middleware):
                 auth_header = headers.get("authorization", "")
                 if auth_header.startswith("Bearer "):
                     token_str = auth_header[7:]  # Remove "Bearer " prefix
-                    logger.debug("Found Bearer token")
+                    logger.info(f"Found Bearer token: {token_str[:20]}...")
 
                     # For Google OAuth tokens (ya29.*), we need to verify them differently
                     if token_str.startswith("ya29."):
@@ -136,66 +154,27 @@ class AuthInfoMiddleware(Middleware):
                                     )
 
                                     logger.info(
-                                        f"Authenticated via Google OAuth: {user_email}"
+                                        f"✓ Authenticated via Google OAuth: {user_email}"
                                     )
+                                    logger.debug(f"Context state after auth: authenticated_user_email={context.fastmcp_context.get_state('authenticated_user_email')}")
+                                    return
                                 else:
                                     logger.error("Failed to verify Google OAuth token")
-                                # Don't set authenticated_user_email if verification failed
                             except Exception as e:
                                 logger.error(f"Error verifying Google OAuth token: {e}")
-                                # Still store the unverified token - service decorator will handle verification
-                                access_token = SimpleNamespace(
-                                    token=token_str,
-                                    client_id=os.getenv(
-                                        "GOOGLE_OAUTH_CLIENT_ID", "google"
-                                    ),
-                                    scopes=[],
-                                    session_id=f"google_oauth_{token_str[:8]}",
-                                    expires_at=int(time.time())
-                                    + 3600,  # Default to 1 hour
-                                    sub="unknown",
-                                    email="",
-                                )
-                                context.fastmcp_context.set_state(
-                                    "access_token", access_token
-                                )
-                                context.fastmcp_context.set_state(
-                                    "auth_provider_type", self.auth_provider_type
-                                )
-                                context.fastmcp_context.set_state(
-                                    "token_type", "google_oauth"
-                                )
                         else:
                             logger.warning(
                                 "No auth provider available to verify Google token"
                             )
-                            # Store unverified token
-                            access_token = SimpleNamespace(
-                                token=token_str,
-                                client_id=os.getenv("GOOGLE_OAUTH_CLIENT_ID", "google"),
-                                scopes=[],
-                                session_id=f"google_oauth_{token_str[:8]}",
-                                expires_at=int(time.time()) + 3600,  # Default to 1 hour
-                                sub="unknown",
-                                email="",
-                            )
-                            context.fastmcp_context.set_state(
-                                "access_token", access_token
-                            )
-                            context.fastmcp_context.set_state(
-                                "auth_provider_type", self.auth_provider_type
-                            )
-                            context.fastmcp_context.set_state(
-                                "token_type", "google_oauth"
-                            )
 
                     else:
                         # Decode JWT to get user info
+                        logger.info("Processing JWT token")
                         try:
                             token_payload = jwt.decode(
                                 token_str, options={"verify_signature": False}
                             )
-                            logger.debug(
+                            logger.info(
                                 f"JWT payload decoded: {list(token_payload.keys())}"
                             )
 
@@ -262,12 +241,13 @@ class AuthInfoMiddleware(Middleware):
                                     "authenticated_via", "jwt_token"
                                 )
 
-                            logger.debug("JWT token processed successfully")
+                            logger.info(f"✓ JWT token processed successfully for user: {user_email}")
+                            return
 
                         except jwt.DecodeError as e:
-                            logger.error(f"Failed to decode JWT: {e}")
+                            logger.error(f"Failed to decode JWT: {e}", exc_info=True)
                         except Exception as e:
-                            logger.error(f"Error processing JWT: {e}")
+                            logger.error(f"Error processing JWT: {e}", exc_info=True)
                 else:
                     logger.debug("No Bearer token in Authorization header")
             else:
