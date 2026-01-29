@@ -12,7 +12,6 @@ import logging
 import time
 from typing import Optional
 
-from pydantic import AnyHttpUrl
 from starlette.routing import Route
 from fastmcp.server.auth.providers.google import GoogleProvider
 from fastmcp.server.auth import AccessToken
@@ -50,8 +49,8 @@ class ExternalOAuthProvider(GoogleProvider):
         # Store credentials as they're not exposed by parent class
         self._client_id = client_id
         self._client_secret = client_secret
-        if self._resource_server_url:
-            self.resource_server_url = AnyHttpUrl(self._resource_server_url)
+        # Store as string - Pydantic validates it when passed to models
+        self.resource_server_url = self._resource_server_url
 
     async def verify_token(self, token: str) -> Optional[AccessToken]:
         """
@@ -143,9 +142,10 @@ class ExternalOAuthProvider(GoogleProvider):
             return []
 
         # Create protected resource routes that point to Google as the authorization server
+        # Pass strings directly - Pydantic validates them during model construction
         protected_routes = create_protected_resource_routes(
             resource_url=self.resource_server_url,
-            authorization_servers=[AnyHttpUrl(GOOGLE_ISSUER_URL)],
+            authorization_servers=[GOOGLE_ISSUER_URL],
             scopes_supported=self.required_scopes,
             resource_name="Google Workspace MCP",
             resource_documentation=None,
