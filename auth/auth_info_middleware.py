@@ -5,12 +5,12 @@ Authentication middleware to populate context state with user information
 import jwt
 import logging
 import time
-from types import SimpleNamespace
 from fastmcp.server.middleware import Middleware, MiddlewareContext
 from fastmcp.server.dependencies import get_access_token
 from fastmcp.server.dependencies import get_http_headers
 
 from auth.oauth21_session_store import ensure_session_from_access_token
+from auth.oauth_types import WorkspaceAccessToken
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -120,7 +120,7 @@ class AuthInfoMiddleware(Middleware):
                                             or "google"
                                         )
 
-                                        access_token = SimpleNamespace(
+                                        access_token = WorkspaceAccessToken(
                                             token=token_str,
                                             client_id=client_id,
                                             scopes=verified_auth.scopes
@@ -128,7 +128,8 @@ class AuthInfoMiddleware(Middleware):
                                             else [],
                                             session_id=f"google_oauth_{token_str[:8]}",
                                             expires_at=expires_at,
-                                            # Add other fields that might be needed
+                                            claims=getattr(verified_auth, "claims", {})
+                                            or {},
                                             sub=verified_auth.sub
                                             if hasattr(verified_auth, "sub")
                                             else user_email,
@@ -197,7 +198,7 @@ class AuthInfoMiddleware(Middleware):
                                 )
 
                                 # Create an AccessToken-like object
-                                access_token = SimpleNamespace(
+                                access_token = WorkspaceAccessToken(
                                     token=token_str,
                                     client_id=token_payload.get("client_id", "unknown"),
                                     scopes=token_payload.get("scope", "").split()
@@ -211,6 +212,9 @@ class AuthInfoMiddleware(Middleware):
                                         ),
                                     ),
                                     expires_at=token_payload.get("exp", 0),
+                                    claims=token_payload,
+                                    sub=token_payload.get("sub"),
+                                    email=token_payload.get("email"),
                                 )
 
                                 # Store in context state

@@ -8,6 +8,16 @@ improving code maintainability and type safety.
 from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
 
+from fastmcp.server.auth import AccessToken
+
+
+class WorkspaceAccessToken(AccessToken):
+    """AccessToken extended with workspace-specific fields."""
+
+    session_id: Optional[str] = None
+    sub: Optional[str] = None
+    email: Optional[str] = None
+
 
 @dataclass
 class OAuth21ServiceRequest:
