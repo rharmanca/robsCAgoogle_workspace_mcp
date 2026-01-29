@@ -41,7 +41,7 @@ class ExternalOAuthProvider(GoogleProvider):
         self,
         client_id: str,
         client_secret: str,
-        resource_server_url: str = None,
+        resource_server_url: Optional[str] = None,
         **kwargs,
     ):
         """Initialize and store client credentials for token validation."""
@@ -51,11 +51,7 @@ class ExternalOAuthProvider(GoogleProvider):
         self._client_id = client_id
         self._client_secret = client_secret
         if self._resource_server_url:
-            self.resource_server_url = (
-                AnyHttpUrl(self._resource_server_url)
-                if isinstance(self._resource_server_url, str)
-                else self._resource_server_url
-            )
+            self.resource_server_url = AnyHttpUrl(self._resource_server_url)
 
     async def verify_token(self, token: str) -> Optional[AccessToken]:
         """
