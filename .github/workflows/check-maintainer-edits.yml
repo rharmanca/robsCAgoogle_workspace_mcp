@@ -25,16 +25,13 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: context.issue.number,
-                body: `⚠️ **Maintainer edits not enabled**
-
-This repository requires that you enable "Allow edits from maintainers" for your pull request. This allows maintainers to make small fixes and improvements directly to your branch, which speeds up the review process.
-
-**To enable this setting:**
-1. Go to your pull request page
-2. In the right sidebar, look for "Allow edits from maintainers"
-3. Check the checkbox to enable it
-
-Once you've enabled this setting, this check will automatically pass. Thank you! 🙏`
+                body: '⚠️ **Maintainer edits not enabled**\n\n' +
+                      'This repository requires that you enable "Allow edits from maintainers" for your pull request. This allows maintainers to make small fixes and improvements directly to your branch, which speeds up the review process.\n\n' +
+                      '**To enable this setting:**\n' +
+                      '1. Go to your pull request page\n' +
+                      '2. In the right sidebar, look for "Allow edits from maintainers"\n' +
+                      '3. Check the checkbox to enable it\n\n' +
+                      'Once you\'ve enabled this setting, this check will automatically pass. Thank you! 🙏'
               });
 
               core.setFailed('Maintainer edits must be enabled for this pull request');
