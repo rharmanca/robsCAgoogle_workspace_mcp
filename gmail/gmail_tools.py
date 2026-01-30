@@ -356,7 +356,7 @@ def _prepare_gmail_message(
     if from_email:
         if from_name:
             # Sanitize from_name to prevent header injection
-            safe_name = from_name.replace("\r", "").replace("\n", "")
+            safe_name = from_name.replace("\r", "").replace("\n", "").replace("\x00", "")
             message["From"] = formataddr((safe_name, from_email))
         else:
             message["From"] = from_email
@@ -1051,8 +1051,11 @@ async def send_gmail_message(
         str: Confirmation message with the sent email's message ID.
 
     Examples:
-        # Send a new email with display name
-        send_gmail_message(to="user@example.com", subject="Hello", body="Hi there!", from_name="Peter Hartree")
+        # Send a new email
+        send_gmail_message(to="user@example.com", subject="Hello", body="Hi there!")
+
+        # Send with a custom display name
+        send_gmail_message(to="user@example.com", subject="Hello", body="Hi there!", from_name="John Doe")
 
         # Send an HTML email
         send_gmail_message(
