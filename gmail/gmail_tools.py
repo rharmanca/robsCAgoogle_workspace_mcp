@@ -311,7 +311,7 @@ def _prepare_gmail_message(
                         logger.warning("Skipping attachment: missing filename")
                         continue
 
-                    file_data = base64.urlsafe_b64decode(content_base64)
+                    file_data = base64.b64decode(content_base64)
 
                     if not mime_type:
                         mime_type = "application/octet-stream"
@@ -323,13 +323,19 @@ def _prepare_gmail_message(
                     continue
 
                 # Create MIME attachment
-                part = MIMEBase(*mime_type.split("/"))
+                main_type, sub_type = mime_type.split("/", 1)
+                part = MIMEBase(main_type, sub_type)
                 part.set_payload(file_data)
                 encoders.encode_base64(part)
 
                 # Sanitize filename to prevent header injection and ensure valid quoting
-                safe_filename = (filename or "").replace("\r", "").replace("\n", "")
-                safe_filename = safe_filename.replace("\\", "\\\\").replace('"', r"\"")
+                safe_filename = (
+                    (filename or "")
+                    .replace("\r", "")
+                    .replace("\n", "")
+                    .replace("\\", "\\\\")
+                    .replace('"', r"\"")
+                )
 
                 part.add_header(
                     "Content-Disposition", f'attachment; filename="{safe_filename}"'
@@ -999,7 +1005,7 @@ async def send_gmail_message(
     ),
     attachments: Optional[List[Dict[str, str]]] = Body(
         None,
-        description='Optional list of attachments. Each can have: "path" (file path, auto-encodes), OR "content" (base64) + "filename". Optional "mime_type". Example: [{"path": "/path/to/file.pdf"}] or [{"filename": "doc.pdf", "content": "base64data", "mime_type": "application/pdf"}]',
+        description='Optional list of attachments. Each can have: "path" (file path, auto-encodes), OR "content" (standard base64, not urlsafe) + "filename". Optional "mime_type". Example: [{"path": "/path/to/file.pdf"}] or [{"filename": "doc.pdf", "content": "base64data", "mime_type": "application/pdf"}]',
     ),
 ) -> str:
     """
@@ -1017,7 +1023,7 @@ async def send_gmail_message(
               - 'filename' (optional): Override filename
               - 'mime_type' (optional): Override MIME type (auto-detected if not provided)
             Option 2 - Base64 content:
-              - 'content' (required): Base64-encoded file content
+              - 'content' (required): Standard base64-encoded file content (not urlsafe)
               - 'filename' (required): Name of the file
               - 'mime_type' (optional): MIME type (defaults to 'application/octet-stream')
         cc (Optional[str]): Optional CC email address.
@@ -1162,7 +1168,7 @@ async def draft_gmail_message(
     ),
     attachments: Optional[List[Dict[str, str]]] = Body(
         None,
-        description="Optional list of attachments. Each can have: 'path' (file path, auto-encodes), OR 'content' (base64) + 'filename'. Optional 'mime_type' (auto-detected from path if not provided).",
+        description="Optional list of attachments. Each can have: 'path' (file path, auto-encodes), OR 'content' (standard base64, not urlsafe) + 'filename'. Optional 'mime_type' (auto-detected from path if not provided).",
     ),
 ) -> str:
     """
@@ -1189,7 +1195,7 @@ async def draft_gmail_message(
               - 'filename' (optional): Override filename
               - 'mime_type' (optional): Override MIME type (auto-detected if not provided)
             Option 2 - Base64 content:
-              - 'content' (required): Base64-encoded file content
+              - 'content' (required): Standard base64-encoded file content (not urlsafe)
               - 'filename' (required): Name of the file
               - 'mime_type' (optional): MIME type (defaults to 'application/octet-stream')
 

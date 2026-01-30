@@ -749,6 +749,30 @@ cp .env.oauth21 .env
 | `batch_modify_gmail_message_labels` | Complete | Batch modify labels |
 | `start_google_auth` | Complete | Legacy OAuth 2.0 auth (disabled when OAuth 2.1 is enabled) |
 
+<details>
+<summary><b>📎 Email Attachments</b> <sub><sup>← Send emails with files</sup></sub></summary>
+
+Both `send_gmail_message` and `draft_gmail_message` support attachments via two methods:
+
+**Option 1: File Path** (local server only)
+```python
+attachments=[{"path": "/path/to/report.pdf"}]
+```
+Reads file from disk, auto-detects MIME type. Optional `filename` override.
+
+**Option 2: Base64 Content** (works everywhere)
+```python
+attachments=[{
+    "filename": "report.pdf",
+    "content": "JVBERi0xLjQK...",  # base64-encoded
+    "mime_type": "application/pdf"   # optional
+}]
+```
+
+**⚠️ Centrally Hosted Servers**: When the MCP server runs remotely (cloud, shared instance), it cannot access your local filesystem. Use **Option 2** with base64-encoded content. Your MCP client must encode files before sending.
+
+</details>
+
 </td>
 <td width="50%" valign="top">
 
