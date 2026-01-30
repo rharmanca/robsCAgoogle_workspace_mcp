@@ -17,6 +17,8 @@ from fastmcp.server.auth.providers.google import GoogleProvider
 from fastmcp.server.auth import AccessToken
 from google.oauth2.credentials import Credentials
 
+from auth.oauth_types import WorkspaceAccessToken
+
 logger = logging.getLogger(__name__)
 
 # Google's OAuth 2.0 Authorization Server
@@ -89,12 +91,8 @@ class ExternalOAuthProvider(GoogleProvider):
                         f"Validated external access token for: {user_info['email']}"
                     )
 
-                    # Create a mock AccessToken that the middleware expects
-                    # This matches the structure that FastMCP's AccessToken would have
-                    from types import SimpleNamespace
-
                     scope_list = list(getattr(self, "required_scopes", []) or [])
-                    access_token = SimpleNamespace(
+                    access_token = WorkspaceAccessToken(
                         token=token,
                         scopes=scope_list,
                         expires_at=int(time.time())
