@@ -17,6 +17,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
+from email.utils import formataddr
 
 from fastapi import Body
 from pydantic import Field
@@ -354,7 +355,9 @@ def _prepare_gmail_message(
     # Add sender if provided
     if from_email:
         if from_name:
-            message["From"] = f"{from_name} <{from_email}>"
+            # Sanitize from_name to prevent header injection
+            safe_name = from_name.replace("\r", "").replace("\n", "")
+            message["From"] = formataddr((safe_name, from_email))
         else:
             message["From"] = from_email
 
