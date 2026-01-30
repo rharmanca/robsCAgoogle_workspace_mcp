@@ -17,6 +17,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
+from email.utils import formataddr
 
 from fastapi import Body
 from pydantic import Field
@@ -240,6 +241,7 @@ def _prepare_gmail_message(
     references: Optional[str] = None,
     body_format: Literal["plain", "html"] = "plain",
     from_email: Optional[str] = None,
+    from_name: Optional[str] = None,
     attachments: Optional[List[Dict[str, str]]] = None,
 ) -> tuple[str, Optional[str]]:
     """
@@ -256,6 +258,7 @@ def _prepare_gmail_message(
         references: Optional chain of Message-IDs for proper threading
         body_format: Content type for the email body ('plain' or 'html')
         from_email: Optional sender email address
+        from_name: Optional sender display name (e.g., "Peter Hartree")
         attachments: Optional list of attachments. Each can have 'path' (file path) OR 'content' (base64) + 'filename'
 
     Returns:
@@ -351,7 +354,14 @@ def _prepare_gmail_message(
 
     # Add sender if provided
     if from_email:
-        message["From"] = from_email
+        if from_name:
+            # Sanitize from_name to prevent header injection
+            safe_name = (
+                from_name.replace("\r", "").replace("\n", "").replace("\x00", "")
+            )
+            message["From"] = formataddr((safe_name, from_email))
+        else:
+            message["From"] = from_email
 
     # Add recipients if provided
     if to:
@@ -988,6 +998,10 @@ async def send_gmail_message(
     ),
     cc: Optional[str] = Body(None, description="Optional CC email address."),
     bcc: Optional[str] = Body(None, description="Optional BCC email address."),
+    from_name: Optional[str] = Body(
+        None,
+        description="Optional sender display name (e.g., 'Peter Hartree'). If provided, the From header will be formatted as 'Name <email>'.",
+    ),
     from_email: Optional[str] = Body(
         None,
         description="Optional 'Send As' alias email address. Must be configured in Gmail settings (Settings > Accounts > Send mail as). If not provided, uses the authenticated user's email.",
@@ -1026,6 +1040,7 @@ async def send_gmail_message(
               - 'mime_type' (optional): MIME type (defaults to 'application/octet-stream')
         cc (Optional[str]): Optional CC email address.
         bcc (Optional[str]): Optional BCC email address.
+        from_name (Optional[str]): Optional sender display name. If provided, the From header will be formatted as 'Name <email>'.
         from_email (Optional[str]): Optional 'Send As' alias email address. The alias must be
             configured in Gmail settings (Settings > Accounts > Send mail as). If not provided,
             the email will be sent from the authenticated user's primary email address.
@@ -1040,6 +1055,9 @@ async def send_gmail_message(
     Examples:
         # Send a new email
         send_gmail_message(to="user@example.com", subject="Hello", body="Hi there!")
+
+        # Send with a custom display name
+        send_gmail_message(to="user@example.com", subject="Hello", body="Hi there!", from_name="John Doe")
 
         # Send an HTML email
         send_gmail_message(
@@ -1116,6 +1134,7 @@ async def send_gmail_message(
         references=references,
         body_format=body_format,
         from_email=sender_email,
+        from_name=from_name,
         attachments=attachments if attachments else None,
     )
 
@@ -1151,6 +1170,10 @@ async def draft_gmail_message(
     to: Optional[str] = Body(None, description="Optional recipient email address."),
     cc: Optional[str] = Body(None, description="Optional CC email address."),
     bcc: Optional[str] = Body(None, description="Optional BCC email address."),
+    from_name: Optional[str] = Body(
+        None,
+        description="Optional sender display name (e.g., 'Peter Hartree'). If provided, the From header will be formatted as 'Name <email>'.",
+    ),
     from_email: Optional[str] = Body(
         None,
         description="Optional 'Send As' alias email address. Must be configured in Gmail settings (Settings > Accounts > Send mail as). If not provided, uses the authenticated user's email.",
@@ -1181,6 +1204,7 @@ async def draft_gmail_message(
         to (Optional[str]): Optional recipient email address. Can be left empty for drafts.
         cc (Optional[str]): Optional CC email address.
         bcc (Optional[str]): Optional BCC email address.
+        from_name (Optional[str]): Optional sender display name. If provided, the From header will be formatted as 'Name <email>'.
         from_email (Optional[str]): Optional 'Send As' alias email address. The alias must be
             configured in Gmail settings (Settings > Accounts > Send mail as). If not provided,
             the draft will be from the authenticated user's primary email address.
@@ -1270,6 +1294,7 @@ async def draft_gmail_message(
         in_reply_to=in_reply_to,
         references=references,
         from_email=sender_email,
+        from_name=from_name,
         attachments=attachments,
     )
 
