@@ -236,6 +236,7 @@ async def get_drive_file_download_url(
         export_format: Optional export format for Google native files.
                       Options: 'pdf', 'docx', 'xlsx', 'csv', 'pptx'.
                       If not specified, uses sensible defaults (PDF for Docs/Slides, XLSX for Sheets).
+                      For Sheets: supports 'csv', 'pdf', or 'xlsx' (default).
 
     Returns:
         str: Download URL and file metadata. The file is available at the URL for 1 hour.
