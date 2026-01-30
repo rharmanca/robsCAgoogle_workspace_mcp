@@ -308,7 +308,7 @@ def _prepare_gmail_message(
                 # If content is provided (base64), decode it
                 elif content_base64:
                     if not filename:
-                        logger.warning(f"Skipping attachment: missing filename")
+                        logger.warning("Skipping attachment: missing filename")
                         continue
 
                     file_data = base64.urlsafe_b64decode(content_base64)
@@ -318,7 +318,7 @@ def _prepare_gmail_message(
 
                 else:
                     logger.warning(
-                        f"Skipping attachment: missing both path and content"
+                        "Skipping attachment: missing both path and content"
                     )
                     continue
 
