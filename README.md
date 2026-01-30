@@ -818,6 +818,7 @@ cp .env.oauth21 .env
 | `set_publish_settings` | Complete | Configure form settings |
 | `get_form_response` | Complete | Get individual responses |
 | `list_form_responses` | Extended | List all responses with pagination |
+| `batch_update_form` | Complete | Apply batch updates (questions, settings) |
 
 </td>
 <td width="50%" valign="top">
