@@ -8,7 +8,7 @@
 [![PyPI Downloads](https://static.pepy.tech/personalized-badge/workspace-mcp?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=BLUE&left_text=downloads)](https://pepy.tech/projects/workspace-mcp)
 [![Website](https://img.shields.io/badge/Website-workspacemcp.com-green.svg)](https://workspacemcp.com)
 
-*Full natural language control over Google Calendar, Drive, Gmail, Docs, Sheets, Slides, Forms, Tasks, and Chat through all MCP clients, AI assistants and developer tools.*
+*Full natural language control over Google Calendar, Drive, Gmail, Docs, Sheets, Slides, Forms, Tasks, Contacts, and Chat through all MCP clients, AI assistants and developer tools.*
 
 **The most feature-complete Google Workspace MCP server**, with Remote OAuth2.1 multi-user support and 1-click Claude installation.
 
@@ -96,9 +96,9 @@ A production-ready MCP server that integrates all major Google Workspace service
 
 ---
 
-**<span style="color:#72898f">✓</span> Tasks** • **<span style="color:#72898f">◆</span> Custom Search** • **<span style="color:#72898f">↻</span> Transport Support**
-- Full support for all MCP Transports
+**<span style="color:#72898f">✓</span> Tasks** • **<span style="color:#72898f">👤</span> Contacts** • **<span style="color:#72898f">◆</span> Custom Search**
 - Task & task list management with hierarchy
+- Contact management via People API with groups
 - Programmable Search Engine (PSE) integration
 
 </td>
@@ -241,7 +241,8 @@ APIs & Services → Library
 Search & enable:
 Calendar, Drive, Gmail,
 Docs, Sheets, Slides,
-Forms, Tasks, Chat, Search
+Forms, Tasks, People,
+Chat, Search
 ```
 <sub>See quick links below</sub>
 
@@ -293,6 +294,7 @@ Forms, Tasks, Chat, Search
 * [Enable Google Forms API](https://console.cloud.google.com/flows/enableapi?apiid=forms.googleapis.com)
 * [Enable Google Tasks API](https://console.cloud.google.com/flows/enableapi?apiid=tasks.googleapis.com)
 * [Enable Google Chat API](https://console.cloud.google.com/flows/enableapi?apiid=chat.googleapis.com)
+* [Enable Google People API](https://console.cloud.google.com/flows/enableapi?apiid=people.googleapis.com)
 * [Enable Google Custom Search API](https://console.cloud.google.com/flows/enableapi?apiid=customsearch.googleapis.com)
 * [Enable Google Apps Script API](https://console.cloud.google.com/flows/enableapi?apiid=script.googleapis.com)
 
@@ -553,7 +555,7 @@ docker run -e TOOL_TIER=core workspace-mcp
 docker run -e TOOLS="gmail drive calendar" workspace-mcp
 ```
 
-**Available Services**: `gmail` • `drive` • `calendar` • `docs` • `sheets` • `forms` • `tasks` • `chat` • `search`
+**Available Services**: `gmail` • `drive` • `calendar` • `docs` • `sheets` • `forms` • `tasks` • `contacts` • `chat` • `search`
 
 </details>
 
@@ -859,6 +861,27 @@ attachments=[{
 | `move_task` | Complete | Reposition tasks |
 | `clear_completed_tasks` | Complete | Hide completed tasks |
 | `*_task_list` | Complete | List/get/create/update/delete task lists |
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+### 👤 **Google Contacts** <sub>[`contacts_tools.py`](gcontacts/contacts_tools.py)</sub>
+
+| Tool | Tier | Description |
+|------|------|-------------|
+| `search_contacts` | **Core** | Search contacts by name, email, phone |
+| `get_contact` | **Core** | Retrieve detailed contact info |
+| `list_contacts` | **Core** | List contacts with pagination |
+| `create_contact` | **Core** | Create new contacts |
+| `update_contact` | Extended | Update existing contacts |
+| `delete_contact` | Extended | Delete contacts |
+| `list_contact_groups` | Extended | List contact groups/labels |
+| `get_contact_group` | Extended | Get group details with members |
+| `batch_*_contacts` | Complete | Batch create/update/delete contacts |
+| `*_contact_group` | Complete | Create/update/delete contact groups |
+| `modify_contact_group_members` | Complete | Add/remove contacts from groups |
 
 </td>
 </tr>
