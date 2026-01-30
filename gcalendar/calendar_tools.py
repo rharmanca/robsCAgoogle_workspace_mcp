@@ -672,9 +672,13 @@ async def create_event(
         drive_service = None
         try:
             try:
-                drive_service = service._http and build("drive", "v3", http=service._http)
+                drive_service = service._http and build(
+                    "drive", "v3", http=service._http
+                )
             except Exception as e:
-                logger.warning(f"Could not build Drive service for MIME type lookup: {e}")
+                logger.warning(
+                    f"Could not build Drive service for MIME type lookup: {e}"
+                )
             for att in attachments:
                 file_id = None
                 if att.startswith("https://"):
