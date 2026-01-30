@@ -61,6 +61,10 @@ SLIDES_READONLY_SCOPE = "https://www.googleapis.com/auth/presentations.readonly"
 TASKS_SCOPE = "https://www.googleapis.com/auth/tasks"
 TASKS_READONLY_SCOPE = "https://www.googleapis.com/auth/tasks.readonly"
 
+# Google Contacts (People API) scopes
+CONTACTS_SCOPE = "https://www.googleapis.com/auth/contacts"
+CONTACTS_READONLY_SCOPE = "https://www.googleapis.com/auth/contacts.readonly"
+
 # Google Custom Search API scope
 CUSTOM_SEARCH_SCOPE = "https://www.googleapis.com/auth/cse"
 
@@ -109,6 +113,8 @@ SLIDES_SCOPES = [SLIDES_SCOPE, SLIDES_READONLY_SCOPE]
 
 TASKS_SCOPES = [TASKS_SCOPE, TASKS_READONLY_SCOPE]
 
+CONTACTS_SCOPES = [CONTACTS_SCOPE, CONTACTS_READONLY_SCOPE]
+
 CUSTOM_SEARCH_SCOPES = [CUSTOM_SEARCH_SCOPE]
 
 SCRIPT_SCOPES = [
@@ -132,6 +138,7 @@ TOOL_SCOPES_MAP = {
     "forms": FORMS_SCOPES,
     "slides": SLIDES_SCOPES,
     "tasks": TASKS_SCOPES,
+    "contacts": CONTACTS_SCOPES,
     "search": CUSTOM_SEARCH_SCOPES,
     "appscript": SCRIPT_SCOPES,
 }

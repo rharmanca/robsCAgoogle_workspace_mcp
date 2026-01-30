@@ -141,6 +141,26 @@ tasks:
     - move_task
     - clear_completed_tasks
 
+contacts:
+  core:
+    - search_contacts
+    - get_contact
+    - list_contacts
+    - create_contact
+  extended:
+    - update_contact
+    - delete_contact
+    - list_contact_groups
+    - get_contact_group
+  complete:
+    - batch_create_contacts
+    - batch_update_contacts
+    - batch_delete_contacts
+    - create_contact_group
+    - update_contact_group
+    - delete_contact_group
+    - modify_contact_group_members
+
 search:
   core:
     - search_custom
