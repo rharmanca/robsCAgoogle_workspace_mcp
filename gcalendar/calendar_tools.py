@@ -671,61 +671,69 @@ async def create_event(
         event_body["attachments"] = []
         drive_service = None
         try:
-            drive_service = service._http and build("drive", "v3", http=service._http)
-        except Exception as e:
-            logger.warning(f"Could not build Drive service for MIME type lookup: {e}")
-        for att in attachments:
-            file_id = None
-            if att.startswith("https://"):
-                # Match /d/<id>, /file/d/<id>, ?id=<id>
-                match = re.search(r"(?:/d/|/file/d/|id=)([\w-]+)", att)
-                file_id = match.group(1) if match else None
-                logger.info(
-                    f"[create_event] Extracted file_id '{file_id}' from attachment URL '{att}'"
+            try:
+                drive_service = service._http and build(
+                    "drive", "v3", http=service._http
                 )
-            else:
-                file_id = att
-                logger.info(
-                    f"[create_event] Using direct file_id '{file_id}' for attachment"
+            except Exception as e:
+                logger.warning(
+                    f"Could not build Drive service for MIME type lookup: {e}"
                 )
-            if file_id:
-                file_url = f"https://drive.google.com/open?id={file_id}"
-                mime_type = "application/vnd.google-apps.drive-sdk"
-                title = "Drive Attachment"
-                # Try to get the actual MIME type and filename from Drive
-                if drive_service:
-                    try:
-                        file_metadata = await asyncio.to_thread(
-                            lambda: drive_service.files()
-                            .get(
-                                fileId=file_id,
-                                fields="mimeType,name",
-                                supportsAllDrives=True,
+            for att in attachments:
+                file_id = None
+                if att.startswith("https://"):
+                    # Match /d/<id>, /file/d/<id>, ?id=<id>
+                    match = re.search(r"(?:/d/|/file/d/|id=)([\w-]+)", att)
+                    file_id = match.group(1) if match else None
+                    logger.info(
+                        f"[create_event] Extracted file_id '{file_id}' from attachment URL '{att}'"
+                    )
+                else:
+                    file_id = att
+                    logger.info(
+                        f"[create_event] Using direct file_id '{file_id}' for attachment"
+                    )
+                if file_id:
+                    file_url = f"https://drive.google.com/open?id={file_id}"
+                    mime_type = "application/vnd.google-apps.drive-sdk"
+                    title = "Drive Attachment"
+                    # Try to get the actual MIME type and filename from Drive
+                    if drive_service:
+                        try:
+                            file_metadata = await asyncio.to_thread(
+                                lambda: drive_service.files()
+                                .get(
+                                    fileId=file_id,
+                                    fields="mimeType,name",
+                                    supportsAllDrives=True,
+                                )
+                                .execute()
                             )
-                            .execute()
-                        )
-                        mime_type = file_metadata.get("mimeType", mime_type)
-                        filename = file_metadata.get("name")
-                        if filename:
-                            title = filename
-                            logger.info(
-                                f"[create_event] Using filename '{filename}' as attachment title"
+                            mime_type = file_metadata.get("mimeType", mime_type)
+                            filename = file_metadata.get("name")
+                            if filename:
+                                title = filename
+                                logger.info(
+                                    f"[create_event] Using filename '{filename}' as attachment title"
+                                )
+                            else:
+                                logger.info(
+                                    "[create_event] No filename found, using generic title"
+                                )
+                        except Exception as e:
+                            logger.warning(
+                                f"Could not fetch metadata for file {file_id}: {e}"
                             )
-                        else:
-                            logger.info(
-                                "[create_event] No filename found, using generic title"
-                            )
-                    except Exception as e:
-                        logger.warning(
-                            f"Could not fetch metadata for file {file_id}: {e}"
-                        )
-                event_body["attachments"].append(
-                    {
-                        "fileUrl": file_url,
-                        "title": title,
-                        "mimeType": mime_type,
-                    }
-                )
+                    event_body["attachments"].append(
+                        {
+                            "fileUrl": file_url,
+                            "title": title,
+                            "mimeType": mime_type,
+                        }
+                    )
+        finally:
+            if drive_service:
+                drive_service.close()
         created_event = await asyncio.to_thread(
             lambda: service.events()
             .insert(
