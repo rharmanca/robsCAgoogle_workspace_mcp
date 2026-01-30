@@ -317,9 +317,7 @@ def _prepare_gmail_message(
                         mime_type = "application/octet-stream"
 
                 else:
-                    logger.warning(
-                        "Skipping attachment: missing both path and content"
-                    )
+                    logger.warning("Skipping attachment: missing both path and content")
                     continue
 
                 # Create MIME attachment
