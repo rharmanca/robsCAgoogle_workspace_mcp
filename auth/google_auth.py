@@ -784,6 +784,9 @@ def get_user_info(credentials: Credentials) -> Optional[Dict[str, Any]]:
     except Exception as e:
         logger.error(f"Unexpected error fetching user info: {e}")
         return None
+    finally:
+        if service:
+            service.close()
 
 
 # --- Centralized Google Service Authentication ---
