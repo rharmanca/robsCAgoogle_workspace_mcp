@@ -103,7 +103,9 @@ def main():
             "forms",
             "slides",
             "tasks",
+            "contacts",
             "search",
+            "appscript",
         ],
         help="Specify which tools to register. If not provided, all tools are registered.",
     )
@@ -153,10 +155,26 @@ def main():
         else "Invalid or too short"
     )
 
+    # Determine credentials directory (same logic as credential_store.py)
+    workspace_creds_dir = os.getenv("WORKSPACE_MCP_CREDENTIALS_DIR")
+    google_creds_dir = os.getenv("GOOGLE_MCP_CREDENTIALS_DIR")
+    if workspace_creds_dir:
+        creds_dir_display = os.path.expanduser(workspace_creds_dir)
+        creds_dir_source = "WORKSPACE_MCP_CREDENTIALS_DIR"
+    elif google_creds_dir:
+        creds_dir_display = os.path.expanduser(google_creds_dir)
+        creds_dir_source = "GOOGLE_MCP_CREDENTIALS_DIR"
+    else:
+        creds_dir_display = os.path.join(
+            os.path.expanduser("~"), ".google_workspace_mcp", "credentials"
+        )
+        creds_dir_source = "default"
+
     config_vars = {
         "GOOGLE_OAUTH_CLIENT_ID": os.getenv("GOOGLE_OAUTH_CLIENT_ID", "Not Set"),
         "GOOGLE_OAUTH_CLIENT_SECRET": redacted_secret,
         "USER_GOOGLE_EMAIL": os.getenv("USER_GOOGLE_EMAIL", "Not Set"),
+        "CREDENTIALS_DIR": f"{creds_dir_display} ({creds_dir_source})",
         "MCP_SINGLE_USER_MODE": os.getenv("MCP_SINGLE_USER_MODE", "false"),
         "MCP_ENABLE_OAUTH21": os.getenv("MCP_ENABLE_OAUTH21", "false"),
         "WORKSPACE_MCP_STATELESS_MODE": os.getenv(
@@ -183,7 +201,9 @@ def main():
         "forms": lambda: import_module("gforms.forms_tools"),
         "slides": lambda: import_module("gslides.slides_tools"),
         "tasks": lambda: import_module("gtasks.tasks_tools"),
+        "contacts": lambda: import_module("gcontacts.contacts_tools"),
         "search": lambda: import_module("gsearch.search_tools"),
+        "appscript": lambda: import_module("gappsscript.apps_script_tools"),
     }
 
     tool_icons = {
@@ -196,7 +216,9 @@ def main():
         "forms": "📝",
         "slides": "🖼️",
         "tasks": "✓",
+        "contacts": "👤",
         "search": "🔍",
+        "appscript": "📜",
     }
 
     # Determine which tools to import based on arguments
@@ -266,6 +288,20 @@ def main():
 
     # Set global single-user mode flag
     if args.single_user:
+        # Check for incompatible OAuth 2.1 mode
+        if os.getenv("MCP_ENABLE_OAUTH21", "false").lower() == "true":
+            safe_print("❌ Single-user mode is incompatible with OAuth 2.1 mode")
+            safe_print(
+                "   Single-user mode is for legacy clients that pass user emails"
+            )
+            safe_print(
+                "   OAuth 2.1 mode is for multi-user scenarios with bearer tokens"
+            )
+            safe_print(
+                "   Please choose one mode: either --single-user OR MCP_ENABLE_OAUTH21=true"
+            )
+            sys.exit(1)
+
         if is_stateless_mode():
             safe_print("❌ Single-user mode is incompatible with stateless mode")
             safe_print("   Stateless mode requires OAuth 2.1 which is multi-user")

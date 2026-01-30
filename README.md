@@ -5,15 +5,15 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
 [![PyPI](https://img.shields.io/pypi/v/workspace-mcp.svg)](https://pypi.org/project/workspace-mcp/)
-[![PyPI Downloads](https://static.pepy.tech/personalized-badge/workspace-mcp?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=BLUE&left_text=pip%20downloads)](https://pepy.tech/projects/workspace-mcp)
+[![PyPI Downloads](https://static.pepy.tech/personalized-badge/workspace-mcp?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=BLUE&left_text=downloads)](https://pepy.tech/projects/workspace-mcp)
 [![Website](https://img.shields.io/badge/Website-workspacemcp.com-green.svg)](https://workspacemcp.com)
 
-*Full natural language control over Google Calendar, Drive, Gmail, Docs, Sheets, Slides, Forms, Tasks, and Chat through all MCP clients, AI assistants and developer tools.*
+*Full natural language control over Google Calendar, Drive, Gmail, Docs, Sheets, Slides, Forms, Tasks, Contacts, and Chat through all MCP clients, AI assistants and developer tools.*
 
-**The most feature-complete Google Workspace MCP server**, now with Remote OAuth2.1 multi-user support and 1-click Claude installation.
+**The most feature-complete Google Workspace MCP server**, with Remote OAuth2.1 multi-user support and 1-click Claude installation.
 
 
-###### Support for all free Google accounts (Gmail, Docs, Drive etc) & Google Workspace plans (Starter, Standard, Plus, Enterprise, Non Profit) with expanded app options like Chat & Spaces. <br/> Interested in a private cloud instance? [That can be arranged.](https://workspacemcp.com/workspace-mcp-cloud)
+###### Support for all free Google accounts (Gmail, Docs, Drive etc) & Google Workspace plans (Starter, Standard, Plus, Enterprise, Non Profit) with expanded app options like Chat & Spaces. <br/><br /> Interested in a private, managed cloud instance? [That can be arranged.](https://workspacemcp.com/workspace-mcp-cloud)
 
 
 </div>
@@ -75,6 +75,15 @@ A production-ready MCP server that integrates all major Google Workspace service
 - Spreadsheet operations with flexible cell management
 - Presentation creation, updates & content manipulation
 
+---
+
+**<span style="color:#72898f">◆</span> Apps Script**
+- Automate cross-application workflows with custom code
+- Execute existing business logic and custom functions
+- Manage script projects, deployments & versions
+- Debug and modify Apps Script code programmatically
+- Bridge Google Workspace services through automation
+
 </td>
 <td width="50%" valign="top">
 
@@ -87,9 +96,9 @@ A production-ready MCP server that integrates all major Google Workspace service
 
 ---
 
-**<span style="color:#72898f">✓</span> Tasks** • **<span style="color:#72898f">◆</span> Custom Search** • **<span style="color:#72898f">↻</span> Transport Support**
-- Full support for all MCP Transports
+**<span style="color:#72898f">✓</span> Tasks** • **<span style="color:#72898f">👤</span> Contacts** • **<span style="color:#72898f">◆</span> Custom Search**
 - Task & task list management with hierarchy
+- Contact management via People API with groups
 - Programmable Search Engine (PSE) integration
 
 </td>
@@ -232,7 +241,8 @@ APIs & Services → Library
 Search & enable:
 Calendar, Drive, Gmail,
 Docs, Sheets, Slides,
-Forms, Tasks, Chat, Search
+Forms, Tasks, People,
+Chat, Search
 ```
 <sub>See quick links below</sub>
 
@@ -284,7 +294,9 @@ Forms, Tasks, Chat, Search
 * [Enable Google Forms API](https://console.cloud.google.com/flows/enableapi?apiid=forms.googleapis.com)
 * [Enable Google Tasks API](https://console.cloud.google.com/flows/enableapi?apiid=tasks.googleapis.com)
 * [Enable Google Chat API](https://console.cloud.google.com/flows/enableapi?apiid=chat.googleapis.com)
+* [Enable Google People API](https://console.cloud.google.com/flows/enableapi?apiid=people.googleapis.com)
 * [Enable Google Custom Search API](https://console.cloud.google.com/flows/enableapi?apiid=customsearch.googleapis.com)
+* [Enable Google Apps Script API](https://console.cloud.google.com/flows/enableapi?apiid=script.googleapis.com)
 
 </details>
 
@@ -471,6 +483,8 @@ export GOOGLE_PSE_ENGINE_ID=\
 
 ### Start the Server
 
+> **📌 Transport Mode Guidance**: Use **streamable HTTP mode** (`--transport streamable-http`) for all modern MCP clients including Claude Code, VS Code MCP, and MCP Inspector. Stdio mode is only for clients with incomplete MCP specification support.
+
 <details open>
 <summary>▶ <b>Launch Commands</b> <sub><sup>← Choose your startup mode</sup></sub></summary>
 
@@ -478,21 +492,21 @@ export GOOGLE_PSE_ENGINE_ID=\
 <tr>
 <td width="33%" align="center">
 
-**▶ Quick Start**
+**▶ Legacy Mode**
 ```bash
 uv run main.py
 ```
-<sub>Default stdio mode</sub>
+<sub>⚠️ Stdio mode (incomplete MCP clients only)</sub>
 
 </td>
 <td width="33%" align="center">
 
-**◆ HTTP Mode**
+**◆ HTTP Mode (Recommended)**
 ```bash
 uv run main.py \
   --transport streamable-http
 ```
-<sub>Web interfaces & debugging</sub>
+<sub>✅ Full MCP spec compliance & OAuth 2.1</sub>
 
 </td>
 <td width="34%" align="center">
@@ -503,6 +517,7 @@ uv run main.py \
   --single-user
 ```
 <sub>Simplified authentication</sub>
+<sub>⚠️ Cannot be used with OAuth 2.1 mode</sub>
 
 </td>
 </tr>
@@ -540,7 +555,7 @@ docker run -e TOOL_TIER=core workspace-mcp
 docker run -e TOOLS="gmail drive calendar" workspace-mcp
 ```
 
-**Available Services**: `gmail` • `drive` • `calendar` • `docs` • `sheets` • `forms` • `tasks` • `chat` • `search`
+**Available Services**: `gmail` • `drive` • `calendar` • `docs` • `sheets` • `forms` • `tasks` • `contacts` • `chat` • `search`
 
 </details>
 
@@ -650,7 +665,7 @@ cp .env.oauth21 .env
 
 **Loading Priority**
 1. Environment variables (`export VAR=value`)
-2. `.env` file in project root (warning - if you run via `uvx` rather than `uv run` from the repo directory, you are spawning a standalone process not associated with your clone of the repo and it will not find your .env file without specifying it directly) 
+2. `.env` file in project root (warning - if you run via `uvx` rather than `uv run` from the repo directory, you are spawning a standalone process not associated with your clone of the repo and it will not find your .env file without specifying it directly)
 3. `client_secret.json` via `GOOGLE_CLIENT_SECRET_PATH`
 4. Default `client_secret.json` in project root
 
@@ -703,6 +718,7 @@ cp .env.oauth21 .env
 | `share_drive_file` | **Core** | Share file with users/groups/domains/anyone |
 | `get_drive_shareable_link` | **Core** | Get shareable links for a file |
 | `list_drive_items` | Extended | List folder contents |
+| `copy_drive_file` | Extended | Copy existing files (templates) with optional renaming |
 | `update_drive_file` | Extended | Update file metadata, move between folders |
 | `batch_share_drive_file` | Extended | Share file with multiple recipients |
 | `update_drive_permission` | Extended | Modify permission role |
@@ -733,7 +749,31 @@ cp .env.oauth21 .env
 | `draft_gmail_message` | Extended | Create drafts |
 | `get_gmail_threads_content_batch` | Complete | Batch retrieve thread content |
 | `batch_modify_gmail_message_labels` | Complete | Batch modify labels |
-| `start_google_auth` | Complete | Initialize authentication |
+| `start_google_auth` | Complete | Legacy OAuth 2.0 auth (disabled when OAuth 2.1 is enabled) |
+
+<details>
+<summary><b>📎 Email Attachments</b> <sub><sup>← Send emails with files</sup></sub></summary>
+
+Both `send_gmail_message` and `draft_gmail_message` support attachments via two methods:
+
+**Option 1: File Path** (local server only)
+```python
+attachments=[{"path": "/path/to/report.pdf"}]
+```
+Reads file from disk, auto-detects MIME type. Optional `filename` override.
+
+**Option 2: Base64 Content** (works everywhere)
+```python
+attachments=[{
+    "filename": "report.pdf",
+    "content": "JVBERi0xLjQK...",  # base64-encoded
+    "mime_type": "application/pdf"   # optional
+}]
+```
+
+**⚠️ Centrally Hosted Servers**: When the MCP server runs remotely (cloud, shared instance), it cannot access your local filesystem. Use **Option 2** with base64-encoded content. Your MCP client must encode files before sending.
+
+</details>
 
 </td>
 <td width="50%" valign="top">
@@ -804,6 +844,7 @@ cp .env.oauth21 .env
 | `set_publish_settings` | Complete | Configure form settings |
 | `get_form_response` | Complete | Get individual responses |
 | `list_form_responses` | Extended | List all responses with pagination |
+| `batch_update_form` | Complete | Apply batch updates (questions, settings) |
 
 </td>
 <td width="50%" valign="top">
@@ -820,6 +861,27 @@ cp .env.oauth21 .env
 | `move_task` | Complete | Reposition tasks |
 | `clear_completed_tasks` | Complete | Hide completed tasks |
 | `*_task_list` | Complete | List/get/create/update/delete task lists |
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+### 👤 **Google Contacts** <sub>[`contacts_tools.py`](gcontacts/contacts_tools.py)</sub>
+
+| Tool | Tier | Description |
+|------|------|-------------|
+| `search_contacts` | **Core** | Search contacts by name, email, phone |
+| `get_contact` | **Core** | Retrieve detailed contact info |
+| `list_contacts` | **Core** | List contacts with pagination |
+| `create_contact` | **Core** | Create new contacts |
+| `update_contact` | Extended | Update existing contacts |
+| `delete_contact` | Extended | Delete contacts |
+| `list_contact_groups` | Extended | List contact groups/labels |
+| `get_contact_group` | Extended | Get group details with members |
+| `batch_*_contacts` | Complete | Batch create/update/delete contacts |
+| `*_contact_group` | Complete | Create/update/delete contact groups |
+| `modify_contact_group_members` | Complete | Add/remove contacts from groups |
 
 </td>
 </tr>
@@ -848,6 +910,27 @@ cp .env.oauth21 .env
 
 </td>
 </tr>
+<tr>
+<td colspan="2" valign="top">
+
+### **Google Apps Script** <sub>[`apps_script_tools.py`](gappsscript/apps_script_tools.py)</sub>
+
+| Tool | Tier | Description |
+|------|------|-------------|
+| `list_script_projects` | **Core** | List accessible Apps Script projects |
+| `get_script_project` | **Core** | Get complete project with all files |
+| `get_script_content` | **Core** | Retrieve specific file content |
+| `create_script_project` | **Core** | Create new standalone or bound project |
+| `update_script_content` | **Core** | Update or create script files |
+| `run_script_function` | **Core** | Execute function with parameters |
+| `create_deployment` | Extended | Create new script deployment |
+| `list_deployments` | Extended | List all project deployments |
+| `update_deployment` | Extended | Update deployment configuration |
+| `delete_deployment` | Extended | Remove deployment |
+| `list_script_processes` | Extended | View recent executions and status |
+
+</td>
+</tr>
 </table>
 
 
@@ -862,7 +945,9 @@ cp .env.oauth21 .env
 
 The server supports two transport modes:
 
-#### Stdio Mode (Default - Recommended for Claude Desktop)
+#### Stdio Mode (Legacy - For Clients with Incomplete MCP Support)
+
+> **⚠️ Important**: Stdio mode is a **legacy fallback** for clients that don't properly implement the MCP specification with OAuth 2.1 and streamable HTTP support. **Claude Code and other modern MCP clients should use streamable HTTP mode** (`--transport streamable-http`) for proper OAuth flow and multi-user support.
 
 In general, you should use the one-click DXT installer package for Claude Desktop.
 If you are unable to for some reason, you can configure it manually via `claude_desktop_config.json`
@@ -893,6 +978,27 @@ If you are unable to for some reason, you can configure it manually via `claude_
 }
 ```
 </details>
+
+### Connect to LM Studio
+
+Add a new MCP server in LM Studio (Settings → MCP Servers) using the same JSON format:
+
+```json
+{
+  "mcpServers": {
+    "google_workspace": {
+      "command": "uvx",
+      "args": ["workspace-mcp"],
+      "env": {
+        "GOOGLE_OAUTH_CLIENT_ID": "your-client-id",
+        "GOOGLE_OAUTH_CLIENT_SECRET": "your-secret",
+        "OAUTHLIB_INSECURE_TRANSPORT": "1",
+      }
+    }
+  }
+}
+```
+
 
 ### 2. Advanced / Cross-Platform Installation
 
@@ -945,6 +1051,14 @@ The server includes OAuth 2.1 support for bearer token authentication, enabling 
 - Building web applications or APIs on top of the MCP server
 - Production environments requiring secure session management
 - Browser-based clients requiring CORS support
+
+**⚠️ Important: OAuth 2.1 and Single-User Mode are mutually exclusive**
+
+OAuth 2.1 mode (`MCP_ENABLE_OAUTH21=true`) cannot be used together with the `--single-user` flag:
+- **Single-user mode**: For legacy clients that pass user emails in tool calls
+- **OAuth 2.1 mode**: For modern multi-user scenarios with bearer token authentication
+
+Choose one authentication method - using both will result in a startup error.
 
 **Enabling OAuth 2.1:**
 To enable OAuth 2.1, set the `MCP_ENABLE_OAUTH21` environment variable to `true`.
@@ -1004,6 +1118,55 @@ This mode is ideal for:
 
 **Claude Code**: No additional configuration needed with desktop OAuth client.
 
+### OAuth Proxy Storage Backends
+
+The server supports pluggable storage backends for OAuth proxy state management via FastMCP 2.13.0+. Choose a backend based on your deployment needs.
+
+**Available Backends:**
+
+| Backend | Best For | Persistence | Multi-Server |
+|---------|----------|-------------|--------------|
+| Memory | Development, testing | ❌ | ❌ |
+| Disk | Single-server production | ✅ | ❌ |
+| Valkey/Redis | Distributed production | ✅ | ✅ |
+
+**Configuration:**
+
+```bash
+# Memory storage (fast, no persistence)
+export WORKSPACE_MCP_OAUTH_PROXY_STORAGE_BACKEND=memory
+
+# Disk storage (persists across restarts)
+export WORKSPACE_MCP_OAUTH_PROXY_STORAGE_BACKEND=disk
+export WORKSPACE_MCP_OAUTH_PROXY_DISK_DIRECTORY=~/.fastmcp/oauth-proxy
+
+# Valkey/Redis storage (distributed, multi-server)
+export WORKSPACE_MCP_OAUTH_PROXY_STORAGE_BACKEND=valkey
+export WORKSPACE_MCP_OAUTH_PROXY_VALKEY_HOST=redis.example.com
+export WORKSPACE_MCP_OAUTH_PROXY_VALKEY_PORT=6379
+```
+
+> Valkey support is optional. Install `workspace-mcp[valkey]` (or `py-key-value-aio[valkey]`) only if you enable the Valkey backend.
+> Windows: building `valkey-glide` from source requires MSVC C++ build tools with C11 support. If you see `aws-lc-sys` C11 errors, set `CFLAGS=/std:c11`.
+
+<details>
+<summary>🔐 <b>Valkey/Redis Configuration Options</b></summary>
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `WORKSPACE_MCP_OAUTH_PROXY_VALKEY_HOST` | localhost | Valkey/Redis host |
+| `WORKSPACE_MCP_OAUTH_PROXY_VALKEY_PORT` | 6379 | Port (6380 auto-enables TLS) |
+| `WORKSPACE_MCP_OAUTH_PROXY_VALKEY_DB` | 0 | Database number |
+| `WORKSPACE_MCP_OAUTH_PROXY_VALKEY_USE_TLS` | auto | Enable TLS (auto if port 6380) |
+| `WORKSPACE_MCP_OAUTH_PROXY_VALKEY_USERNAME` | - | Authentication username |
+| `WORKSPACE_MCP_OAUTH_PROXY_VALKEY_PASSWORD` | - | Authentication password |
+| `WORKSPACE_MCP_OAUTH_PROXY_VALKEY_REQUEST_TIMEOUT_MS` | 5000 | Request timeout for remote hosts |
+| `WORKSPACE_MCP_OAUTH_PROXY_VALKEY_CONNECTION_TIMEOUT_MS` | 10000 | Connection timeout for remote hosts |
+
+**Encryption:** Disk and Valkey storage are encrypted with Fernet. The encryption key is derived from `FASTMCP_SERVER_AUTH_GOOGLE_JWT_SIGNING_KEY` if set, otherwise from `GOOGLE_OAUTH_CLIENT_SECRET`.
+
+</details>
+
 ### External OAuth 2.1 Provider Mode
 
 The server supports an external OAuth 2.1 provider mode for scenarios where authentication is handled by an external system. In this mode, the MCP server does not manage the OAuth flow itself but expects valid bearer tokens in the Authorization header of tool calls.
@@ -1046,6 +1209,8 @@ uv run main.py --transport streamable-http
 
 ### VS Code MCP Client Support
 
+> **✅ Recommended**: VS Code MCP extension properly supports the full MCP specification. **Always use HTTP transport mode** for proper OAuth 2.1 authentication.
+
 <details>
 <summary>🆚 <b>VS Code Configuration</b> <sub><sup>← Setup for VS Code MCP extension</sup></sub></summary>
 
@@ -1059,14 +1224,22 @@ uv run main.py --transport streamable-http
     }
 }
 ```
+
+*Note: Make sure to start the server with `--transport streamable-http` when using VS Code MCP.*
 </details>
 
 ### Claude Code MCP Client Support
 
+> **✅ Recommended**: Claude Code is a modern MCP client that properly supports the full MCP specification. **Always use HTTP transport mode** with Claude Code for proper OAuth 2.1 authentication and multi-user support.
+
 <details>
 <summary>🆚 <b>Claude Code Configuration</b> <sub><sup>← Setup for Claude Code MCP support</sup></sub></summary>
 
-```json
+```bash
+# Start the server in HTTP mode first
+uv run main.py --transport streamable-http
+
+# Then add to Claude Code
 claude mcp add --transport http workspace-mcp http://localhost:8000/mcp
 ```
 </details>
