@@ -356,7 +356,9 @@ def _prepare_gmail_message(
     if from_email:
         if from_name:
             # Sanitize from_name to prevent header injection
-            safe_name = from_name.replace("\r", "").replace("\n", "").replace("\x00", "")
+            safe_name = (
+                from_name.replace("\r", "").replace("\n", "").replace("\x00", "")
+            )
             message["From"] = formataddr((safe_name, from_email))
         else:
             message["From"] = from_email
