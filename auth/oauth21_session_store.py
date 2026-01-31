@@ -15,6 +15,7 @@ from dataclasses import dataclass
 
 from fastmcp.server.auth import AccessToken
 from google.oauth2.credentials import Credentials
+from auth.oauth_config import is_external_oauth21_provider
 
 logger = logging.getLogger(__name__)
 
@@ -743,7 +744,8 @@ def ensure_session_from_access_token(
     else:
         store_expiry = credentials.expiry
 
-    if email:
+    # Skip session storage for external OAuth 2.1 to prevent memory leak from ephemeral tokens
+    if email and not is_external_oauth21_provider():
         try:
             store = get_oauth21_session_store()
             store.store_session(
