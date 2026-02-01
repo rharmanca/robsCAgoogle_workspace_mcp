@@ -9,6 +9,7 @@ import logging
 from typing import Set, Optional, Callable
 
 from auth.oauth_config import is_oauth21_enabled
+from auth.scopes import is_read_only_mode, get_all_read_only_scopes
 
 logger = logging.getLogger(__name__)
 
@@ -93,8 +94,6 @@ def filter_server_tools(server):
         if hasattr(tool_manager, "_tools"):
             tool_registry = tool_manager._tools
 
-            from auth.scopes import is_read_only_mode, get_all_read_only_scopes
-
             read_only_mode = is_read_only_mode()
             allowed_scopes = set(get_all_read_only_scopes()) if read_only_mode else None
 
@@ -139,8 +138,6 @@ def filter_server_tools(server):
                     tools_removed += 1
 
     if tools_removed > 0:
-        from auth.scopes import is_read_only_mode
-
         enabled_count = len(enabled_tools) if enabled_tools is not None else "all"
         mode = "Read-Only" if is_read_only_mode() else "Full"
         logger.info(
