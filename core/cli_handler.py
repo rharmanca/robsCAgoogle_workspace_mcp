@@ -41,7 +41,8 @@ def get_registered_tools(server) -> Dict[str, Any]:
         for name, tool in tool_registry.items():
             tools[name] = {
                 "name": name,
-                "description": getattr(tool, "description", None) or _extract_docstring(tool),
+                "description": getattr(tool, "description", None)
+                or _extract_docstring(tool),
                 "parameters": _extract_parameters(tool),
                 "tool_obj": tool,
             }
@@ -57,7 +58,9 @@ def _extract_docstring(tool) -> Optional[str]:
         for line in fn.__doc__.strip().split("\n"):
             line = line.strip()
             # Skip empty lines and common section headers
-            if line and not line.startswith(("Args:", "Returns:", "Raises:", "Example", "Note:")):
+            if line and not line.startswith(
+                ("Args:", "Returns:", "Raises:", "Example", "Note:")
+            ):
                 return line
     return None
 
@@ -100,11 +103,13 @@ def list_tools(server, output_format: str = "text") -> str:
         # Return JSON format for programmatic use
         tool_list = []
         for name, info in sorted(tools.items()):
-            tool_list.append({
-                "name": name,
-                "description": info["description"],
-                "parameters": info["parameters"],
-            })
+            tool_list.append(
+                {
+                    "name": name,
+                    "description": info["description"],
+                    "parameters": info["parameters"],
+                }
+            )
         return json.dumps({"tools": tool_list}, indent=2)
 
     # Text format for human reading
@@ -189,14 +194,16 @@ def show_tool_help(server, tool_name: str) -> str:
     else:
         lines.append("  (no parameters)")
 
-    lines.extend([
-        "",
-        "Example usage:",
-        f"  workspace-mcp --cli {tool_name} --args '{{\"param\": \"value\"}}'",
-        "",
-        "Or pipe JSON from stdin:",
-        f"  echo '{{\"param\": \"value\"}}' | workspace-mcp --cli {tool_name}",
-    ])
+    lines.extend(
+        [
+            "",
+            "Example usage:",
+            f'  workspace-mcp --cli {tool_name} --args \'{{"param": "value"}}\'',
+            "",
+            "Or pipe JSON from stdin:",
+            f'  echo \'{{"param": "value"}}\' | workspace-mcp --cli {tool_name}',
+        ]
+    )
 
     return "\n".join(lines)
 

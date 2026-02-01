@@ -13,12 +13,12 @@ if _CLI_MODE:
     os.environ["MCP_ENABLE_OAUTH21"] = "false"
     os.environ["WORKSPACE_MCP_STATELESS_MODE"] = "false"
 
-from auth.oauth_config import reload_oauth_config, is_stateless_mode
-from core.log_formatter import EnhancedLogFormatter, configure_file_logging
-from core.utils import check_credentials_directory_permissions
-from core.server import server, set_transport_mode, configure_server_for_http
-from core.tool_tier_loader import resolve_tools_from_tier
-from core.tool_registry import (
+from auth.oauth_config import reload_oauth_config, is_stateless_mode  # noqa: E402
+from core.log_formatter import EnhancedLogFormatter, configure_file_logging  # noqa: E402
+from core.utils import check_credentials_directory_permissions  # noqa: E402
+from core.server import server, set_transport_mode, configure_server_for_http  # noqa: E402
+from core.tool_tier_loader import resolve_tools_from_tier  # noqa: E402
+from core.tool_registry import (  # noqa: E402
     set_enabled_tools as set_enabled_tool_names,
     wrap_server_tool_method,
     filter_server_tools,
