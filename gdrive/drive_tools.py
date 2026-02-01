@@ -799,7 +799,9 @@ async def import_to_google_doc(
     # Validate inputs
     source_count = sum(1 for x in [content, file_path, file_url] if x is not None)
     if source_count == 0:
-        raise ValueError("You must provide one of: 'content', 'file_path', or 'file_url'.")
+        raise ValueError(
+            "You must provide one of: 'content', 'file_path', or 'file_url'."
+        )
     if source_count > 1:
         raise ValueError("Provide only one of: 'content', 'file_path', or 'file_url'.")
 
@@ -856,7 +858,9 @@ async def import_to_google_doc(
             # Regular path
             actual_path = file_path
         else:
-            raise ValueError(f"file_path should be a local path or file:// URL, got: {file_path}")
+            raise ValueError(
+                f"file_path should be a local path or file:// URL, got: {file_path}"
+            )
 
         path_obj = Path(actual_path)
         if not path_obj.exists():
@@ -870,7 +874,9 @@ async def import_to_google_doc(
         # Re-detect format from actual file if not specified
         if not source_format:
             source_mime_type = _detect_source_format(actual_path)
-            logger.info(f"[import_to_google_doc] Re-detected from path: {source_mime_type}")
+            logger.info(
+                f"[import_to_google_doc] Re-detected from path: {source_mime_type}"
+            )
 
     # Handle file_url (remote file)
     elif file_url is not None:
@@ -884,15 +890,21 @@ async def import_to_google_doc(
         async with httpx.AsyncClient(follow_redirects=True) as client:
             resp = await client.get(file_url)
             if resp.status_code != 200:
-                raise Exception(f"Failed to fetch file from URL: {file_url} (status {resp.status_code})")
+                raise Exception(
+                    f"Failed to fetch file from URL: {file_url} (status {resp.status_code})"
+                )
             file_data = resp.content
 
-        logger.info(f"[import_to_google_doc] Downloaded from URL: {len(file_data)} bytes")
+        logger.info(
+            f"[import_to_google_doc] Downloaded from URL: {len(file_data)} bytes"
+        )
 
         # Re-detect format from URL if not specified
         if not source_format:
             source_mime_type = _detect_source_format(file_url)
-            logger.info(f"[import_to_google_doc] Re-detected from URL: {source_mime_type}")
+            logger.info(
+                f"[import_to_google_doc] Re-detected from URL: {source_mime_type}"
+            )
 
     # Upload with conversion
     media = MediaIoBaseUpload(

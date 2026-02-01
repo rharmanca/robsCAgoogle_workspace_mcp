@@ -1333,7 +1333,6 @@ async def export_doc_to_pdf(
 # ==============================================================================
 
 
-
 @server.tool()
 @handle_http_errors("format_paragraph_style", service_type="docs")
 @require_google_service("docs", "docs_write")
@@ -1402,7 +1401,10 @@ async def format_paragraph_style(
         fields.append("lineSpacing")
 
     if indent_first_line is not None:
-        paragraph_style["indentFirstLine"] = {"magnitude": indent_first_line, "unit": "PT"}
+        paragraph_style["indentFirstLine"] = {
+            "magnitude": indent_first_line,
+            "unit": "PT",
+        }
         fields.append("indentFirstLine")
 
     if indent_start is not None:
@@ -1514,8 +1516,6 @@ async def apply_heading_style(
 
     link = f"https://docs.google.com/document/d/{document_id}/edit"
     return f"Applied {heading_style} style to range {start_index}-{end_index} in document {document_id}. Link: {link}"
-
-
 
 
 # Create comment management tools for documents
