@@ -233,7 +233,7 @@ async def run_tool(server, tool_name: str, args: Dict[str, Any]) -> str:
     if fn is None:
         raise ValueError(f"Tool '{tool_name}' has no callable function")
 
-    logger.info(f"[CLI] Executing tool: {tool_name} with args: {list(args.keys())}")
+    logger.debug(f"[CLI] Executing tool: {tool_name} with args: {list(args.keys())}")
 
     try:
         # Call the tool function
@@ -341,9 +341,10 @@ def read_stdin_args() -> Dict[str, Any]:
     Read JSON arguments from stdin if available.
 
     Returns:
-        Dictionary of arguments or empty dict if no stdin
+        Dictionary of arguments or empty dict if stdin is a TTY or no data is provided.
     """
     if sys.stdin.isatty():
+        logger.debug("[CLI] stdin is a TTY; no JSON args will be read from stdin")
         return {}
 
     try:
