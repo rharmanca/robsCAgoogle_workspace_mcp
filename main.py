@@ -115,6 +115,11 @@ def main():
         help="Load tools based on tier level. Can be combined with --tools to filter services.",
     )
     parser.add_argument(
+        "--host",
+        default="0.0.0.0",
+        help="Host address to bind to (default: 0.0.0.0). Use 127.0.0.1 for localhost only.",
+    )
+    parser.add_argument(
         "--transport",
         choices=["stdio", "streamable-http"],
         default="stdio",
@@ -373,7 +378,7 @@ def main():
                 )
                 sys.exit(1)
 
-            server.run(transport="streamable-http", host="0.0.0.0", port=port)
+            server.run(transport="streamable-http", host=args.host, port=port)
         else:
             server.run()
     except KeyboardInterrupt:
