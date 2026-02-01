@@ -115,11 +115,6 @@ def main():
         help="Load tools based on tier level. Can be combined with --tools to filter services.",
     )
     parser.add_argument(
-        "--host",
-        default="0.0.0.0",
-        help="Host address to bind to (default: 0.0.0.0). Use 127.0.0.1 for localhost only.",
-    )
-    parser.add_argument(
         "--transport",
         choices=["stdio", "streamable-http"],
         default="stdio",
@@ -135,6 +130,7 @@ def main():
     # Set port and base URI once for reuse throughout the function
     port = int(os.getenv("PORT", os.getenv("WORKSPACE_MCP_PORT", 8000)))
     base_uri = os.getenv("WORKSPACE_MCP_BASE_URI", "http://localhost")
+    host = os.getenv("WORKSPACE_MCP_HOST", "0.0.0.0")
     external_url = os.getenv("WORKSPACE_EXTERNAL_URL")
     display_url = external_url if external_url else f"{base_uri}:{port}"
 
@@ -379,7 +375,7 @@ def main():
             # Check port availability before starting HTTP server
             try:
                 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                    s.bind(("", port))
+                    s.bind((host, port))
             except OSError as e:
                 safe_print(f"Socket error: {e}")
                 safe_print(
@@ -387,7 +383,7 @@ def main():
                 )
                 sys.exit(1)
 
-            server.run(transport="streamable-http", host=args.host, port=port)
+            server.run(transport="streamable-http", host=host, port=port)
         else:
             server.run()
     except KeyboardInterrupt:
