@@ -6,12 +6,19 @@ import sys
 from importlib import metadata, import_module
 from dotenv import load_dotenv
 
-from auth.oauth_config import reload_oauth_config, is_stateless_mode
-from core.log_formatter import EnhancedLogFormatter, configure_file_logging
-from core.utils import check_credentials_directory_permissions
-from core.server import server, set_transport_mode, configure_server_for_http
-from core.tool_tier_loader import resolve_tools_from_tier
-from core.tool_registry import (
+# Check for CLI mode early - before loading oauth_config
+# CLI mode requires OAuth 2.0 since there's no MCP session context
+_CLI_MODE = "--cli" in sys.argv
+if _CLI_MODE:
+    os.environ["MCP_ENABLE_OAUTH21"] = "false"
+    os.environ["WORKSPACE_MCP_STATELESS_MODE"] = "false"
+
+from auth.oauth_config import reload_oauth_config, is_stateless_mode  # noqa: E402
+from core.log_formatter import EnhancedLogFormatter, configure_file_logging  # noqa: E402
+from core.utils import check_credentials_directory_permissions  # noqa: E402
+from core.server import server, set_transport_mode, configure_server_for_http  # noqa: E402
+from core.tool_tier_loader import resolve_tools_from_tier  # noqa: E402
+from core.tool_registry import (  # noqa: E402
     set_enabled_tools as set_enabled_tool_names,
     wrap_server_tool_method,
     filter_server_tools,
@@ -34,6 +41,10 @@ configure_file_logging()
 
 
 def safe_print(text):
+    # Don't print in CLI mode - we want clean output
+    if _CLI_MODE:
+        return
+
     # Don't print to stderr when running as MCP server via uvx to avoid JSON parsing errors
     # Check if we're running as MCP server (no TTY and uvx in process name)
     if not sys.stderr.isatty():
@@ -79,7 +90,15 @@ def main():
     """
     Main entry point for the Google Workspace MCP server.
     Uses FastMCP's native streamable-http transport.
+    Supports CLI mode for direct tool invocation without running the server.
     """
+    # Check if CLI mode is enabled - suppress startup messages
+    if _CLI_MODE:
+        # Suppress logging output in CLI mode for clean output
+        logging.getLogger().setLevel(logging.ERROR)
+        logging.getLogger("auth").setLevel(logging.ERROR)
+        logging.getLogger("core").setLevel(logging.ERROR)
+
     # Configure safe logging for Windows Unicode handling
     configure_safe_logging()
 
@@ -121,11 +140,22 @@ def main():
         help="Transport mode: stdio (default) or streamable-http",
     )
     parser.add_argument(
+        "--cli",
+        nargs=argparse.REMAINDER,
+        metavar="COMMAND",
+        help="Run in CLI mode for direct tool invocation. Use --cli to list tools, --cli <tool_name> to run a tool.",
+    )
+    parser.add_argument(
         "--read-only",
         action="store_true",
         help="Run in read-only mode - requests only read-only scopes and disables tools requiring write permissions",
     )
     args = parser.parse_args()
+
+    # Clean up CLI args - argparse.REMAINDER may include leading dashes from first arg
+    if args.cli is not None:
+        # Filter out empty strings that might appear
+        args.cli = [a for a in args.cli if a]
 
     # Set port and base URI once for reuse throughout the function
     port = int(os.getenv("PORT", os.getenv("WORKSPACE_MCP_PORT", 8000)))
@@ -282,6 +312,15 @@ def main():
 
     # Filter tools based on tier configuration (if tier-based loading is enabled)
     filter_server_tools(server)
+
+    # Handle CLI mode - execute tool and exit
+    if args.cli is not None:
+        import asyncio
+        from core.cli_handler import handle_cli_mode
+
+        # CLI mode - run tool directly and exit
+        exit_code = asyncio.run(handle_cli_mode(server, args.cli))
+        sys.exit(exit_code)
 
     safe_print("📊 Configuration Summary:")
     safe_print(f"   🔧 Services Loaded: {len(tools_to_import)}/{len(tool_imports)}")
