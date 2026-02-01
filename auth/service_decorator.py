@@ -703,6 +703,9 @@ def require_google_service(
             if func.__doc__:
                 wrapper.__doc__ = _remove_user_email_arg_from_docstring(func.__doc__)
 
+        # Attach required scopes to the wrapper for tool filtering
+        wrapper._required_google_scopes = _resolve_scopes(scopes)
+
         return wrapper
 
     return decorator
@@ -842,6 +845,12 @@ def require_multiple_services(service_configs: List[Dict[str, Any]]):
             )
             if func.__doc__:
                 wrapper.__doc__ = _remove_user_email_arg_from_docstring(func.__doc__)
+
+        # Attach all required scopes to the wrapper for tool filtering
+        all_scopes = []
+        for config in service_configs:
+            all_scopes.extend(_resolve_scopes(config["scopes"]))
+        wrapper._required_google_scopes = all_scopes
 
         return wrapper
 
