@@ -580,6 +580,110 @@ docker run -e TOOLS="gmail drive calendar" workspace-mcp
 
 </details>
 
+### CLI Mode
+
+The server supports a CLI mode for direct tool invocation without running the full MCP server. This is ideal for scripting, automation, and use by coding agents (Codex, Claude Code).
+
+<details open>
+<summary>▶ <b>CLI Commands</b> <sub><sup>← Direct tool execution from command line</sup></sub></summary>
+
+<table>
+<tr>
+<td width="50%" align="center">
+
+**▶ List Tools**
+```bash
+workspace-mcp --cli
+workspace-mcp --cli list
+workspace-mcp --cli list --json
+```
+<sub>View all available tools</sub>
+
+</td>
+<td width="50%" align="center">
+
+**◆ Tool Help**
+```bash
+workspace-mcp --cli search_gmail_messages --help
+```
+<sub>Show parameters and documentation</sub>
+
+</td>
+</tr>
+<tr>
+<td width="50%" align="center">
+
+**▶ Run with Arguments**
+```bash
+workspace-mcp --cli search_gmail_messages \
+  --args '{"query": "is:unread"}'
+```
+<sub>Execute tool with inline JSON</sub>
+
+</td>
+<td width="50%" align="center">
+
+**◆ Pipe from Stdin**
+```bash
+echo '{"query": "is:unread"}' | \
+  workspace-mcp --cli search_gmail_messages
+```
+<sub>Pass arguments via stdin</sub>
+
+</td>
+</tr>
+</table>
+
+<details>
+<summary>≡ <b>CLI Usage Details</b> <sub><sup>← Complete reference</sup></sub></summary>
+
+**Command Structure:**
+```bash
+workspace-mcp --cli [command] [options]
+```
+
+**Commands:**
+| Command | Description |
+|---------|-------------|
+| `list` (default) | List all available tools |
+| `<tool_name>` | Execute the specified tool |
+| `<tool_name> --help` | Show detailed help for a tool |
+
+**Options:**
+| Option | Description |
+|--------|-------------|
+| `--args`, `-a` | JSON string with tool arguments |
+| `--json`, `-j` | Output in JSON format (for `list` command) |
+| `--help`, `-h` | Show help for a tool |
+
+**Examples:**
+```bash
+# List all Gmail tools
+workspace-mcp --cli list | grep gmail
+
+# Search for unread emails
+workspace-mcp --cli search_gmail_messages --args '{"query": "is:unread", "max_results": 5}'
+
+# Get calendar events for today
+workspace-mcp --cli get_events --args '{"calendar_id": "primary", "time_min": "2024-01-15T00:00:00Z"}'
+
+# Create a Drive file from a URL
+workspace-mcp --cli create_drive_file --args '{"name": "doc.pdf", "source_url": "https://example.com/file.pdf"}'
+
+# Combine with jq for processing
+workspace-mcp --cli list --json | jq '.tools[] | select(.name | contains("gmail"))'
+```
+
+**Notes:**
+- CLI mode uses OAuth 2.0 (same credentials as server mode)
+- Authentication flows work the same way - browser opens for first-time auth
+- Results are printed to stdout; errors go to stderr
+- Exit code 0 on success, 1 on error
+
+</details>
+
+</details>
+
 ### Tool Tiers
 
 The server organizes tools into **three progressive tiers** for simplified deployment. Choose a tier that matches your usage needs and API quota requirements.

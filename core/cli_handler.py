@@ -19,6 +19,8 @@ import logging
 import sys
 from typing import Any, Dict, List, Optional
 
+from auth.oauth_config import set_transport_mode
+
 logger = logging.getLogger(__name__)
 
 
@@ -358,6 +360,10 @@ async def handle_cli_mode(server, cli_args: List[str]) -> int:
     Returns:
         Exit code (0 for success, 1 for error)
     """
+    # Set transport mode to "stdio" so OAuth callback server starts when needed
+    # This is required for authentication flow when no cached credentials exist
+    set_transport_mode("stdio")
+
     try:
         parsed = parse_cli_args(cli_args)
 
