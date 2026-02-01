@@ -359,6 +359,7 @@ export GOOGLE_PSE_ENGINE_ID=yyy
 export WORKSPACE_MCP_BASE_URI=
   http://localhost
 export WORKSPACE_MCP_PORT=8000
+export WORKSPACE_MCP_HOST=0.0.0.0  # Use 127.0.0.1 for localhost-only
 ```
 <sub>Server URL & port settings</sub>
 
@@ -393,6 +394,7 @@ export USER_GOOGLE_EMAIL=\
 |----------|-------------|---------|
 | `WORKSPACE_MCP_BASE_URI` | Base server URI (no port) | `http://localhost` |
 | `WORKSPACE_MCP_PORT` | Server listening port | `8000` |
+| `WORKSPACE_MCP_HOST` | Server bind host | `0.0.0.0` |
 | `WORKSPACE_EXTERNAL_URL` | External URL for reverse proxy setups | None |
 | `GOOGLE_OAUTH_REDIRECT_URI` | Override OAuth callback URL | Auto-constructed |
 | `USER_GOOGLE_EMAIL` | Default auth email | None |

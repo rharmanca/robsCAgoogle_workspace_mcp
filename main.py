@@ -160,6 +160,7 @@ def main():
     # Set port and base URI once for reuse throughout the function
     port = int(os.getenv("PORT", os.getenv("WORKSPACE_MCP_PORT", 8000)))
     base_uri = os.getenv("WORKSPACE_MCP_BASE_URI", "http://localhost")
+    host = os.getenv("WORKSPACE_MCP_HOST", "0.0.0.0")
     external_url = os.getenv("WORKSPACE_EXTERNAL_URL")
     display_url = external_url if external_url else f"{base_uri}:{port}"
 
@@ -413,7 +414,7 @@ def main():
             # Check port availability before starting HTTP server
             try:
                 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                    s.bind(("", port))
+                    s.bind((host, port))
             except OSError as e:
                 safe_print(f"Socket error: {e}")
                 safe_print(
@@ -421,7 +422,7 @@ def main():
                 )
                 sys.exit(1)
 
-            server.run(transport="streamable-http", host="0.0.0.0", port=port)
+            server.run(transport="streamable-http", host=host, port=port)
         else:
             server.run()
     except KeyboardInterrupt:
