@@ -123,11 +123,15 @@ def filter_server_tools(server):
                     if hasattr(tool_func, "fn"):
                         func_to_check = tool_func.fn
 
-                    required_scopes = getattr(func_to_check, "_required_google_scopes", [])
+                    required_scopes = getattr(
+                        func_to_check, "_required_google_scopes", []
+                    )
 
                     if required_scopes:
                         # If ANY required scope is not in the allowed read-only scopes, disable the tool
-                        if not all(scope in allowed_scopes for scope in required_scopes):
+                        if not all(
+                            scope in allowed_scopes for scope in required_scopes
+                        ):
                             logger.info(
                                 f"Read-only mode: Disabling tool '{tool_name}' (requires write scopes: {required_scopes})"
                             )
