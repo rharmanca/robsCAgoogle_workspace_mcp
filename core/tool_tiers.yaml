@@ -6,11 +6,15 @@ gmail:
     - send_gmail_message
 
   extended:
+    - get_gmail_attachment_content
     - get_gmail_thread_content
     - modify_gmail_message_labels
     - list_gmail_labels
     - manage_gmail_label
     - draft_gmail_message
+    - list_gmail_filters
+    - create_gmail_filter
+    - delete_gmail_filter
 
   complete:
     - get_gmail_threads_content_batch
@@ -34,6 +38,7 @@ drive:
     - get_drive_shareable_link
   extended:
     - list_drive_items
+    - copy_drive_file
     - update_drive_file
     - update_drive_permission
     - remove_drive_permission
@@ -63,6 +68,7 @@ calendar:
     - modify_event
   extended:
     - delete_event
+    - query_freebusy
   complete: []
 
 docs:
@@ -141,6 +147,7 @@ forms:
   complete:
     - set_publish_settings
     - get_form_response
+    - batch_update_form
 
 slides:
   core:
@@ -180,6 +187,26 @@ tasks:
     - move_task
     - clear_completed_tasks
 
+contacts:
+  core:
+    - search_contacts
+    - get_contact
+    - list_contacts
+    - create_contact
+  extended:
+    - update_contact
+    - delete_contact
+    - list_contact_groups
+    - get_contact_group
+  complete:
+    - batch_create_contacts
+    - batch_update_contacts
+    - batch_delete_contacts
+    - create_contact_group
+    - update_contact_group
+    - delete_contact_group
+    - modify_contact_group_members
+
 search:
   core:
     - search_custom
@@ -187,3 +214,25 @@ search:
     - search_custom_siterestrict
   complete:
     - get_search_engine_info
+
+appscript:
+  core:
+    - list_script_projects
+    - get_script_project
+    - get_script_content
+    - create_script_project
+    - update_script_content
+    - run_script_function
+    - generate_trigger_code
+  extended:
+    - create_deployment
+    - list_deployments
+    - update_deployment
+    - delete_deployment
+    - delete_script_project
+    - list_versions
+    - create_version
+    - get_version
+    - list_script_processes
+    - get_script_metrics
+  complete: []

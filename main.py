@@ -6,12 +6,19 @@ import sys
 from importlib import metadata, import_module
 from dotenv import load_dotenv
 
-from auth.oauth_config import reload_oauth_config, is_stateless_mode
-from core.log_formatter import EnhancedLogFormatter, configure_file_logging
-from core.utils import check_credentials_directory_permissions
-from core.server import server, set_transport_mode, configure_server_for_http
-from core.tool_tier_loader import resolve_tools_from_tier
-from core.tool_registry import (
+# Check for CLI mode early - before loading oauth_config
+# CLI mode requires OAuth 2.0 since there's no MCP session context
+_CLI_MODE = "--cli" in sys.argv
+if _CLI_MODE:
+    os.environ["MCP_ENABLE_OAUTH21"] = "false"
+    os.environ["WORKSPACE_MCP_STATELESS_MODE"] = "false"
+
+from auth.oauth_config import reload_oauth_config, is_stateless_mode  # noqa: E402
+from core.log_formatter import EnhancedLogFormatter, configure_file_logging  # noqa: E402
+from core.utils import check_credentials_directory_permissions  # noqa: E402
+from core.server import server, set_transport_mode, configure_server_for_http  # noqa: E402
+from core.tool_tier_loader import resolve_tools_from_tier  # noqa: E402
+from core.tool_registry import (  # noqa: E402
     set_enabled_tools as set_enabled_tool_names,
     wrap_server_tool_method,
     filter_server_tools,
@@ -34,6 +41,10 @@ configure_file_logging()
 
 
 def safe_print(text):
+    # Don't print in CLI mode - we want clean output
+    if _CLI_MODE:
+        return
+
     # Don't print to stderr when running as MCP server via uvx to avoid JSON parsing errors
     # Check if we're running as MCP server (no TTY and uvx in process name)
     if not sys.stderr.isatty():
@@ -79,7 +90,15 @@ def main():
     """
     Main entry point for the Google Workspace MCP server.
     Uses FastMCP's native streamable-http transport.
+    Supports CLI mode for direct tool invocation without running the server.
     """
+    # Check if CLI mode is enabled - suppress startup messages
+    if _CLI_MODE:
+        # Suppress logging output in CLI mode for clean output
+        logging.getLogger().setLevel(logging.ERROR)
+        logging.getLogger("auth").setLevel(logging.ERROR)
+        logging.getLogger("core").setLevel(logging.ERROR)
+
     # Configure safe logging for Windows Unicode handling
     configure_safe_logging()
 
@@ -103,7 +122,9 @@ def main():
             "forms",
             "slides",
             "tasks",
+            "contacts",
             "search",
+            "appscript",
         ],
         help="Specify which tools to register. If not provided, all tools are registered.",
     )
@@ -118,11 +139,28 @@ def main():
         default="stdio",
         help="Transport mode: stdio (default) or streamable-http",
     )
+    parser.add_argument(
+        "--cli",
+        nargs=argparse.REMAINDER,
+        metavar="COMMAND",
+        help="Run in CLI mode for direct tool invocation. Use --cli to list tools, --cli <tool_name> to run a tool.",
+    )
+    parser.add_argument(
+        "--read-only",
+        action="store_true",
+        help="Run in read-only mode - requests only read-only scopes and disables tools requiring write permissions",
+    )
     args = parser.parse_args()
+
+    # Clean up CLI args - argparse.REMAINDER may include leading dashes from first arg
+    if args.cli is not None:
+        # Filter out empty strings that might appear
+        args.cli = [a for a in args.cli if a]
 
     # Set port and base URI once for reuse throughout the function
     port = int(os.getenv("PORT", os.getenv("WORKSPACE_MCP_PORT", 8000)))
     base_uri = os.getenv("WORKSPACE_MCP_BASE_URI", "http://localhost")
+    host = os.getenv("WORKSPACE_MCP_HOST", "0.0.0.0")
     external_url = os.getenv("WORKSPACE_EXTERNAL_URL")
     display_url = external_url if external_url else f"{base_uri}:{port}"
 
@@ -139,6 +177,8 @@ def main():
         safe_print(f"   🔗 URL: {display_url}")
         safe_print(f"   🔐 OAuth Callback: {display_url}/oauth2callback")
     safe_print(f"   👤 Mode: {'Single-user' if args.single_user else 'Multi-user'}")
+    if args.read_only:
+        safe_print("   🔒 Read-Only: Enabled")
     safe_print(f"   🐍 Python: {sys.version.split()[0]}")
     safe_print("")
 
@@ -153,10 +193,26 @@ def main():
         else "Invalid or too short"
     )
 
+    # Determine credentials directory (same logic as credential_store.py)
+    workspace_creds_dir = os.getenv("WORKSPACE_MCP_CREDENTIALS_DIR")
+    google_creds_dir = os.getenv("GOOGLE_MCP_CREDENTIALS_DIR")
+    if workspace_creds_dir:
+        creds_dir_display = os.path.expanduser(workspace_creds_dir)
+        creds_dir_source = "WORKSPACE_MCP_CREDENTIALS_DIR"
+    elif google_creds_dir:
+        creds_dir_display = os.path.expanduser(google_creds_dir)
+        creds_dir_source = "GOOGLE_MCP_CREDENTIALS_DIR"
+    else:
+        creds_dir_display = os.path.join(
+            os.path.expanduser("~"), ".google_workspace_mcp", "credentials"
+        )
+        creds_dir_source = "default"
+
     config_vars = {
         "GOOGLE_OAUTH_CLIENT_ID": os.getenv("GOOGLE_OAUTH_CLIENT_ID", "Not Set"),
         "GOOGLE_OAUTH_CLIENT_SECRET": redacted_secret,
         "USER_GOOGLE_EMAIL": os.getenv("USER_GOOGLE_EMAIL", "Not Set"),
+        "CREDENTIALS_DIR": f"{creds_dir_display} ({creds_dir_source})",
         "MCP_SINGLE_USER_MODE": os.getenv("MCP_SINGLE_USER_MODE", "false"),
         "MCP_ENABLE_OAUTH21": os.getenv("MCP_ENABLE_OAUTH21", "false"),
         "WORKSPACE_MCP_STATELESS_MODE": os.getenv(
@@ -183,7 +239,9 @@ def main():
         "forms": lambda: import_module("gforms.forms_tools"),
         "slides": lambda: import_module("gslides.slides_tools"),
         "tasks": lambda: import_module("gtasks.tasks_tools"),
+        "contacts": lambda: import_module("gcontacts.contacts_tools"),
         "search": lambda: import_module("gsearch.search_tools"),
+        "appscript": lambda: import_module("gappsscript.apps_script_tools"),
     }
 
     tool_icons = {
@@ -196,7 +254,9 @@ def main():
         "forms": "📝",
         "slides": "🖼️",
         "tasks": "✓",
+        "contacts": "👤",
         "search": "🔍",
+        "appscript": "📜",
     }
 
     # Determine which tools to import based on arguments
@@ -231,9 +291,11 @@ def main():
 
     wrap_server_tool_method(server)
 
-    from auth.scopes import set_enabled_tools
+    from auth.scopes import set_enabled_tools, set_read_only
 
     set_enabled_tools(list(tools_to_import))
+    if args.read_only:
+        set_read_only(True)
 
     safe_print(
         f"🛠️  Loading {len(tools_to_import)} tool module{'s' if len(tools_to_import) != 1 else ''}:"
@@ -252,6 +314,15 @@ def main():
     # Filter tools based on tier configuration (if tier-based loading is enabled)
     filter_server_tools(server)
 
+    # Handle CLI mode - execute tool and exit
+    if args.cli is not None:
+        import asyncio
+        from core.cli_handler import handle_cli_mode
+
+        # CLI mode - run tool directly and exit
+        exit_code = asyncio.run(handle_cli_mode(server, args.cli))
+        sys.exit(exit_code)
+
     safe_print("📊 Configuration Summary:")
     safe_print(f"   🔧 Services Loaded: {len(tools_to_import)}/{len(tool_imports)}")
     if args.tool_tier is not None:
@@ -266,6 +337,20 @@ def main():
 
     # Set global single-user mode flag
     if args.single_user:
+        # Check for incompatible OAuth 2.1 mode
+        if os.getenv("MCP_ENABLE_OAUTH21", "false").lower() == "true":
+            safe_print("❌ Single-user mode is incompatible with OAuth 2.1 mode")
+            safe_print(
+                "   Single-user mode is for legacy clients that pass user emails"
+            )
+            safe_print(
+                "   OAuth 2.1 mode is for multi-user scenarios with bearer tokens"
+            )
+            safe_print(
+                "   Please choose one mode: either --single-user OR MCP_ENABLE_OAUTH21=true"
+            )
+            sys.exit(1)
+
         if is_stateless_mode():
             safe_print("❌ Single-user mode is incompatible with stateless mode")
             safe_print("   Stateless mode requires OAuth 2.1 which is multi-user")
@@ -329,7 +414,7 @@ def main():
             # Check port availability before starting HTTP server
             try:
                 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                    s.bind(("", port))
+                    s.bind((host, port))
             except OSError as e:
                 safe_print(f"Socket error: {e}")
                 safe_print(
@@ -337,7 +422,7 @@ def main():
                 )
                 sys.exit(1)
 
-            server.run(transport="streamable-http", host="0.0.0.0", port=port)
+            server.run(transport="streamable-http", host=host, port=port)
         else:
             server.run()
     except KeyboardInterrupt:
