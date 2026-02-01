@@ -64,8 +64,7 @@ docs:
     - find_and_replace_doc
     - list_docs_in_folder
     - insert_doc_elements
-    - format_paragraph_style
-    - apply_heading_style
+    - update_paragraph_style
   complete:
     - insert_doc_image
     - update_doc_headers_footers

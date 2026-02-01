@@ -1329,19 +1329,20 @@ async def export_doc_to_pdf(
 
 
 # ==============================================================================
-# STYLING TOOLS - Text and Paragraph Formatting
+# STYLING TOOLS - Paragraph Formatting
 # ==============================================================================
 
 
 @server.tool()
-@handle_http_errors("format_paragraph_style", service_type="docs")
+@handle_http_errors("update_paragraph_style", service_type="docs")
 @require_google_service("docs", "docs_write")
-async def format_paragraph_style(
+async def update_paragraph_style(
     service: Any,
     user_google_email: str,
     document_id: str,
     start_index: int,
     end_index: int,
+    heading_level: int = None,
     alignment: str = None,
     line_spacing: float = None,
     indent_first_line: float = None,
@@ -1351,16 +1352,19 @@ async def format_paragraph_style(
     space_below: float = None,
 ) -> str:
     """
-    Apply paragraph-level formatting to a range in a Google Doc.
+    Apply paragraph-level formatting and/or heading styles to a range in a Google Doc.
 
-    This tool modifies paragraph properties like alignment, spacing, and indentation
-    without changing the text content.
+    This tool can apply named heading styles (H1-H6) for semantic document structure,
+    and/or customize paragraph properties like alignment, spacing, and indentation.
+    Both can be applied in a single operation.
 
     Args:
         user_google_email: User's Google email address
         document_id: Document ID to modify
         start_index: Start position (1-based)
-        end_index: End position (exclusive)
+        end_index: End position (exclusive) - should cover the entire paragraph
+        heading_level: Heading level 0-6 (0 = NORMAL_TEXT, 1 = H1, 2 = H2, etc.)
+                       Use for semantic document structure
         alignment: Text alignment - 'START' (left), 'CENTER', 'END' (right), or 'JUSTIFIED'
         line_spacing: Line spacing multiplier (1.0 = single, 1.5 = 1.5x, 2.0 = double)
         indent_first_line: First line indent in points (e.g., 36 for 0.5 inch)
@@ -1371,9 +1375,21 @@ async def format_paragraph_style(
 
     Returns:
         str: Confirmation message with formatting details
+
+    Examples:
+        # Apply H1 heading style
+        update_paragraph_style(document_id="...", start_index=1, end_index=20, heading_level=1)
+
+        # Center-align a paragraph with double spacing
+        update_paragraph_style(document_id="...", start_index=1, end_index=50,
+                               alignment="CENTER", line_spacing=2.0)
+
+        # Apply H2 heading with custom spacing
+        update_paragraph_style(document_id="...", start_index=1, end_index=30,
+                               heading_level=2, space_above=18, space_below=12)
     """
     logger.info(
-        f"[format_paragraph_style] Doc={document_id}, Range: {start_index}-{end_index}"
+        f"[update_paragraph_style] Doc={document_id}, Range: {start_index}-{end_index}"
     )
 
     # Validate range
@@ -1386,6 +1402,17 @@ async def format_paragraph_style(
     paragraph_style = {}
     fields = []
 
+    # Handle heading level (named style)
+    if heading_level is not None:
+        if heading_level < 0 or heading_level > 6:
+            return "Error: heading_level must be between 0 (normal text) and 6"
+        if heading_level == 0:
+            paragraph_style["namedStyleType"] = "NORMAL_TEXT"
+        else:
+            paragraph_style["namedStyleType"] = f"HEADING_{heading_level}"
+        fields.append("namedStyleType")
+
+    # Handle alignment
     if alignment is not None:
         valid_alignments = ["START", "CENTER", "END", "JUSTIFIED"]
         alignment_upper = alignment.upper()
@@ -1394,12 +1421,14 @@ async def format_paragraph_style(
         paragraph_style["alignment"] = alignment_upper
         fields.append("alignment")
 
+    # Handle line spacing
     if line_spacing is not None:
         if line_spacing <= 0:
             return "Error: line_spacing must be positive"
         paragraph_style["lineSpacing"] = line_spacing * 100  # Convert to percentage
         fields.append("lineSpacing")
 
+    # Handle indentation
     if indent_first_line is not None:
         paragraph_style["indentFirstLine"] = {
             "magnitude": indent_first_line,
@@ -1415,6 +1444,7 @@ async def format_paragraph_style(
         paragraph_style["indentEnd"] = {"magnitude": indent_end, "unit": "PT"}
         fields.append("indentEnd")
 
+    # Handle spacing
     if space_above is not None:
         paragraph_style["spaceAbove"] = {"magnitude": space_above, "unit": "PT"}
         fields.append("spaceAbove")
@@ -1424,7 +1454,7 @@ async def format_paragraph_style(
         fields.append("spaceBelow")
 
     if not paragraph_style:
-        return f"No paragraph formatting changes specified for document {document_id}"
+        return f"No paragraph style changes specified for document {document_id}"
 
     # Create batch update request
     requests = [
@@ -1443,79 +1473,16 @@ async def format_paragraph_style(
         .execute
     )
 
-    format_summary = ", ".join(f"{f}={paragraph_style.get(f, 'set')}" for f in fields)
-    link = f"https://docs.google.com/document/d/{document_id}/edit"
-    return f"Applied paragraph formatting ({format_summary}) to range {start_index}-{end_index} in document {document_id}. Link: {link}"
-
-
-@server.tool()
-@handle_http_errors("apply_heading_style", service_type="docs")
-@require_google_service("docs", "docs_write")
-async def apply_heading_style(
-    service: Any,
-    user_google_email: str,
-    document_id: str,
-    start_index: int,
-    end_index: int,
-    heading_level: int,
-) -> str:
-    """
-    Apply a Google Docs named heading style (H1-H6) to a paragraph range.
-
-    This uses Google Docs' built-in heading styles which automatically apply
-    consistent formatting based on the document's style settings. Use this
-    for semantic document structure rather than manual font size changes.
-
-    Args:
-        user_google_email: User's Google email address
-        document_id: Document ID to modify
-        start_index: Start position (1-based)
-        end_index: End position (exclusive) - should cover the entire paragraph
-        heading_level: Heading level 1-6 (1 = H1/Title, 2 = H2/Subtitle, etc.)
-                       Use 0 to reset to NORMAL_TEXT style
-
-    Returns:
-        str: Confirmation message
-    """
-    logger.info(
-        f"[apply_heading_style] Doc={document_id}, Range: {start_index}-{end_index}, Level: {heading_level}"
-    )
-
-    # Validate range
-    if start_index < 1:
-        return "Error: start_index must be >= 1"
-    if end_index <= start_index:
-        return "Error: end_index must be greater than start_index"
-
-    # Validate heading level
-    if heading_level < 0 or heading_level > 6:
-        return "Error: heading_level must be between 0 (normal text) and 6"
-
-    # Map heading level to Google Docs named style
-    if heading_level == 0:
-        heading_style = "NORMAL_TEXT"
-    else:
-        heading_style = f"HEADING_{heading_level}"
-
-    # Create batch update request
-    requests = [
-        {
-            "updateParagraphStyle": {
-                "range": {"startIndex": start_index, "endIndex": end_index},
-                "paragraphStyle": {"namedStyleType": heading_style},
-                "fields": "namedStyleType",
-            }
-        }
-    ]
-
-    await asyncio.to_thread(
-        service.documents()
-        .batchUpdate(documentId=document_id, body={"requests": requests})
-        .execute
-    )
+    # Build summary
+    summary_parts = []
+    if "namedStyleType" in paragraph_style:
+        summary_parts.append(paragraph_style["namedStyleType"])
+    format_fields = [f for f in fields if f != "namedStyleType"]
+    if format_fields:
+        summary_parts.append(", ".join(format_fields))
 
     link = f"https://docs.google.com/document/d/{document_id}/edit"
-    return f"Applied {heading_style} style to range {start_index}-{end_index} in document {document_id}. Link: {link}"
+    return f"Applied paragraph style ({', '.join(summary_parts)}) to range {start_index}-{end_index} in document {document_id}. Link: {link}"
 
 
 # Create comment management tools for documents
