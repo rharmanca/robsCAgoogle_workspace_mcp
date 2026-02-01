@@ -112,10 +112,11 @@ def filter_server_tools(server):
 
             # 3. Read-only mode filtering
             if read_only_mode:
-                for tool_name, tool_func in tool_registry.items():
+                for tool_name in list(tool_registry.keys()):
                     if tool_name in tools_to_remove:
                         continue
 
+                    tool_func = tool_registry[tool_name]
                     # Check if tool has required scopes attached (from @require_google_service)
                     # Note: FastMCP wraps functions in Tool objects, so we need to check .fn if available
                     func_to_check = tool_func
@@ -133,9 +134,8 @@ def filter_server_tools(server):
                             tools_to_remove.add(tool_name)
 
             for tool_name in tools_to_remove:
-                if tool_name in tool_registry:
-                    del tool_registry[tool_name]
-                    tools_removed += 1
+                del tool_registry[tool_name]
+                tools_removed += 1
 
     if tools_removed > 0:
         enabled_count = len(enabled_tools) if enabled_tools is not None else "all"

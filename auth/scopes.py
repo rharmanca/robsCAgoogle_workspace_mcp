@@ -212,6 +212,11 @@ def get_current_scopes():
     Returns scopes for currently enabled tools.
     Uses globally set enabled tools or all tools if not set.
 
+    .. deprecated::
+        This function is a thin wrapper around get_scopes_for_tools() and exists
+        for backwards compatibility. Prefer using get_scopes_for_tools() directly
+        for new code, which allows explicit control over the tool list parameter.
+
     Returns:
         List of unique scopes for the enabled tools plus base scopes.
     """
