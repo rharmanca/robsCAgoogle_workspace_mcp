@@ -353,6 +353,10 @@ def handle_http_errors(
                     logger.exception(message)
                     raise Exception(message) from e
 
+        # Propagate _required_google_scopes if present (for tool filtering)
+        if hasattr(func, "_required_google_scopes"):
+            wrapper._required_google_scopes = func._required_google_scopes
+
         return wrapper
 
     return decorator

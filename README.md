@@ -537,6 +537,21 @@ uv run main.py --tools sheets docs
 uv run main.py --single-user --tools gmail
 ```
 
+
+**🔒 Read-Only Mode**
+```bash
+# Requests only read-only scopes & disables write tools
+uv run main.py --read-only
+
+# Combine with specific tools or tiers
+uv run main.py --tools gmail drive --read-only
+uv run main.py --tool-tier core --read-only
+```
+Read-only mode provides secure, restricted access by:
+- Requesting only `*.readonly` OAuth scopes (e.g., `gmail.readonly`, `drive.readonly`)
+- Automatically filtering out tools that require write permissions at startup
+- Allowing read operations: list, get, search, and export across all services
+
 **★ Tool Tiers**
 ```bash
 uv run main.py --tool-tier core      # ● Essential tools only

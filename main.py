@@ -145,6 +145,11 @@ def main():
         metavar="COMMAND",
         help="Run in CLI mode for direct tool invocation. Use --cli to list tools, --cli <tool_name> to run a tool.",
     )
+    parser.add_argument(
+        "--read-only",
+        action="store_true",
+        help="Run in read-only mode - requests only read-only scopes and disables tools requiring write permissions",
+    )
     args = parser.parse_args()
 
     # Clean up CLI args - argparse.REMAINDER may include leading dashes from first arg
@@ -171,6 +176,8 @@ def main():
         safe_print(f"   🔗 URL: {display_url}")
         safe_print(f"   🔐 OAuth Callback: {display_url}/oauth2callback")
     safe_print(f"   👤 Mode: {'Single-user' if args.single_user else 'Multi-user'}")
+    if args.read_only:
+        safe_print("   🔒 Read-Only: Enabled")
     safe_print(f"   🐍 Python: {sys.version.split()[0]}")
     safe_print("")
 
@@ -283,9 +290,11 @@ def main():
 
     wrap_server_tool_method(server)
 
-    from auth.scopes import set_enabled_tools
+    from auth.scopes import set_enabled_tools, set_read_only
 
     set_enabled_tools(list(tools_to_import))
+    if args.read_only:
+        set_read_only(True)
 
     safe_print(
         f"🛠️  Loading {len(tools_to_import)} tool module{'s' if len(tools_to_import) != 1 else ''}:"
