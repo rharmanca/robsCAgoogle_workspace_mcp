@@ -21,12 +21,6 @@ gmail:
     - batch_modify_gmail_message_labels
     - start_google_auth
 
-  leo:
-    - search_gmail_messages
-    - get_gmail_message_content
-    - get_gmail_messages_content_batch
-    - start_google_auth
-
 drive:
   core:
     - search_drive_files
@@ -47,18 +41,6 @@ drive:
   complete:
     - get_drive_file_permissions
     - check_drive_file_public_access
-
-  leo:
-    - search_drive_files
-    - get_drive_file_content
-    - get_drive_file_download_url
-    - create_drive_file
-    - import_to_google_doc
-    - share_drive_file
-    - get_drive_shareable_link
-    - list_drive_items
-    - update_drive_file
-    - get_drive_file_permissions
 
 calendar:
   core:
@@ -95,24 +77,6 @@ docs:
     - create_document_comment
     - reply_to_document_comment
     - resolve_document_comment
-
-  leo:
-    - get_doc_content
-    - create_doc
-    - modify_doc_text
-    - export_doc_to_pdf
-    - search_docs
-    - find_and_replace_doc
-    - list_docs_in_folder
-    - insert_doc_elements
-    - format_paragraph_style
-    - apply_heading_style
-    - insert_doc_image
-    - update_doc_headers_footers
-    - batch_update_doc
-    - inspect_doc_structure
-    - create_table_with_data
-    - debug_table_structure
 
 sheets:
   core:
@@ -162,13 +126,6 @@ slides:
     - create_presentation_comment
     - reply_to_presentation_comment
     - resolve_presentation_comment
-
-  leo:
-    - create_presentation
-    - get_presentation
-    - batch_update_presentation
-    - get_page
-    - get_page_thumbnail
 
 tasks:
   core:

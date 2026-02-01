@@ -130,7 +130,7 @@ def main():
     )
     parser.add_argument(
         "--tool-tier",
-        choices=["core", "extended", "complete", "leo"],
+        choices=["core", "extended", "complete"],
         help="Load tools based on tier level. Can be combined with --tools to filter services.",
     )
     parser.add_argument(
