@@ -27,6 +27,7 @@ drive:
     - get_drive_file_content
     - get_drive_file_download_url
     - create_drive_file
+    - import_to_google_doc
     - share_drive_file
     - get_drive_shareable_link
   extended:
@@ -63,6 +64,7 @@ docs:
     - find_and_replace_doc
     - list_docs_in_folder
     - insert_doc_elements
+    - update_paragraph_style
   complete:
     - insert_doc_image
     - update_doc_headers_footers

@@ -836,6 +836,7 @@ cp .env.oauth21 .env
 | `get_drive_file_content` | **Core** | Read file content (Office formats) |
 | `get_drive_file_download_url` | **Core** | Get download URL for Drive files |
 | `create_drive_file` | **Core** | Create files or fetch from URLs |
+| `import_to_google_doc` | **Core** | Import files (MD, DOCX, HTML, etc.) as Google Docs |
 | `share_drive_file` | **Core** | Share file with users/groups/domains/anyone |
 | `get_drive_shareable_link` | **Core** | Get shareable links for a file |
 | `list_drive_items` | Extended | List folder contents |
@@ -910,6 +911,7 @@ attachments=[{
 | `find_and_replace_doc` | Extended | Find and replace text |
 | `list_docs_in_folder` | Extended | List docs in folder |
 | `insert_doc_elements` | Extended | Add tables, lists, page breaks |
+| `update_paragraph_style` | Extended | Apply heading styles (H1-H6) and paragraph formatting |
 | `insert_doc_image` | Complete | Insert images from Drive/URLs |
 | `update_doc_headers_footers` | Complete | Modify headers and footers |
 | `batch_update_doc` | Complete | Execute multiple operations |
