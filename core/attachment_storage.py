@@ -1,12 +1,13 @@
 """
 Temporary attachment storage for Gmail attachments.
 
-Stores attachments in ./tmp directory and provides HTTP URLs for access.
+Stores attachments to local disk and returns file paths for direct access.
 Files are automatically cleaned up after expiration (default 1 hour).
 """
 
 import base64
 import logging
+import os
 import uuid
 from pathlib import Path
 from typing import Optional, Dict
@@ -17,8 +18,10 @@ logger = logging.getLogger(__name__)
 # Default expiration: 1 hour
 DEFAULT_EXPIRATION_SECONDS = 3600
 
-# Storage directory
-STORAGE_DIR = Path("./tmp/attachments")
+# Storage directory - configurable via WORKSPACE_ATTACHMENT_DIR env var
+# Uses absolute path to avoid creating tmp/ in arbitrary working directories (see #327)
+_default_dir = str(Path.home() / ".workspace-mcp" / "attachments")
+STORAGE_DIR = Path(os.getenv("WORKSPACE_ATTACHMENT_DIR", _default_dir))
 STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -36,7 +39,7 @@ class AttachmentStorage:
         mime_type: Optional[str] = None,
     ) -> str:
         """
-        Save an attachment and return a unique file ID.
+        Save an attachment to local disk and return the absolute file path.
 
         Args:
             base64_data: Base64-encoded attachment data
@@ -44,9 +47,9 @@ class AttachmentStorage:
             mime_type: MIME type (optional)
 
         Returns:
-            Unique file ID (UUID string)
+            Absolute file path where the attachment was saved
         """
-        # Generate unique file ID
+        # Generate unique file ID for metadata tracking
         file_id = str(uuid.uuid4())
 
         # Decode base64 data
@@ -73,12 +76,20 @@ class AttachmentStorage:
             }
             extension = mime_to_ext.get(mime_type, "")
 
+        # Use original filename if available, with UUID suffix for uniqueness
+        if filename:
+            stem = Path(filename).stem
+            ext = Path(filename).suffix
+            save_name = f"{stem}_{file_id[:8]}{ext}"
+        else:
+            save_name = f"{file_id}{extension}"
+
         # Save file
-        file_path = STORAGE_DIR / f"{file_id}{extension}"
+        file_path = STORAGE_DIR / save_name
         try:
             file_path.write_bytes(file_bytes)
             logger.info(
-                f"Saved attachment {file_id} ({len(file_bytes)} bytes) to {file_path}"
+                f"Saved attachment ({len(file_bytes)} bytes) to {file_path}"
             )
         except Exception as e:
             logger.error(f"Failed to save attachment to {file_path}: {e}")
@@ -95,7 +106,7 @@ class AttachmentStorage:
             "expires_at": expires_at,
         }
 
-        return file_id
+        return str(file_path)
 
     def get_attachment_path(self, file_id: str) -> Optional[Path]:
         """

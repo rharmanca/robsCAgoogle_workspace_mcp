@@ -910,57 +910,68 @@ async def get_gmail_attachment_content(
         )
         return "\n".join(result_lines)
 
-    # Save attachment and generate URL
+    # Save attachment to local disk and return file path
     try:
-        from core.attachment_storage import get_attachment_storage, get_attachment_url
+        from core.attachment_storage import get_attachment_storage
 
         storage = get_attachment_storage()
 
-        # Try to get filename and mime type from message (optional - attachment IDs are ephemeral)
+        # Try to get filename and mime type from message
         filename = None
         mime_type = None
         try:
-            # Quick metadata fetch to try to get attachment info
-            # Note: This might fail if attachment IDs changed, but worth trying
-            message_metadata = await asyncio.to_thread(
+            # Use format="full" to get attachment parts with attachmentId
+            message_full = await asyncio.to_thread(
                 service.users()
                 .messages()
-                .get(userId="me", id=message_id, format="metadata")
+                .get(userId="me", id=message_id, format="full")
                 .execute
             )
-            payload = message_metadata.get("payload", {})
+            payload = message_full.get("payload", {})
             attachments = _extract_attachments(payload)
+
+            # First try exact attachmentId match
             for att in attachments:
                 if att.get("attachmentId") == attachment_id:
                     filename = att.get("filename")
                     mime_type = att.get("mimeType")
                     break
+
+            # Fallback: match by size (attachment IDs are ephemeral)
+            if not filename and attachments:
+                for att in attachments:
+                    att_size = att.get("size", 0)
+                    if att_size and abs(att_size - size_bytes) < 100:
+                        filename = att.get("filename")
+                        mime_type = att.get("mimeType")
+                        break
+
+            # Last resort: if only one attachment, use its name
+            if not filename and len(attachments) == 1:
+                filename = attachments[0].get("filename")
+                mime_type = attachments[0].get("mimeType")
         except Exception:
-            # If we can't get metadata, use defaults
             logger.debug(
                 f"Could not fetch attachment metadata for {attachment_id}, using defaults"
             )
 
-        # Save attachment
-        file_id = storage.save_attachment(
+        # Save attachment to local disk - returns absolute file path
+        saved_path = storage.save_attachment(
             base64_data=base64_data, filename=filename, mime_type=mime_type
         )
 
-        # Generate URL
-        attachment_url = get_attachment_url(file_id)
-
         result_lines = [
-            "Attachment downloaded successfully!",
+            "Attachment downloaded and saved to local disk!",
             f"Message ID: {message_id}",
+            f"Filename: {filename or 'unknown'}",
             f"Size: {size_kb:.1f} KB ({size_bytes} bytes)",
-            f"\n📎 Download URL: {attachment_url}",
-            "\nThe attachment has been saved and is available at the URL above.",
-            "The file will expire after 1 hour.",
+            f"\n📎 Saved to: {saved_path}",
+            "\nThe file has been saved to disk and can be accessed directly via the file path.",
             "\nNote: Attachment IDs are ephemeral. Always use IDs from the most recent message fetch.",
         ]
 
         logger.info(
-            f"[get_gmail_attachment_content] Successfully saved {size_kb:.1f} KB attachment as {file_id}"
+            f"[get_gmail_attachment_content] Successfully saved {size_kb:.1f} KB attachment to {saved_path}"
         )
         return "\n".join(result_lines)
 
