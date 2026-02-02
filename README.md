@@ -936,6 +936,7 @@ attachments=[{
 | `create_spreadsheet` | **Core** | Create new spreadsheets |
 | `list_spreadsheets` | Extended | List accessible spreadsheets |
 | `get_spreadsheet_info` | Extended | Get spreadsheet metadata |
+| `format_sheet_range` | Extended | Apply colors, number formats, text wrapping, alignment, bold/italic, font size |
 | `create_sheet` | Complete | Add sheets to existing files |
 | `*_sheet_comment` | Complete | Read/create/reply/resolve comments |
 
