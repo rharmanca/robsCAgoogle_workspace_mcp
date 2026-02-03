@@ -4,7 +4,6 @@ Authentication middleware to populate context state with user information
 
 import jwt
 import logging
-import time
 from fastmcp.server.middleware import Middleware, MiddlewareContext
 from fastmcp.server.dependencies import get_access_token
 from fastmcp.server.dependencies import get_http_headers
@@ -99,42 +98,47 @@ class AuthInfoMiddleware(Middleware):
                                         token_str
                                     )
                                     if verified_auth:
-                                        # Extract user info from verified token
-                                        user_email = None
-                                        if hasattr(verified_auth, "claims"):
+                                        # Extract user email from verified token
+                                        user_email = getattr(
+                                            verified_auth, "email", None
+                                        )
+                                        if not user_email and hasattr(
+                                            verified_auth, "claims"
+                                        ):
                                             user_email = verified_auth.claims.get(
                                                 "email"
                                             )
 
-                                        # Get expires_at, defaulting to 1 hour from now if not available
-                                        if hasattr(verified_auth, "expires_at"):
-                                            expires_at = verified_auth.expires_at
+                                        if isinstance(
+                                            verified_auth, WorkspaceAccessToken
+                                        ):
+                                            # ExternalOAuthProvider returns a fully-formed WorkspaceAccessToken
+                                            access_token = verified_auth
                                         else:
-                                            expires_at = (
-                                                int(time.time()) + 3600
-                                            )  # Default to 1 hour
-
-                                        # Get client_id from verified auth or use default
-                                        client_id = (
-                                            getattr(verified_auth, "client_id", None)
-                                            or "google"
-                                        )
-
-                                        access_token = WorkspaceAccessToken(
-                                            token=token_str,
-                                            client_id=client_id,
-                                            scopes=verified_auth.scopes
-                                            if hasattr(verified_auth, "scopes")
-                                            else [],
-                                            session_id=f"google_oauth_{token_str[:8]}",
-                                            expires_at=expires_at,
-                                            claims=getattr(verified_auth, "claims", {})
-                                            or {},
-                                            sub=verified_auth.sub
-                                            if hasattr(verified_auth, "sub")
-                                            else user_email,
-                                            email=user_email,
-                                        )
+                                            # Standard GoogleProvider returns a base AccessToken;
+                                            # wrap it in WorkspaceAccessToken for identical downstream handling
+                                            access_token = WorkspaceAccessToken(
+                                                token=token_str,
+                                                client_id=getattr(
+                                                    verified_auth, "client_id", None
+                                                )
+                                                or "google",
+                                                scopes=getattr(
+                                                    verified_auth, "scopes", []
+                                                )
+                                                or [],
+                                                session_id=f"google_oauth_{token_str[:8]}",
+                                                expires_at=getattr(
+                                                    verified_auth, "expires_at"
+                                                ),
+                                                claims=getattr(
+                                                    verified_auth, "claims", {}
+                                                )
+                                                or {},
+                                                sub=getattr(verified_auth, "sub", None)
+                                                or user_email,
+                                                email=user_email,
+                                            )
 
                                         # Store in context state - this is the authoritative authentication state
                                         context.fastmcp_context.set_state(
@@ -144,12 +148,9 @@ class AuthInfoMiddleware(Middleware):
                                             context.fastmcp_context, "session_id", None
                                         )
                                         ensure_session_from_access_token(
-                                            verified_auth,
+                                            access_token,
                                             user_email,
                                             mcp_session_id,
-                                        )
-                                        context.fastmcp_context.set_state(
-                                            "access_token_obj", verified_auth
                                         )
                                         context.fastmcp_context.set_state(
                                             "auth_provider_type",
