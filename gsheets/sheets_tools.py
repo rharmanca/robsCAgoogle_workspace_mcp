@@ -405,11 +405,19 @@ async def _format_sheet_range_impl(
         Formatted string with confirmation of applied formatting.
     """
     # Validate at least one formatting option is provided
-    has_any_format = any([
-        background_color, text_color, number_format_type,
-        wrap_strategy, horizontal_alignment, vertical_alignment,
-        bold is not None, italic is not None, font_size is not None,
-    ])
+    has_any_format = any(
+        [
+            background_color,
+            text_color,
+            number_format_type,
+            wrap_strategy,
+            horizontal_alignment,
+            vertical_alignment,
+            bold is not None,
+            italic is not None,
+            font_size is not None,
+        ]
+    )
     if not has_any_format:
         raise UserInputError(
             "Provide at least one formatting option (background_color, text_color, "

@@ -19,9 +19,7 @@ def create_mock_service():
     """Create a properly configured mock Google Sheets service."""
     mock_service = Mock()
 
-    mock_metadata = {
-        "sheets": [{"properties": {"sheetId": 0, "title": "Sheet1"}}]
-    }
+    mock_metadata = {"sheets": [{"properties": {"sheetId": 0, "title": "Sheet1"}}]}
     mock_service.spreadsheets().get().execute = Mock(return_value=mock_metadata)
     mock_service.spreadsheets().batchUpdate().execute = Mock(return_value={})
 
