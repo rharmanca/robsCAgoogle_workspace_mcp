@@ -657,8 +657,7 @@ class OAuth21SessionStore:
 
         # Remove orphaned MCP session mappings
         orphaned_mcp = [
-            sid for sid in self._mcp_session_mapping
-            if sid not in valid_mcp_session_ids
+            sid for sid in self._mcp_session_mapping if sid not in valid_mcp_session_ids
         ]
         for sid in orphaned_mcp:
             del self._mcp_session_mapping[sid]
@@ -668,8 +667,7 @@ class OAuth21SessionStore:
         # Remove orphaned auth bindings
         valid_bindings = valid_session_ids | valid_mcp_session_ids
         orphaned_bindings = [
-            sid for sid in self._session_auth_binding
-            if sid not in valid_bindings
+            sid for sid in self._session_auth_binding if sid not in valid_bindings
         ]
         for sid in orphaned_bindings:
             del self._session_auth_binding[sid]
