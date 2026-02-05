@@ -38,8 +38,8 @@ async def test_format_wrap_strategy_wrap():
         wrap_strategy="WRAP",
     )
 
-    assert "test_spreadsheet_123" in result
-    assert "A1:C10" in result
+    assert result["spreadsheet_id"] == "test_spreadsheet_123"
+    assert result["range_name"] == "A1:C10"
 
     call_args = mock_service.spreadsheets().batchUpdate.call_args
     request_body = call_args[1]["body"]
@@ -59,7 +59,7 @@ async def test_format_wrap_strategy_clip():
         wrap_strategy="CLIP",
     )
 
-    assert "test_spreadsheet_123" in result
+    assert result["spreadsheet_id"] == "test_spreadsheet_123"
     call_args = mock_service.spreadsheets().batchUpdate.call_args
     request_body = call_args[1]["body"]
     cell_format = request_body["requests"][0]["repeatCell"]["cell"]["userEnteredFormat"]
@@ -96,7 +96,7 @@ async def test_format_horizontal_alignment_center():
         horizontal_alignment="CENTER",
     )
 
-    assert "test_spreadsheet_123" in result
+    assert result["spreadsheet_id"] == "test_spreadsheet_123"
     call_args = mock_service.spreadsheets().batchUpdate.call_args
     request_body = call_args[1]["body"]
     cell_format = request_body["requests"][0]["repeatCell"]["cell"]["userEnteredFormat"]
@@ -310,7 +310,7 @@ async def test_format_all_new_params_with_existing():
         font_size=12,
     )
 
-    assert "test_spreadsheet_123" in result
+    assert result["spreadsheet_id"] == "test_spreadsheet_123"
     call_args = mock_service.spreadsheets().batchUpdate.call_args
     request_body = call_args[1]["body"]
     cell_format = request_body["requests"][0]["repeatCell"]["cell"]["userEnteredFormat"]
@@ -432,5 +432,5 @@ async def test_format_confirmation_message_includes_new_params():
         font_size=14,
     )
 
-    assert "test_spreadsheet_123" in result
-    assert "A1:C10" in result
+    assert result["spreadsheet_id"] == "test_spreadsheet_123"
+    assert result["range_name"] == "A1:C10"

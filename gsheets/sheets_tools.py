@@ -402,7 +402,7 @@ async def _format_sheet_range_impl(
         font_size: Font size in points.
 
     Returns:
-        Formatted string with confirmation of applied formatting.
+        Dictionary with keys: range_name, spreadsheet_id, summary.
     """
     # Validate at least one formatting option is provided
     has_any_format = any(
@@ -596,10 +596,13 @@ async def _format_sheet_range_impl(
         applied_parts.append(f"font size {font_size}")
 
     summary = ", ".join(applied_parts)
-    return (
-        f"Applied formatting to range '{range_name}' in spreadsheet {spreadsheet_id}: "
-        f"{summary}."
-    )
+
+    # Return structured data for the wrapper to format
+    return {
+        "range_name": range_name,
+        "spreadsheet_id": spreadsheet_id,
+        "summary": summary
+    }
 
 
 @server.tool()
@@ -674,11 +677,10 @@ async def format_sheet_range(
         font_size=font_size,
     )
 
-    # Add user email to confirmation for the tool response
-    return result.replace(
-        f"Applied formatting to range '{range_name}' in spreadsheet {spreadsheet_id}:",
-        f"Applied formatting to range '{range_name}' in spreadsheet {spreadsheet_id} "
-        f"for {user_google_email}:",
+    # Build confirmation message with user email
+    return (
+        f"Applied formatting to range '{result['range_name']}' in spreadsheet "
+        f"{result['spreadsheet_id']} for {user_google_email}: {result['summary']}."
     )
 
 
