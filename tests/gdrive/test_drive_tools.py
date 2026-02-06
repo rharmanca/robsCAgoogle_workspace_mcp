@@ -27,7 +27,11 @@ async def test_create_drive_folder():
     mock_request.execute.return_value = mock_response
     mock_service.files.return_value.create.return_value = mock_request
 
-    with patch("gdrive.drive_tools.resolve_folder_id", new_callable=AsyncMock, return_value="root"):
+    with patch(
+        "gdrive.drive_tools.resolve_folder_id",
+        new_callable=AsyncMock,
+        return_value="root",
+    ):
         result = await _create_drive_folder_impl(
             service=mock_service,
             user_google_email="user@example.com",

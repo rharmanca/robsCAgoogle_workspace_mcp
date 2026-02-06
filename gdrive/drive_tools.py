@@ -467,13 +467,15 @@ async def _create_drive_folder_impl(
         "mimeType": "application/vnd.google-apps.folder",
     }
     created_file = await asyncio.to_thread(
-        lambda: service.files()
-        .create(
-            body=file_metadata,
-            fields="id, name, webViewLink",
-            supportsAllDrives=True,
+        lambda: (
+            service.files()
+            .create(
+                body=file_metadata,
+                fields="id, name, webViewLink",
+                supportsAllDrives=True,
+            )
+            .execute()
         )
-        .execute()
     )
     link = created_file.get("webViewLink", "")
     return (
@@ -542,7 +544,11 @@ async def create_drive_file(
         f"[create_drive_file] Invoked. Email: '{user_google_email}', File Name: {file_name}, Folder ID: {folder_id}, fileUrl: {fileUrl}"
     )
 
-    if not content and not fileUrl and mime_type != "application/vnd.google-apps.folder":
+    if (
+        not content
+        and not fileUrl
+        and mime_type != "application/vnd.google-apps.folder"
+    ):
         raise Exception("You must provide either 'content' or 'fileUrl'.")
 
     file_data = None
@@ -557,13 +563,15 @@ async def create_drive_file(
     # Create folder (no content or media_body). Prefer create_drive_folder for new code.
     if mime_type == "application/vnd.google-apps.folder":
         created_file = await asyncio.to_thread(
-            lambda: service.files()
-            .create(
-                body=file_metadata,
-                fields="id, name, webViewLink",
-                supportsAllDrives=True,
+            lambda: (
+                service.files()
+                .create(
+                    body=file_metadata,
+                    fields="id, name, webViewLink",
+                    supportsAllDrives=True,
+                )
+                .execute()
             )
-            .execute()
         )
         link = created_file.get("webViewLink", "")
         return (
