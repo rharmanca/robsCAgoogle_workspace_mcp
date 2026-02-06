@@ -601,7 +601,7 @@ async def _format_sheet_range_impl(
     return {
         "range_name": range_name,
         "spreadsheet_id": spreadsheet_id,
-        "summary": summary
+        "summary": summary,
     }
 
 
