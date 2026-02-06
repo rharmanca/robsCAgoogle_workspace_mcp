@@ -3,6 +3,7 @@ Authentication middleware to populate context state with user information
 """
 
 import logging
+import time
 from fastmcp.server.middleware import Middleware, MiddlewareContext
 from fastmcp.server.dependencies import get_access_token
 from fastmcp.server.dependencies import get_http_headers
@@ -128,8 +129,9 @@ class AuthInfoMiddleware(Middleware):
                                                 or [],
                                                 session_id=f"google_oauth_{token_str[:8]}",
                                                 expires_at=getattr(
-                                                    verified_auth, "expires_at"
-                                                ),
+                                                    verified_auth, "expires_at", None
+                                                )
+                                                or int(time.time()) + 3600,
                                                 claims=getattr(
                                                     verified_auth, "claims", {}
                                                 )
