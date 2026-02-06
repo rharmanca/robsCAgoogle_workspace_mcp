@@ -86,7 +86,7 @@ class ExternalOAuthProvider(GoogleProvider):
                     token_uri="https://oauth2.googleapis.com/token",
                     client_id=self._client_id,
                     client_secret=self._client_secret,
-                    expiry=datetime.utcnow() + timedelta(seconds=SESSION_TIME),
+                    expiry=datetime.now(timezone.utc) + timedelta(seconds=SESSION_TIME),
                 )
 
                 # Validate token by calling userinfo API
