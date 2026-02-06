@@ -11,7 +11,7 @@ Google's Authorization Server but does not issue tokens itself.
 import logging
 import os
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from starlette.routing import Route
