@@ -27,7 +27,25 @@ logger = logging.getLogger(__name__)
 GOOGLE_ISSUER_URL = "https://accounts.google.com"
 
 # Configurable session time in seconds (default: 1 hour)
-SESSION_TIME = int(os.getenv("SESSION_TIME", "3600"))
+_DEFAULT_SESSION_TIME = 3600
+
+
+def _get_session_time() -> int:
+    """Parse SESSION_TIME from environment with fallback and minimum clamp."""
+    raw = os.getenv("SESSION_TIME", "")
+    if not raw:
+        return _DEFAULT_SESSION_TIME
+    try:
+        value = int(raw)
+    except ValueError:
+        logger.warning(
+            "Invalid SESSION_TIME=%r, falling back to %d", raw, _DEFAULT_SESSION_TIME
+        )
+        return _DEFAULT_SESSION_TIME
+    return max(value, 1)
+
+
+SESSION_TIME = _get_session_time()
 
 
 class ExternalOAuthProvider(GoogleProvider):

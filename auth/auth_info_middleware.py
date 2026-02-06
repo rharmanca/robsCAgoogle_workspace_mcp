@@ -8,6 +8,7 @@ from fastmcp.server.middleware import Middleware, MiddlewareContext
 from fastmcp.server.dependencies import get_access_token
 from fastmcp.server.dependencies import get_http_headers
 
+from auth.external_oauth_provider import SESSION_TIME
 from auth.oauth21_session_store import ensure_session_from_access_token
 from auth.oauth_types import WorkspaceAccessToken
 
@@ -117,6 +118,9 @@ class AuthInfoMiddleware(Middleware):
                                         else:
                                             # Standard GoogleProvider returns a base AccessToken;
                                             # wrap it in WorkspaceAccessToken for identical downstream handling
+                                            verified_expires = getattr(
+                                                verified_auth, "expires_at", None
+                                            )
                                             access_token = WorkspaceAccessToken(
                                                 token=token_str,
                                                 client_id=getattr(
@@ -128,10 +132,9 @@ class AuthInfoMiddleware(Middleware):
                                                 )
                                                 or [],
                                                 session_id=f"google_oauth_{token_str[:8]}",
-                                                expires_at=getattr(
-                                                    verified_auth, "expires_at", None
-                                                )
-                                                or int(time.time()) + 3600,
+                                                expires_at=verified_expires
+                                                if verified_expires is not None
+                                                else int(time.time()) + SESSION_TIME,
                                                 claims=getattr(
                                                     verified_auth, "claims", {}
                                                 )
