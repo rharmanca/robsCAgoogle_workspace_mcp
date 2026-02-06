@@ -338,8 +338,11 @@ async def test_format_invalid_wrap_strategy():
             wrap_strategy="INVALID",
         )
 
-    error_msg = str(exc_info.value).lower()
-    assert "wrap_strategy" in error_msg or "wrap" in error_msg
+    error_msg = str(exc_info.value)
+    assert "wrap_strategy" in error_msg
+    assert "CLIP" in error_msg
+    assert "OVERFLOW_CELL" in error_msg
+    assert "WRAP" in error_msg
 
 
 @pytest.mark.asyncio
@@ -357,8 +360,11 @@ async def test_format_invalid_horizontal_alignment():
             horizontal_alignment="INVALID",
         )
 
-    error_msg = str(exc_info.value).lower()
-    assert "horizontal" in error_msg or "left" in error_msg
+    error_msg = str(exc_info.value)
+    assert "horizontal_alignment" in error_msg
+    assert "CENTER" in error_msg
+    assert "LEFT" in error_msg
+    assert "RIGHT" in error_msg
 
 
 @pytest.mark.asyncio
@@ -376,8 +382,11 @@ async def test_format_invalid_vertical_alignment():
             vertical_alignment="INVALID",
         )
 
-    error_msg = str(exc_info.value).lower()
-    assert "vertical" in error_msg or "top" in error_msg
+    error_msg = str(exc_info.value)
+    assert "vertical_alignment" in error_msg
+    assert "BOTTOM" in error_msg
+    assert "MIDDLE" in error_msg
+    assert "TOP" in error_msg
 
 
 @pytest.mark.asyncio

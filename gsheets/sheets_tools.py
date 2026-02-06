@@ -574,7 +574,7 @@ async def _format_sheet_range_impl(
     # Build confirmation message
     applied_parts = []
     if bg_color_parsed:
-        applied_parts.append(f"background {background_color}")
+        applied_parts.append(f"background color {background_color}")
     if text_color_parsed:
         applied_parts.append(f"text color {text_color}")
     if number_format:
