@@ -8,7 +8,7 @@ from fastmcp.server.middleware import Middleware, MiddlewareContext
 from fastmcp.server.dependencies import get_access_token
 from fastmcp.server.dependencies import get_http_headers
 
-from auth.external_oauth_provider import SESSION_TIME
+from auth.external_oauth_provider import get_session_time
 from auth.oauth21_session_store import ensure_session_from_access_token
 from auth.oauth_types import WorkspaceAccessToken
 
@@ -134,7 +134,8 @@ class AuthInfoMiddleware(Middleware):
                                                 session_id=f"google_oauth_{token_str[:8]}",
                                                 expires_at=verified_expires
                                                 if verified_expires is not None
-                                                else int(time.time()) + SESSION_TIME,
+                                                else int(time.time())
+                                                + get_session_time(),
                                                 claims=getattr(
                                                     verified_auth, "claims", {}
                                                 )

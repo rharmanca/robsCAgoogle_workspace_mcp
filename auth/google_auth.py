@@ -759,11 +759,17 @@ def get_credentials(
         return None
 
 
-def get_user_info(credentials: Credentials) -> Optional[Dict[str, Any]]:
+def get_user_info(
+    credentials: Credentials, *, skip_valid_check: bool = False
+) -> Optional[Dict[str, Any]]:
     """Fetches basic user profile information (requires userinfo.email scope)."""
-    if not credentials or not credentials.valid:
-        logger.error("Cannot get user info: Invalid or missing credentials.")
+    if not credentials:
+        logger.error("Cannot get user info: Missing credentials.")
         return None
+    if not skip_valid_check and not credentials.valid:
+        logger.error("Cannot get user info: Invalid credentials.")
+        return None
+    service = None
     try:
         # Using googleapiclient discovery to get user info
         # Requires 'google-api-python-client' library

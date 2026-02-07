@@ -11,7 +11,6 @@ Google's Authorization Server but does not issue tokens itself.
 import logging
 import os
 import time
-from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from starlette.routing import Route
@@ -45,7 +44,9 @@ def _get_session_time() -> int:
     return max(value, 1)
 
 
-SESSION_TIME = _get_session_time()
+def get_session_time() -> int:
+    """Return the configured session time in seconds."""
+    return _get_session_time()
 
 
 class ExternalOAuthProvider(GoogleProvider):
@@ -98,19 +99,18 @@ class ExternalOAuthProvider(GoogleProvider):
                 from auth.google_auth import get_user_info
 
                 # Create minimal Credentials object for userinfo API call
-                # expiry must be set so credentials.valid returns True
                 credentials = Credentials(
                     token=token,
                     token_uri="https://oauth2.googleapis.com/token",
                     client_id=self._client_id,
                     client_secret=self._client_secret,
-                    expiry=datetime.now(timezone.utc) + timedelta(seconds=SESSION_TIME),
                 )
 
                 # Validate token by calling userinfo API
-                user_info = get_user_info(credentials)
+                user_info = get_user_info(credentials, skip_valid_check=True)
 
                 if user_info and user_info.get("email"):
+                    session_time = get_session_time()
                     # Token is valid - create AccessToken object
                     logger.info(
                         f"Validated external access token for: {user_info['email']}"
@@ -120,7 +120,7 @@ class ExternalOAuthProvider(GoogleProvider):
                     access_token = WorkspaceAccessToken(
                         token=token,
                         scopes=scope_list,
-                        expires_at=int(time.time()) + SESSION_TIME,
+                        expires_at=int(time.time()) + session_time,
                         claims={
                             "email": user_info["email"],
                             "sub": user_info.get("id"),
