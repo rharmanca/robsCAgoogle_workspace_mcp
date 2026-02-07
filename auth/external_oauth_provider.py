@@ -8,6 +8,7 @@ This provider acts as a Resource Server only - it validates tokens issued by
 Google's Authorization Server but does not issue tokens itself.
 """
 
+import functools
 import logging
 import os
 import time
@@ -25,12 +26,17 @@ logger = logging.getLogger(__name__)
 # Google's OAuth 2.0 Authorization Server
 GOOGLE_ISSUER_URL = "https://accounts.google.com"
 
-# Configurable session time in seconds (default: 1 hour)
+# Configurable session time in seconds (default: 1 hour, max: 24 hours)
 _DEFAULT_SESSION_TIME = 3600
+_MAX_SESSION_TIME = 86400
 
 
-def _get_session_time() -> int:
-    """Parse SESSION_TIME from environment with fallback and minimum clamp."""
+@functools.lru_cache(maxsize=1)
+def get_session_time() -> int:
+    """Parse SESSION_TIME from environment with fallback, min/max clamp.
+
+    Result is cached; changes require a server restart.
+    """
     raw = os.getenv("SESSION_TIME", "")
     if not raw:
         return _DEFAULT_SESSION_TIME
@@ -41,12 +47,15 @@ def _get_session_time() -> int:
             "Invalid SESSION_TIME=%r, falling back to %d", raw, _DEFAULT_SESSION_TIME
         )
         return _DEFAULT_SESSION_TIME
-    return max(value, 1)
-
-
-def get_session_time() -> int:
-    """Return the configured session time in seconds."""
-    return _get_session_time()
+    clamped = max(1, min(value, _MAX_SESSION_TIME))
+    if clamped != value:
+        logger.warning(
+            "SESSION_TIME=%d clamped to %d (allowed range: 1–%d)",
+            value,
+            clamped,
+            _MAX_SESSION_TIME,
+        )
+    return clamped
 
 
 class ExternalOAuthProvider(GoogleProvider):
