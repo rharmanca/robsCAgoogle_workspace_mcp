@@ -846,6 +846,7 @@ cp .env.oauth21 .env
 | `update_drive_permission` | Extended | Modify permission role |
 | `remove_drive_permission` | Extended | Revoke file access |
 | `transfer_drive_ownership` | Extended | Transfer file ownership to another user |
+| `set_drive_file_permissions` | Extended | Set link sharing and file-level sharing settings |
 | `get_drive_file_permissions` | Complete | Get detailed file permissions |
 | `check_drive_file_public_access` | Complete | Check public sharing status |
 
