@@ -1946,7 +1946,11 @@ async def set_drive_file_permissions(
         f"Writers can share: {writers_can_share}, Copy restriction: {copy_requires_writer_permission}"
     )
 
-    if link_sharing is None and writers_can_share is None and copy_requires_writer_permission is None:
+    if (
+        link_sharing is None
+        and writers_can_share is None
+        and copy_requires_writer_permission is None
+    ):
         raise ValueError(
             "Must provide at least one of: link_sharing, writers_can_share, copy_requires_writer_permission"
         )
@@ -1971,7 +1975,9 @@ async def set_drive_file_permissions(
     if writers_can_share is not None:
         file_update_body["writersCanShare"] = writers_can_share
     if copy_requires_writer_permission is not None:
-        file_update_body["copyRequiresWriterPermission"] = copy_requires_writer_permission
+        file_update_body["copyRequiresWriterPermission"] = (
+            copy_requires_writer_permission
+        )
 
     if file_update_body:
         await asyncio.to_thread(
@@ -2003,7 +2009,8 @@ async def set_drive_file_permissions(
             .execute
         )
         anyone_perms = [
-            p for p in current_permissions.get("permissions", [])
+            p
+            for p in current_permissions.get("permissions", [])
             if p.get("type") == "anyone"
         ]
 
@@ -2019,7 +2026,9 @@ async def set_drive_file_permissions(
                         )
                         .execute
                     )
-                changes_made.append("  - Link sharing: disabled (restricted to specific people)")
+                changes_made.append(
+                    "  - Link sharing: disabled (restricted to specific people)"
+                )
             else:
                 changes_made.append("  - Link sharing: already off (no change)")
         else:
