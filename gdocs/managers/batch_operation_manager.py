@@ -189,6 +189,7 @@ class BatchOperationManager:
                 op.get("font_family"),
                 op.get("text_color"),
                 op.get("background_color"),
+                op.get("link_url"),
             )
 
             if not request:
@@ -204,6 +205,7 @@ class BatchOperationManager:
                 ("font_family", "font family"),
                 ("text_color", "text color"),
                 ("background_color", "background color"),
+                ("link_url", "link"),
             ]:
                 if op.get(param) is not None:
                     value = f"{op[param]}pt" if param == "font_size" else op[param]

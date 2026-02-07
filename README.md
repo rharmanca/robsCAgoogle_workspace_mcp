@@ -907,7 +907,7 @@ attachments=[{
 |------|------|-------------|
 | `get_doc_content` | **Core** | Extract document text |
 | `create_doc` | **Core** | Create new documents |
-| `modify_doc_text` | **Core** | Modify document text |
+| `modify_doc_text` | **Core** | Modify document text (formatting + links) |
 | `search_docs` | Extended | Find documents by name |
 | `find_and_replace_doc` | Extended | Find and replace text |
 | `list_docs_in_folder` | Extended | List docs in folder |
