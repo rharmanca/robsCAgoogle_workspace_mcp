@@ -1927,8 +1927,8 @@ async def set_drive_file_permissions(
     Args:
         user_google_email (str): The user's Google email address. Required.
         file_id (str): The ID of the file or folder. Required.
-        link_sharing (Optional[str]): Control "anyone with the link" access.
-            - "off": Remove public link sharing (restrict to specific people only).
+        link_sharing (Optional[str]): Control "anyone with the link" access for the file.
+            - "off": Disable "anyone with the link" access for this file.
             - "reader": Anyone with the link can view.
             - "commenter": Anyone with the link can comment.
             - "writer": Anyone with the link can edit.
@@ -2038,7 +2038,10 @@ async def set_drive_file_permissions(
                     .update(
                         fileId=file_id,
                         permissionId=anyone_perms[0]["id"],
-                        body={"role": link_sharing},
+                        body={
+                            "role": link_sharing,
+                            "allowFileDiscovery": False,
+                        },
                         supportsAllDrives=True,
                         fields="id, type, role",
                     )
@@ -2050,7 +2053,11 @@ async def set_drive_file_permissions(
                     service.permissions()
                     .create(
                         fileId=file_id,
-                        body={"type": "anyone", "role": link_sharing},
+                        body={
+                            "type": "anyone",
+                            "role": link_sharing,
+                            "allowFileDiscovery": False,
+                        },
                         supportsAllDrives=True,
                         fields="id, type, role",
                     )
@@ -2059,7 +2066,10 @@ async def set_drive_file_permissions(
                 changes_made.append(f"  - Link sharing: enabled as '{link_sharing}'")
 
     output_parts.append("Changes:")
-    output_parts.extend(changes_made)
+    if changes_made:
+        output_parts.extend(changes_made)
+    else:
+        output_parts.append("  - No changes (already configured)")
     output_parts.extend(["", f"View link: {file_metadata.get('webViewLink', 'N/A')}"])
 
     return "\n".join(output_parts)
