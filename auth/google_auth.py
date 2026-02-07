@@ -587,7 +587,9 @@ def get_credentials(
                     )
 
                     # Check scopes
-                    if not all(scope in credentials.scopes for scope in required_scopes):
+                    if not all(
+                        scope in credentials.scopes for scope in required_scopes
+                    ):
                         logger.warning(
                             f"[get_credentials] OAuth 2.1 credentials lack required scopes. Need: {required_scopes}, Have: {credentials.scopes}"
                         )
