@@ -1414,10 +1414,14 @@ async def update_paragraph_style(
 
     # Validate list parameters
     if create_list is not None:
+        # Coerce non-string inputs to string before normalization to avoid AttributeError
+        if not isinstance(create_list, str):
+            create_list = str(create_list)
         valid_list_types = ["UNORDERED", "ORDERED"]
-        if create_list.upper() not in valid_list_types:
+        normalized_create_list = create_list.upper()
+        if normalized_create_list not in valid_list_types:
             return f"Error: create_list must be one of {valid_list_types}"
-        create_list = create_list.upper()
+        create_list = normalized_create_list
 
     if list_nesting_level is not None:
         if create_list is None:

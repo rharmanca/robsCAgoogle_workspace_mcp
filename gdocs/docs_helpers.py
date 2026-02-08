@@ -311,6 +311,10 @@ def create_bullet_list_request(
 
     # Add nesting level if specified
     if nesting_level is not None:
+        if not isinstance(nesting_level, int):
+            raise ValueError("nesting_level must be an integer between 0 and 8")
+        if nesting_level < 0 or nesting_level > 8:
+            raise ValueError("nesting_level must be between 0 and 8")
         request["createParagraphBullets"]["nestingLevel"] = nesting_level
 
     return request
