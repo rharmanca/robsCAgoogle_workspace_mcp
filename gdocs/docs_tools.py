@@ -1343,7 +1343,7 @@ async def _get_paragraph_start_indices_in_range(
         service.documents()
         .get(
             documentId=document_id,
-            fields="body/content(startIndex,endIndex,paragraph)",
+            fields="body/content(startIndex,endIndex,paragraph(bullet))",
         )
         .execute
     )

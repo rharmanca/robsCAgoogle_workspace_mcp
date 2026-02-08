@@ -15,6 +15,7 @@ from core.server import server
 from core.utils import handle_http_errors, UserInputError
 from core.comments import create_comment_tools
 from gsheets.sheets_helpers import (
+    _a1_range_cell_count,
     CONDITION_TYPES,
     _a1_range_for_values,
     _build_boolean_rule,
@@ -212,25 +213,28 @@ async def read_sheet_values(
 
     hyperlink_section = ""
     if include_hyperlinks:
-        cell_count = sum(len(row) for row in values)
+        hyperlink_range = resolved_range
+        cell_count = _a1_range_cell_count(hyperlink_range) or sum(
+            len(row) for row in values
+        )
         if cell_count <= MAX_HYPERLINK_FETCH_CELLS:
             try:
                 hyperlinks = await _fetch_sheet_hyperlinks(
-                    service, spreadsheet_id, detailed_range
+                    service, spreadsheet_id, hyperlink_range
                 )
                 hyperlink_section = _format_sheet_hyperlink_section(
-                    hyperlinks=hyperlinks, range_label=detailed_range
+                    hyperlinks=hyperlinks, range_label=hyperlink_range
                 )
             except Exception as exc:
                 logger.warning(
                     "[read_sheet_values] Failed fetching hyperlinks for range '%s': %s",
-                    detailed_range,
+                    hyperlink_range,
                     exc,
                 )
         else:
             logger.info(
                 "[read_sheet_values] Skipping hyperlink fetch for large range '%s' (%d cells > %d limit)",
-                detailed_range,
+                hyperlink_range,
                 cell_count,
                 MAX_HYPERLINK_FETCH_CELLS,
             )

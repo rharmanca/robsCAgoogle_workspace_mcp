@@ -275,6 +275,36 @@ def _a1_range_for_values(a1_range: str, values: List[List[object]]) -> Optional[
     return range_ref
 
 
+def _a1_range_cell_count(a1_range: str) -> Optional[int]:
+    """
+    Return cell count for an explicit rectangular A1 range (e.g. A1:C10).
+
+    Returns None when the range is open-ended or otherwise does not include
+    both row and column bounds.
+    """
+    _, range_part = _split_sheet_and_range(a1_range)
+    if not range_part:
+        return None
+
+    if ":" in range_part:
+        start_part, end_part = range_part.split(":", 1)
+    else:
+        start_part = end_part = range_part
+
+    try:
+        start_col, start_row = _parse_a1_part(start_part)
+        end_col, end_row = _parse_a1_part(end_part)
+    except UserInputError:
+        return None
+
+    if None in (start_col, start_row, end_col, end_row):
+        return None
+    if end_col < start_col or end_row < start_row:
+        return None
+
+    return (end_col - start_col + 1) * (end_row - start_row + 1)
+
+
 def _extract_cell_errors_from_grid(spreadsheet: dict) -> list[dict[str, Optional[str]]]:
     """
     Extracts error information from spreadsheet grid data.
@@ -331,6 +361,9 @@ def _extract_cell_hyperlinks_from_grid(spreadsheet: dict) -> list[dict[str, str]
     Returns a list of dictionaries with:
         - "cell": cell A1 reference
         - "url": hyperlink URL
+
+    For rich text cells, this includes URLs from both `CellData.hyperlink`
+    and `textFormatRuns[].format.link.uri`.
     """
     hyperlinks: list[dict[str, str]] = []
     for sheet in spreadsheet.get("sheets", []) or []:
@@ -346,19 +379,38 @@ def _extract_cell_hyperlinks_from_grid(spreadsheet: dict) -> list[dict[str, str]
                 ):
                     if not cell_data:
                         continue
+                    cell_urls: list[str] = []
+                    seen_urls: set[str] = set()
+
                     hyperlink = cell_data.get("hyperlink")
-                    if not hyperlink:
+                    if (
+                        isinstance(hyperlink, str)
+                        and hyperlink
+                        and hyperlink not in seen_urls
+                    ):
+                        seen_urls.add(hyperlink)
+                        cell_urls.append(hyperlink)
+
+                    for text_run in cell_data.get("textFormatRuns", []) or []:
+                        if not isinstance(text_run, dict):
+                            continue
+                        link_uri = (
+                            (text_run.get("format") or {}).get("link") or {}
+                        ).get("uri")
+                        if not isinstance(link_uri, str) or not link_uri:
+                            continue
+                        if link_uri in seen_urls:
+                            continue
+                        seen_urls.add(link_uri)
+                        cell_urls.append(link_uri)
+
+                    if not cell_urls:
                         continue
-                    hyperlinks.append(
-                        {
-                            "cell": _format_a1_cell(
-                                sheet_title,
-                                start_row + row_offset,
-                                start_col + col_offset,
-                            ),
-                            "url": hyperlink,
-                        }
+                    cell_ref = _format_a1_cell(
+                        sheet_title, start_row + row_offset, start_col + col_offset
                     )
+                    for url in cell_urls:
+                        hyperlinks.append({"cell": cell_ref, "url": url})
     return hyperlinks
 
 
@@ -387,7 +439,7 @@ async def _fetch_sheet_hyperlinks(
             spreadsheetId=spreadsheet_id,
             ranges=[a1_range],
             includeGridData=True,
-            fields="sheets(properties(title),data(startRow,startColumn,rowData(values(hyperlink))))",
+            fields="sheets(properties(title),data(startRow,startColumn,rowData(values(hyperlink,textFormatRuns(format(link(uri)))))))",
         )
         .execute
     )
