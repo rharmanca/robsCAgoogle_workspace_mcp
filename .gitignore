@@ -29,3 +29,6 @@ mcp_server_debug.log
 # ---- Local development files -------------------------------------------
 /.credentials
 /.claude
+
+# ---- Agent instructions (not for distribution) -------------------------
+.github/instructions/
