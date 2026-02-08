@@ -1420,12 +1420,14 @@ async def update_paragraph_style(
         valid_list_types = ["UNORDERED", "ORDERED"]
         normalized_create_list = create_list.upper()
         if normalized_create_list not in valid_list_types:
-            return f"Error: create_list must be one of {valid_list_types}"
+            return f"Error: create_list must be one of: {', '.join(valid_list_types)}"
         create_list = normalized_create_list
 
     if list_nesting_level is not None:
         if create_list is None:
             return "Error: list_nesting_level requires create_list parameter"
+        if not isinstance(list_nesting_level, int):
+            return "Error: list_nesting_level must be an integer"
         if list_nesting_level < 0 or list_nesting_level > 8:
             return "Error: list_nesting_level must be between 0 and 8"
 
@@ -1503,11 +1505,13 @@ async def update_paragraph_style(
     if create_list is not None:
         # Default to level 0 if not specified
         nesting_level = list_nesting_level if list_nesting_level is not None else 0
-        requests.append(
-            create_bullet_list_request(
+        try:
+            list_requests = create_bullet_list_request(
                 start_index, end_index, create_list, nesting_level
             )
-        )
+            requests.extend(list_requests)
+        except ValueError as e:
+            return f"Error: {e}"
 
     # Validate we have at least one operation
     if not requests:
