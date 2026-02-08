@@ -1333,6 +1333,35 @@ async def export_doc_to_pdf(
 # ==============================================================================
 
 
+async def _get_paragraph_start_indices_in_range(
+    service: Any, document_id: str, start_index: int, end_index: int
+) -> list[int]:
+    """
+    Fetch paragraph start indices that overlap a target range.
+    """
+    doc_data = await asyncio.to_thread(
+        service.documents()
+        .get(
+            documentId=document_id,
+            fields="body/content(startIndex,endIndex,paragraph)",
+        )
+        .execute
+    )
+
+    paragraph_starts = []
+    for element in doc_data.get("body", {}).get("content", []):
+        if "paragraph" not in element:
+            continue
+        paragraph_start = element.get("startIndex")
+        paragraph_end = element.get("endIndex")
+        if not isinstance(paragraph_start, int) or not isinstance(paragraph_end, int):
+            continue
+        if paragraph_end > start_index and paragraph_start < end_index:
+            paragraph_starts.append(paragraph_start)
+
+    return paragraph_starts or [start_index]
+
+
 @server.tool()
 @handle_http_errors("update_paragraph_style", service_type="docs")
 @require_google_service("docs", "docs_write")
@@ -1350,7 +1379,7 @@ async def update_paragraph_style(
     indent_end: float = None,
     space_above: float = None,
     space_below: float = None,
-    create_list: str = None,
+    list_type: str = None,
     list_nesting_level: int = None,
 ) -> str:
     """
@@ -1375,7 +1404,7 @@ async def update_paragraph_style(
         indent_end: Right/end indent in points
         space_above: Space above paragraph in points (e.g., 12 for one line)
         space_below: Space below paragraph in points
-        create_list: Create a list from existing paragraphs ('UNORDERED' for bullets, 'ORDERED' for numbers)
+        list_type: Create a list from existing paragraphs ('UNORDERED' for bullets, 'ORDERED' for numbers)
         list_nesting_level: Nesting level for lists (0-8, where 0 is top level, default is 0)
                            Use higher levels for nested/indented list items
 
@@ -1388,11 +1417,11 @@ async def update_paragraph_style(
 
         # Create a bulleted list
         update_paragraph_style(document_id="...", start_index=1, end_index=50,
-                               create_list="UNORDERED")
+                               list_type="UNORDERED")
 
         # Create a nested numbered list item
         update_paragraph_style(document_id="...", start_index=1, end_index=30,
-                               create_list="ORDERED", list_nesting_level=1)
+                               list_type="ORDERED", list_nesting_level=1)
 
         # Apply H2 heading with custom spacing
         update_paragraph_style(document_id="...", start_index=1, end_index=30,
@@ -1413,19 +1442,21 @@ async def update_paragraph_style(
         return "Error: end_index must be greater than start_index"
 
     # Validate list parameters
-    if create_list is not None:
+    list_type_value = list_type
+    if list_type_value is not None:
         # Coerce non-string inputs to string before normalization to avoid AttributeError
-        if not isinstance(create_list, str):
-            create_list = str(create_list)
+        if not isinstance(list_type_value, str):
+            list_type_value = str(list_type_value)
         valid_list_types = ["UNORDERED", "ORDERED"]
-        normalized_create_list = create_list.upper()
-        if normalized_create_list not in valid_list_types:
-            return f"Error: create_list must be one of: {', '.join(valid_list_types)}"
-        create_list = normalized_create_list
+        normalized_list_type = list_type_value.upper()
+        if normalized_list_type not in valid_list_types:
+            return f"Error: list_type must be one of: {', '.join(valid_list_types)}"
+
+        list_type_value = normalized_list_type
 
     if list_nesting_level is not None:
-        if create_list is None:
-            return "Error: list_nesting_level requires create_list parameter"
+        if list_type_value is None:
+            return "Error: list_nesting_level requires list_type parameter"
         if not isinstance(list_nesting_level, int):
             return "Error: list_nesting_level must be an integer"
         if list_nesting_level < 0 or list_nesting_level > 8:
@@ -1502,12 +1533,21 @@ async def update_paragraph_style(
         )
 
     # Add list creation if requested
-    if create_list is not None:
+    if list_type_value is not None:
         # Default to level 0 if not specified
         nesting_level = list_nesting_level if list_nesting_level is not None else 0
         try:
+            paragraph_start_indices = None
+            if nesting_level > 0:
+                paragraph_start_indices = await _get_paragraph_start_indices_in_range(
+                    service, document_id, start_index, end_index
+                )
             list_requests = create_bullet_list_request(
-                start_index, end_index, create_list, nesting_level
+                start_index,
+                end_index,
+                list_type_value,
+                nesting_level,
+                paragraph_start_indices=paragraph_start_indices,
             )
             requests.extend(list_requests)
         except ValueError as e:
@@ -1530,8 +1570,8 @@ async def update_paragraph_style(
     format_fields = [f for f in fields if f != "namedStyleType"]
     if format_fields:
         summary_parts.append(", ".join(format_fields))
-    if create_list is not None:
-        list_desc = f"{create_list.lower()} list"
+    if list_type_value is not None:
+        list_desc = f"{list_type_value.lower()} list"
         if list_nesting_level is not None and list_nesting_level > 0:
             list_desc += f" (level {list_nesting_level})"
         summary_parts.append(list_desc)
