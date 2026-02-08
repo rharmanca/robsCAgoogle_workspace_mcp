@@ -324,6 +324,44 @@ def _extract_cell_errors_from_grid(spreadsheet: dict) -> list[dict[str, Optional
     return errors
 
 
+def _extract_cell_hyperlinks_from_grid(spreadsheet: dict) -> list[dict[str, str]]:
+    """
+    Extract hyperlink URLs from spreadsheet grid data.
+
+    Returns a list of dictionaries with:
+        - "cell": cell A1 reference
+        - "url": hyperlink URL
+    """
+    hyperlinks: list[dict[str, str]] = []
+    for sheet in spreadsheet.get("sheets", []) or []:
+        sheet_title = sheet.get("properties", {}).get("title") or "Unknown"
+        for grid in sheet.get("data", []) or []:
+            start_row = _coerce_int(grid.get("startRow"), default=0)
+            start_col = _coerce_int(grid.get("startColumn"), default=0)
+            for row_offset, row_data in enumerate(grid.get("rowData", []) or []):
+                if not row_data:
+                    continue
+                for col_offset, cell_data in enumerate(
+                    row_data.get("values", []) or []
+                ):
+                    if not cell_data:
+                        continue
+                    hyperlink = cell_data.get("hyperlink")
+                    if not hyperlink:
+                        continue
+                    hyperlinks.append(
+                        {
+                            "cell": _format_a1_cell(
+                                sheet_title,
+                                start_row + row_offset,
+                                start_col + col_offset,
+                            ),
+                            "url": hyperlink,
+                        }
+                    )
+    return hyperlinks
+
+
 async def _fetch_detailed_sheet_errors(
     service, spreadsheet_id: str, a1_range: str
 ) -> list[dict[str, Optional[str]]]:
@@ -338,6 +376,22 @@ async def _fetch_detailed_sheet_errors(
         .execute
     )
     return _extract_cell_errors_from_grid(response)
+
+
+async def _fetch_sheet_hyperlinks(
+    service, spreadsheet_id: str, a1_range: str
+) -> list[dict[str, str]]:
+    response = await asyncio.to_thread(
+        service.spreadsheets()
+        .get(
+            spreadsheetId=spreadsheet_id,
+            ranges=[a1_range],
+            includeGridData=True,
+            fields="sheets(properties(title),data(startRow,startColumn,rowData(values(hyperlink))))",
+        )
+        .execute
+    )
+    return _extract_cell_hyperlinks_from_grid(response)
 
 
 def _format_sheet_error_section(
@@ -386,6 +440,29 @@ def _format_sheet_error_section(
         + "\n".join(lines)
         + suffix
     )
+
+
+def _format_sheet_hyperlink_section(
+    *, hyperlinks: list[dict[str, str]], range_label: str, max_details: int = 25
+) -> str:
+    """
+    Format a list of cell hyperlinks into a human-readable section.
+    """
+    if not hyperlinks:
+        return ""
+
+    lines = []
+    for item in hyperlinks[:max_details]:
+        cell = item.get("cell") or "(unknown cell)"
+        url = item.get("url") or "(missing url)"
+        lines.append(f"- {cell}: {url}")
+
+    suffix = (
+        f"\n... and {len(hyperlinks) - max_details} more hyperlinks"
+        if len(hyperlinks) > max_details
+        else ""
+    )
+    return f"\n\nHyperlinks in range '{range_label}':\n" + "\n".join(lines) + suffix
 
 
 def _color_to_hex(color: Optional[dict]) -> Optional[str]:

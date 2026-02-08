@@ -20,8 +20,10 @@ from gsheets.sheets_helpers import (
     _build_boolean_rule,
     _build_gradient_rule,
     _fetch_detailed_sheet_errors,
+    _fetch_sheet_hyperlinks,
     _fetch_sheets_with_rules,
     _format_conditional_rules_section,
+    _format_sheet_hyperlink_section,
     _format_sheet_error_section,
     _parse_a1_range,
     _parse_condition_values,
@@ -201,10 +203,26 @@ async def read_sheet_values(
     if not values:
         return f"No data found in range '{range_name}' for {user_google_email}."
 
+    resolved_range = result.get("range", range_name)
+    detailed_range = _a1_range_for_values(resolved_range, values) or resolved_range
+
+    hyperlink_section = ""
+    try:
+        hyperlinks = await _fetch_sheet_hyperlinks(
+            service, spreadsheet_id, detailed_range
+        )
+        hyperlink_section = _format_sheet_hyperlink_section(
+            hyperlinks=hyperlinks, range_label=detailed_range
+        )
+    except Exception as exc:
+        logger.warning(
+            "[read_sheet_values] Failed fetching hyperlinks for range '%s': %s",
+            detailed_range,
+            exc,
+        )
+
     detailed_errors_section = ""
     if _values_contain_sheets_errors(values):
-        resolved_range = result.get("range", range_name)
-        detailed_range = _a1_range_for_values(resolved_range, values) or resolved_range
         try:
             errors = await _fetch_detailed_sheet_errors(
                 service, spreadsheet_id, detailed_range
@@ -233,7 +251,7 @@ async def read_sheet_values(
     )
 
     logger.info(f"Successfully read {len(values)} rows for {user_google_email}.")
-    return text_output + detailed_errors_section
+    return text_output + hyperlink_section + detailed_errors_section
 
 
 @server.tool()
