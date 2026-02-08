@@ -1350,13 +1350,16 @@ async def update_paragraph_style(
     indent_end: float = None,
     space_above: float = None,
     space_below: float = None,
+    create_list: str = None,
+    list_nesting_level: int = None,
 ) -> str:
     """
-    Apply paragraph-level formatting and/or heading styles to a range in a Google Doc.
+    Apply paragraph-level formatting, heading styles, and/or list formatting to a range in a Google Doc.
 
     This tool can apply named heading styles (H1-H6) for semantic document structure,
-    and/or customize paragraph properties like alignment, spacing, and indentation.
-    Both can be applied in a single operation.
+    create bulleted or numbered lists with nested indentation, and customize paragraph
+    properties like alignment, spacing, and indentation. All operations can be applied
+    in a single call.
 
     Args:
         user_google_email: User's Google email address
@@ -1372,6 +1375,9 @@ async def update_paragraph_style(
         indent_end: Right/end indent in points
         space_above: Space above paragraph in points (e.g., 12 for one line)
         space_below: Space below paragraph in points
+        create_list: Create a list from existing paragraphs ('UNORDERED' for bullets, 'ORDERED' for numbers)
+        list_nesting_level: Nesting level for lists (0-8, where 0 is top level, default is 0)
+                           Use higher levels for nested/indented list items
 
     Returns:
         str: Confirmation message with formatting details
@@ -1380,13 +1386,21 @@ async def update_paragraph_style(
         # Apply H1 heading style
         update_paragraph_style(document_id="...", start_index=1, end_index=20, heading_level=1)
 
-        # Center-align a paragraph with double spacing
+        # Create a bulleted list
         update_paragraph_style(document_id="...", start_index=1, end_index=50,
-                               alignment="CENTER", line_spacing=2.0)
+                               create_list="UNORDERED")
+
+        # Create a nested numbered list item
+        update_paragraph_style(document_id="...", start_index=1, end_index=30,
+                               create_list="ORDERED", list_nesting_level=1)
 
         # Apply H2 heading with custom spacing
         update_paragraph_style(document_id="...", start_index=1, end_index=30,
                                heading_level=2, space_above=18, space_below=12)
+
+        # Center-align a paragraph with double spacing
+        update_paragraph_style(document_id="...", start_index=1, end_index=50,
+                               alignment="CENTER", line_spacing=2.0)
     """
     logger.info(
         f"[update_paragraph_style] Doc={document_id}, Range: {start_index}-{end_index}"
@@ -1397,6 +1411,19 @@ async def update_paragraph_style(
         return "Error: start_index must be >= 1"
     if end_index <= start_index:
         return "Error: end_index must be greater than start_index"
+
+    # Validate list parameters
+    if create_list is not None:
+        valid_list_types = ["UNORDERED", "ORDERED"]
+        if create_list.upper() not in valid_list_types:
+            return f"Error: create_list must be one of {valid_list_types}"
+        create_list = create_list.upper()
+
+    if list_nesting_level is not None:
+        if create_list is None:
+            return "Error: list_nesting_level requires create_list parameter"
+        if list_nesting_level < 0 or list_nesting_level > 8:
+            return "Error: list_nesting_level must be between 0 and 8"
 
     # Build paragraph style object
     paragraph_style = {}
@@ -1453,19 +1480,34 @@ async def update_paragraph_style(
         paragraph_style["spaceBelow"] = {"magnitude": space_below, "unit": "PT"}
         fields.append("spaceBelow")
 
-    if not paragraph_style:
-        return f"No paragraph style changes specified for document {document_id}"
+    # Create batch update requests
+    requests = []
 
-    # Create batch update request
-    requests = [
-        {
-            "updateParagraphStyle": {
-                "range": {"startIndex": start_index, "endIndex": end_index},
-                "paragraphStyle": paragraph_style,
-                "fields": ",".join(fields),
+    # Add paragraph style update if we have any style changes
+    if paragraph_style:
+        requests.append(
+            {
+                "updateParagraphStyle": {
+                    "range": {"startIndex": start_index, "endIndex": end_index},
+                    "paragraphStyle": paragraph_style,
+                    "fields": ",".join(fields),
+                }
             }
-        }
-    ]
+        )
+
+    # Add list creation if requested
+    if create_list is not None:
+        # Default to level 0 if not specified
+        nesting_level = list_nesting_level if list_nesting_level is not None else 0
+        requests.append(
+            create_bullet_list_request(
+                start_index, end_index, create_list, nesting_level
+            )
+        )
+
+    # Validate we have at least one operation
+    if not requests:
+        return f"No paragraph style changes or list creation specified for document {document_id}"
 
     await asyncio.to_thread(
         service.documents()
@@ -1480,9 +1522,14 @@ async def update_paragraph_style(
     format_fields = [f for f in fields if f != "namedStyleType"]
     if format_fields:
         summary_parts.append(", ".join(format_fields))
+    if create_list is not None:
+        list_desc = f"{create_list.lower()} list"
+        if list_nesting_level is not None and list_nesting_level > 0:
+            list_desc += f" (level {list_nesting_level})"
+        summary_parts.append(list_desc)
 
     link = f"https://docs.google.com/document/d/{document_id}/edit"
-    return f"Applied paragraph style ({', '.join(summary_parts)}) to range {start_index}-{end_index} in document {document_id}. Link: {link}"
+    return f"Applied paragraph formatting ({', '.join(summary_parts)}) to range {start_index}-{end_index} in document {document_id}. Link: {link}"
 
 
 # Create comment management tools for documents

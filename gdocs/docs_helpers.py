@@ -279,7 +279,10 @@ def create_insert_image_request(
 
 
 def create_bullet_list_request(
-    start_index: int, end_index: int, list_type: str = "UNORDERED"
+    start_index: int,
+    end_index: int,
+    list_type: str = "UNORDERED",
+    nesting_level: int = None,
 ) -> Dict[str, Any]:
     """
     Create a createParagraphBullets request for Google Docs API.
@@ -288,6 +291,7 @@ def create_bullet_list_request(
         start_index: Start of text range to convert to list
         end_index: End of text range to convert to list
         list_type: Type of list ("UNORDERED" or "ORDERED")
+        nesting_level: Nesting level (0-8, where 0 is top level). If None, uses default behavior.
 
     Returns:
         Dictionary representing the createParagraphBullets request
@@ -298,12 +302,18 @@ def create_bullet_list_request(
         else "NUMBERED_DECIMAL_ALPHA_ROMAN"
     )
 
-    return {
+    request = {
         "createParagraphBullets": {
             "range": {"startIndex": start_index, "endIndex": end_index},
             "bulletPreset": bullet_preset,
         }
     }
+
+    # Add nesting level if specified
+    if nesting_level is not None:
+        request["createParagraphBullets"]["nestingLevel"] = nesting_level
+
+    return request
 
 
 def validate_operation(operation: Dict[str, Any]) -> tuple[bool, str]:
