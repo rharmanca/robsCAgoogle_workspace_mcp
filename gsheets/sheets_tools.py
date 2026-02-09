@@ -213,31 +213,39 @@ async def read_sheet_values(
 
     hyperlink_section = ""
     if include_hyperlinks:
-        hyperlink_range = resolved_range
-        cell_count = _a1_range_cell_count(hyperlink_range) or sum(
-            len(row) for row in values
-        )
-        if cell_count <= MAX_HYPERLINK_FETCH_CELLS:
-            try:
-                hyperlinks = await _fetch_sheet_hyperlinks(
-                    service, spreadsheet_id, hyperlink_range
-                )
-                hyperlink_section = _format_sheet_hyperlink_section(
-                    hyperlinks=hyperlinks, range_label=hyperlink_range
-                )
-            except Exception as exc:
-                logger.warning(
-                    "[read_sheet_values] Failed fetching hyperlinks for range '%s': %s",
-                    hyperlink_range,
-                    exc,
-                )
-        else:
+        # Use a tight A1 range for includeGridData fetches to avoid expensive
+        # open-ended requests (e.g., A:Z).
+        hyperlink_range = _a1_range_for_values(resolved_range, values)
+        if not hyperlink_range:
             logger.info(
-                "[read_sheet_values] Skipping hyperlink fetch for large range '%s' (%d cells > %d limit)",
-                hyperlink_range,
-                cell_count,
-                MAX_HYPERLINK_FETCH_CELLS,
+                "[read_sheet_values] Skipping hyperlink fetch for range '%s': unable to determine tight bounds",
+                resolved_range,
             )
+        else:
+            cell_count = _a1_range_cell_count(hyperlink_range) or sum(
+                len(row) for row in values
+            )
+            if cell_count <= MAX_HYPERLINK_FETCH_CELLS:
+                try:
+                    hyperlinks = await _fetch_sheet_hyperlinks(
+                        service, spreadsheet_id, hyperlink_range
+                    )
+                    hyperlink_section = _format_sheet_hyperlink_section(
+                        hyperlinks=hyperlinks, range_label=hyperlink_range
+                    )
+                except Exception as exc:
+                    logger.warning(
+                        "[read_sheet_values] Failed fetching hyperlinks for range '%s': %s",
+                        hyperlink_range,
+                        exc,
+                    )
+            else:
+                logger.info(
+                    "[read_sheet_values] Skipping hyperlink fetch for large range '%s' (%d cells > %d limit)",
+                    hyperlink_range,
+                    cell_count,
+                    MAX_HYPERLINK_FETCH_CELLS,
+                )
 
     detailed_errors_section = ""
     if _values_contain_sheets_errors(values):
