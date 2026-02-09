@@ -55,6 +55,7 @@ Repository = "https://github.com/taylorwilsdon/google_workspace_mcp"
 Documentation = "https://github.com/taylorwilsdon/google_workspace_mcp#readme"
 Issues = "https://github.com/taylorwilsdon/google_workspace_mcp/issues"
 Changelog = "https://github.com/taylorwilsdon/google_workspace_mcp/releases"
+"mcp-name" = "io.github.taylorwilsdon.workspace-mcp"
 
 [project.scripts]
 workspace-mcp = "main:main"
