@@ -420,6 +420,7 @@ def get_auth_provider() -> Optional[GoogleProvider]:
     return _auth_provider
 
 
+@server.custom_route("/", methods=["GET"])
 @server.custom_route("/health", methods=["GET"])
 async def health_check(request: Request):
     try:
