@@ -4,6 +4,7 @@ __pycache__/
 *.so
 .mcp.json
 claude.md
+.beads/issues.jsonl
 
 # ---- Packaging ---------------------------------------------------------
 *.egg-info/
