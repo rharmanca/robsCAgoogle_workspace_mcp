@@ -56,6 +56,8 @@ A production-ready MCP server that integrates all major Google Workspace service
 
 **Simplified Setup**: Now uses Google Desktop OAuth clients - no redirect URIs or port configuration needed!
 
+**Maintainer Docs**: Automated release and registry publishing guide at [`docs/mcp_registry_publishing_guide.md`](docs/mcp_registry_publishing_guide.md).
+
 ## <span style="color:#adbcbc">Features</span>
 
 <table align="center" style="width: 100%; max-width: 100%;">
