@@ -105,6 +105,7 @@ async def _get_script_project_impl(
     """Internal implementation for get_script_project."""
     logger.info(f"[get_script_project] Email: {user_google_email}, ID: {script_id}")
 
+    # Get project metadata
     project = await asyncio.to_thread(
         service.projects().get(scriptId=script_id).execute
     )
@@ -115,6 +116,11 @@ async def _get_script_project_impl(
     create_time = project.get("createTime", "Unknown")
     update_time = project.get("updateTime", "Unknown")
 
+    # Get project content (files) - must use getContent(), not get()
+    content = await asyncio.to_thread(
+        service.projects().getContent(scriptId=script_id).execute
+    )
+
     output = [
         f"Project: {title} (ID: {project_script_id})",
         f"Creator: {creator}",
@@ -124,7 +130,7 @@ async def _get_script_project_impl(
         "Files:",
     ]
 
-    files = project.get("files", [])
+    files = content.get("files", [])
     for i, file in enumerate(files, 1):
         file_name = file.get("name", "Untitled")
         file_type = file.get("type", "Unknown")
@@ -172,11 +178,12 @@ async def _get_script_content_impl(
         f"[get_script_content] Email: {user_google_email}, ID: {script_id}, File: {file_name}"
     )
 
-    project = await asyncio.to_thread(
-        service.projects().get(scriptId=script_id).execute
+    # Must use getContent() to retrieve files, not get() which only returns metadata
+    content = await asyncio.to_thread(
+        service.projects().getContent(scriptId=script_id).execute
     )
 
-    files = project.get("files", [])
+    files = content.get("files", [])
     target_file = None
 
     for file in files:
