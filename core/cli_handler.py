@@ -21,36 +21,11 @@ import sys
 from typing import Any, Dict, List, Optional
 
 from auth.oauth_config import set_transport_mode
+from pydantic_core import PydanticUndefined as _PYDANTIC_UNDEFINED
 
 logger = logging.getLogger(__name__)
 
-try:
-    from pydantic.fields import PydanticUndefined as _PYDANTIC_FIELDS_UNDEFINED
-except Exception:
-    _PYDANTIC_FIELDS_UNDEFINED = None
-
-try:
-    from pydantic.fields import Undefined as _PYDANTIC_V1_UNDEFINED
-except Exception:
-    _PYDANTIC_V1_UNDEFINED = None
-
-try:
-    from pydantic_core import PydanticUndefined as _PYDANTIC_CORE_UNDEFINED
-except Exception:
-    _PYDANTIC_CORE_UNDEFINED = None
-
-_PYDANTIC_UNDEFINED_SENTINELS = tuple(
-    sentinel
-    for sentinel in (
-        _PYDANTIC_FIELDS_UNDEFINED,
-        _PYDANTIC_V1_UNDEFINED,
-        _PYDANTIC_CORE_UNDEFINED,
-    )
-    if sentinel is not None
-)
-_PYDANTIC_UNDEFINED_TYPES = tuple(
-    {type(sentinel) for sentinel in _PYDANTIC_UNDEFINED_SENTINELS}
-)
+_PYDANTIC_UNDEFINED_TYPE = type(_PYDANTIC_UNDEFINED)
 
 
 def _is_fastapi_param_marker(default: Any) -> bool:
@@ -71,12 +46,7 @@ def _is_required_marker_default(value: Any) -> bool:
     if value is Ellipsis or value is inspect.Parameter.empty:
         return True
 
-    if any(value is sentinel for sentinel in _PYDANTIC_UNDEFINED_SENTINELS):
-        return True
-
-    return bool(_PYDANTIC_UNDEFINED_TYPES) and isinstance(
-        value, _PYDANTIC_UNDEFINED_TYPES
-    )
+    return value is _PYDANTIC_UNDEFINED or isinstance(value, _PYDANTIC_UNDEFINED_TYPE)
 
 
 def _extract_fastapi_default(default_marker: Any) -> tuple[bool, Any]:
