@@ -618,8 +618,13 @@ def get_credentials(
                                 )
                                 # Persist to file so rotated refresh tokens survive restarts
                                 if not is_stateless_mode():
-                                    credential_store = get_credential_store()
-                                    credential_store.store_credential(user_email, credentials)
+                                    try:
+                                        credential_store = get_credential_store()
+                                        credential_store.store_credential(user_email, credentials)
+                                    except Exception as persist_error:
+                                        logger.warning(
+                                            f"[get_credentials] Failed to persist refreshed OAuth 2.1 credentials for user {user_email}: {persist_error}"
+                                        )
                             return credentials
                         except Exception as e:
                             logger.error(
