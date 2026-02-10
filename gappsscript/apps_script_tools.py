@@ -345,7 +345,7 @@ async def _run_script_function_impl(
     user_google_email: str,
     script_id: str,
     function_name: str,
-    parameters: Optional[List[Any]] = None,
+    parameters: Optional[list[object]] = None,
     dev_mode: bool = False,
 ) -> str:
     """Internal implementation for run_script_function."""
@@ -393,7 +393,7 @@ async def run_script_function(
     user_google_email: str,
     script_id: str,
     function_name: str,
-    parameters: Optional[List[Any]] = None,
+    parameters: Optional[list[object]] = None,
     dev_mode: bool = False,
 ) -> str:
     """
