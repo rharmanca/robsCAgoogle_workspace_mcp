@@ -125,7 +125,7 @@ def _normalize_cli_args_for_tool(fn, args: Dict[str, Any]) -> Dict[str, Any]:
             continue
 
         is_required, resolved_default = _extract_fastapi_default(param.default)
-        if is_required:
+        if is_required or resolved_default is inspect.Parameter.empty:
             missing_required.append(param.name)
         else:
             normalized_args[param.name] = resolved_default
