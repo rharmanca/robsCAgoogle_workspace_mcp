@@ -620,7 +620,9 @@ def get_credentials(
                                 if not is_stateless_mode():
                                     try:
                                         credential_store = get_credential_store()
-                                        credential_store.store_credential(user_email, credentials)
+                                        credential_store.store_credential(
+                                            user_email, credentials
+                                        )
                                     except Exception as persist_error:
                                         logger.warning(
                                             f"[get_credentials] Failed to persist refreshed OAuth 2.1 credentials for user {user_email}: {persist_error}"

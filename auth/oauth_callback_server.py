@@ -54,12 +54,13 @@ class MinimalOAuthServer:
         @self.app.get("/oauth2callback")
         async def oauth_callback(request: Request):
             """Handle OAuth callback - same logic as in core/server.py"""
-            state = request.query_params.get("state")
             code = request.query_params.get("code")
             error = request.query_params.get("error")
 
             if error:
-                error_message = f"Authentication failed: Google returned an error: {error}."
+                error_message = (
+                    f"Authentication failed: Google returned an error: {error}."
+                )
                 logger.error(error_message)
                 return create_error_response(error_message)
 
@@ -99,9 +100,7 @@ class MinimalOAuthServer:
                 return create_success_response(verified_user_id)
 
             except Exception as e:
-                error_message_detail = (
-                    f"Error processing OAuth callback: {str(e)}"
-                )
+                error_message_detail = f"Error processing OAuth callback: {str(e)}"
                 logger.error(error_message_detail, exc_info=True)
                 return create_server_error_response(str(e))
 
