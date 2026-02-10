@@ -392,7 +392,7 @@ async def start_auth_flow(
         store.store_oauth_state(oauth_state, session_id=session_id)
 
         logger.info(
-            f"Auth flow started for {user_display_name}. State: {oauth_state[:8]}... Advise user to visit: {auth_url}"
+            f"Auth flow started for {user_display_name}. Advise user to visit: {auth_url}"
         )
 
         message_lines = [
@@ -616,6 +616,17 @@ def get_credentials(
                                     expiry=credentials.expiry,
                                     mcp_session_id=session_id,
                                 )
+                                # Persist to file so rotated refresh tokens survive restarts
+                                if not is_stateless_mode():
+                                    try:
+                                        credential_store = get_credential_store()
+                                        credential_store.store_credential(
+                                            user_email, credentials
+                                        )
+                                    except Exception as persist_error:
+                                        logger.warning(
+                                            f"[get_credentials] Failed to persist refreshed OAuth 2.1 credentials for user {user_email}: {persist_error}"
+                                        )
                             return credentials
                         except Exception as e:
                             logger.error(
