@@ -97,11 +97,17 @@ def _normalize_cli_args_for_tool(fn, args: Dict[str, Any]) -> Dict[str, Any]:
     if missing_required:
         if len(missing_required) == 1:
             missing = missing_required[0]
-            raise TypeError(f"{fn.__name__}() missing 1 required argument: '{missing}'")
+            raise TypeError(
+                f"{fn.__name__}() missing 1 required positional argument: '{missing}'"
+            )
 
-        missing = ", ".join(f"'{name}'" for name in missing_required)
+        missing_names = [f"'{name}'" for name in missing_required]
+        if len(missing_names) == 2:
+            missing = " and ".join(missing_names)
+        else:
+            missing = ", ".join(missing_names[:-1]) + f" and {missing_names[-1]}"
         raise TypeError(
-            f"{fn.__name__}() missing {len(missing_required)} required arguments: {missing}"
+            f"{fn.__name__}() missing {len(missing_required)} required positional arguments: {missing}"
         )
 
     return normalized_args
