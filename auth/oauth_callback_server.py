@@ -59,7 +59,7 @@ class MinimalOAuthServer:
             error = request.query_params.get("error")
 
             if error:
-                error_message = f"Authentication failed: Google returned an error: {error}. State: {state}."
+                error_message = f"Authentication failed: Google returned an error: {error}."
                 logger.error(error_message)
                 return create_error_response(error_message)
 
@@ -77,7 +77,7 @@ class MinimalOAuthServer:
                     return create_server_error_response(error_message)
 
                 logger.info(
-                    f"OAuth callback: Received code (state: {state}). Attempting to exchange for tokens."
+                    "OAuth callback: Received authorization code. Attempting to exchange for tokens."
                 )
 
                 # Session ID tracking removed - not needed
@@ -92,7 +92,7 @@ class MinimalOAuthServer:
                 )
 
                 logger.info(
-                    f"OAuth callback: Successfully authenticated user: {verified_user_id} (state: {state})."
+                    f"OAuth callback: Successfully authenticated user: {verified_user_id}."
                 )
 
                 # Return success page using shared template
@@ -100,7 +100,7 @@ class MinimalOAuthServer:
 
             except Exception as e:
                 error_message_detail = (
-                    f"Error processing OAuth callback (state: {state}): {str(e)}"
+                    f"Error processing OAuth callback: {str(e)}"
                 )
                 logger.error(error_message_detail, exc_info=True)
                 return create_server_error_response(str(e))
