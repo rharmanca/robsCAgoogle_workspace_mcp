@@ -105,9 +105,10 @@ async def _get_script_project_impl(
     """Internal implementation for get_script_project."""
     logger.info(f"[get_script_project] Email: {user_google_email}, ID: {script_id}")
 
-    # Get project metadata
-    project = await asyncio.to_thread(
-        service.projects().get(scriptId=script_id).execute
+    # Get project metadata and content concurrently (independent requests)
+    project, content = await asyncio.gather(
+        asyncio.to_thread(service.projects().get(scriptId=script_id).execute),
+        asyncio.to_thread(service.projects().getContent(scriptId=script_id).execute),
     )
 
     title = project.get("title", "Untitled")
@@ -115,11 +116,6 @@ async def _get_script_project_impl(
     creator = project.get("creator", {}).get("email", "Unknown")
     create_time = project.get("createTime", "Unknown")
     update_time = project.get("updateTime", "Unknown")
-
-    # Get project content (files) - must use getContent(), not get()
-    content = await asyncio.to_thread(
-        service.projects().getContent(scriptId=script_id).execute
-    )
 
     output = [
         f"Project: {title} (ID: {project_script_id})",
