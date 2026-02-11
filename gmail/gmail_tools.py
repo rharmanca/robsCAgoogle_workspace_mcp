@@ -1357,6 +1357,9 @@ def _format_thread_content(thread_data: dict, thread_id: str) -> str:
         sender = headers.get("From", "(unknown sender)")
         date = headers.get("Date", "(unknown date)")
         subject = headers.get("Subject", "(no subject)")
+        rfc822_message_id = headers.get("Message-ID", "")
+        in_reply_to = headers.get("In-Reply-To", "")
+        references = headers.get("References", "")
 
         # Extract both text and HTML bodies
         payload = message.get("payload", {})
@@ -1375,6 +1378,13 @@ def _format_thread_content(thread_data: dict, thread_id: str) -> str:
                 f"Date: {date}",
             ]
         )
+
+        if rfc822_message_id:
+            content_lines.append(f"Message-ID: {rfc822_message_id}")
+        if in_reply_to:
+            content_lines.append(f"In-Reply-To: {in_reply_to}")
+        if references:
+            content_lines.append(f"References: {references}")
 
         # Only show subject if it's different from thread subject
         if subject != thread_subject:
