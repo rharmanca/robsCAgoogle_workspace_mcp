@@ -565,6 +565,9 @@ async def create_drive_file(
             )
         # Handle HTTP/HTTPS URLs
         elif parsed_url.scheme in ("http", "https"):
+            # SSRF protection: block internal/private network URLs
+            _validate_url_not_internal(fileUrl)
+
             # when running in stateless mode, deployment may not have access to local file system
             if is_stateless_mode():
                 async with httpx.AsyncClient(follow_redirects=True) as client:
