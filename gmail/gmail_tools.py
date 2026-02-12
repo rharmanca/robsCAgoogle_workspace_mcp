@@ -1829,8 +1829,8 @@ async def modify_gmail_message_labels(
     service,
     user_google_email: str,
     message_id: str,
-    add_label_ids: List[str] = [],
-    remove_label_ids: List[str] = [],
+    add_label_ids: Optional[List[str]] = None,
+    remove_label_ids: Optional[List[str]] = None,
 ) -> str:
     """
     Adds or removes labels from a Gmail message.
@@ -1881,8 +1881,8 @@ async def batch_modify_gmail_message_labels(
     service,
     user_google_email: str,
     message_ids: List[str],
-    add_label_ids: List[str] = [],
-    remove_label_ids: List[str] = [],
+    add_label_ids: Optional[List[str]] = None,
+    remove_label_ids: Optional[List[str]] = None,
 ) -> str:
     """
     Adds or removes labels from multiple Gmail messages in a single batch request.
