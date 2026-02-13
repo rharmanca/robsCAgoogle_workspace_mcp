@@ -66,7 +66,6 @@ def validate_file_path(file_path: str) -> Path:
     Raises:
         ValueError: If the path is outside allowed directories or targets
                     a sensitive location.
-        FileNotFoundError: If the resolved path does not exist.
     """
     resolved = Path(file_path).resolve()
 
