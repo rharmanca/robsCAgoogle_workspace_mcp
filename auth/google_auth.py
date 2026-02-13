@@ -612,9 +612,13 @@ def get_credentials(
                                     user_email=user_email,
                                     access_token=credentials.token,
                                     refresh_token=credentials.refresh_token,
+                                    token_uri=credentials.token_uri,
+                                    client_id=credentials.client_id,
+                                    client_secret=credentials.client_secret,
                                     scopes=credentials.scopes,
                                     expiry=credentials.expiry,
                                     mcp_session_id=session_id,
+                                    issuer="https://accounts.google.com",
                                 )
                                 # Persist to file so rotated refresh tokens survive restarts
                                 if not is_stateless_mode():
