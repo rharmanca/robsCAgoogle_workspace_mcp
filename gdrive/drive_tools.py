@@ -14,7 +14,7 @@ import socket
 
 from typing import Optional, List, Dict, Any
 from tempfile import NamedTemporaryFile
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse, urlunparse
 from urllib.request import url2pathname
 from pathlib import Path
 
@@ -24,7 +24,7 @@ from googleapiclient.http import MediaIoBaseDownload, MediaIoBaseUpload
 from auth.service_decorator import require_google_service
 from auth.oauth_config import is_stateless_mode
 from core.attachment_storage import get_attachment_storage, get_attachment_url
-from core.utils import extract_office_xml_text, handle_http_errors
+from core.utils import extract_office_xml_text, handle_http_errors, validate_file_path
 from core.server import server
 from core.config import get_transport_mode
 from gdrive.drive_helpers import (
@@ -521,8 +521,8 @@ async def create_drive_file(
                 raw_path = f"//{netloc}{raw_path}"
             file_path = url2pathname(raw_path)
 
-            # Verify file exists
-            path_obj = Path(file_path)
+            # Validate path safety and verify file exists
+            path_obj = validate_file_path(file_path)
             if not path_obj.exists():
                 extra = (
                     " The server is running via streamable-http, so file:// URLs must point to files inside the container or remote host."
@@ -565,26 +565,22 @@ async def create_drive_file(
             )
         # Handle HTTP/HTTPS URLs
         elif parsed_url.scheme in ("http", "https"):
-            # SSRF protection: block internal/private network URLs
-            _validate_url_not_internal(fileUrl)
-
             # when running in stateless mode, deployment may not have access to local file system
             if is_stateless_mode():
-                async with httpx.AsyncClient(follow_redirects=True) as client:
-                    resp = await client.get(fileUrl)
-                    if resp.status_code != 200:
-                        raise Exception(
-                            f"Failed to fetch file from URL: {fileUrl} (status {resp.status_code})"
-                        )
-                    file_data = await resp.aread()
-                    # Try to get MIME type from Content-Type header
-                    content_type = resp.headers.get("Content-Type")
-                    if content_type and content_type != "application/octet-stream":
-                        mime_type = content_type
-                        file_metadata["mimeType"] = content_type
-                        logger.info(
-                            f"[create_drive_file] Using MIME type from Content-Type header: {content_type}"
-                        )
+                resp = await _ssrf_safe_fetch(fileUrl)
+                if resp.status_code != 200:
+                    raise Exception(
+                        f"Failed to fetch file from URL: {fileUrl} (status {resp.status_code})"
+                    )
+                file_data = resp.content
+                # Try to get MIME type from Content-Type header
+                content_type = resp.headers.get("Content-Type")
+                if content_type and content_type != "application/octet-stream":
+                    mime_type = content_type
+                    file_metadata["mimeType"] = content_type
+                    logger.info(
+                        f"[create_drive_file] Using MIME type from Content-Type header: {content_type}"
+                    )
 
                 media = MediaIoBaseUpload(
                     io.BytesIO(file_data),
@@ -607,36 +603,32 @@ async def create_drive_file(
                 # Use NamedTemporaryFile to stream download and upload
                 with NamedTemporaryFile() as temp_file:
                     total_bytes = 0
-                    # follow redirects
-                    async with httpx.AsyncClient(follow_redirects=True) as client:
-                        async with client.stream("GET", fileUrl) as resp:
-                            if resp.status_code != 200:
-                                raise Exception(
-                                    f"Failed to fetch file from URL: {fileUrl} (status {resp.status_code})"
-                                )
+                    # Use SSRF-safe fetch (validates each redirect target)
+                    resp = await _ssrf_safe_fetch(fileUrl)
+                    if resp.status_code != 200:
+                        raise Exception(
+                            f"Failed to fetch file from URL: {fileUrl} (status {resp.status_code})"
+                        )
 
-                            # Stream download in chunks
-                            async for chunk in resp.aiter_bytes(
-                                chunk_size=DOWNLOAD_CHUNK_SIZE_BYTES
-                            ):
-                                await asyncio.to_thread(temp_file.write, chunk)
-                                total_bytes += len(chunk)
+                    file_data = resp.content
+                    await asyncio.to_thread(temp_file.write, file_data)
+                    total_bytes = len(file_data)
 
-                            logger.info(
-                                f"[create_drive_file] Downloaded {total_bytes} bytes from URL before upload."
-                            )
+                    logger.info(
+                        f"[create_drive_file] Downloaded {total_bytes} bytes from URL before upload."
+                    )
 
-                            # Try to get MIME type from Content-Type header
-                            content_type = resp.headers.get("Content-Type")
-                            if (
-                                content_type
-                                and content_type != "application/octet-stream"
-                            ):
-                                mime_type = content_type
-                                file_metadata["mimeType"] = mime_type
-                                logger.info(
-                                    f"[create_drive_file] Using MIME type from Content-Type header: {mime_type}"
-                                )
+                    # Try to get MIME type from Content-Type header
+                    content_type = resp.headers.get("Content-Type")
+                    if (
+                        content_type
+                        and content_type != "application/octet-stream"
+                    ):
+                        mime_type = content_type
+                        file_metadata["mimeType"] = mime_type
+                        logger.info(
+                            f"[create_drive_file] Using MIME type from Content-Type header: {mime_type}"
+                        )
 
                     # Reset file pointer to beginning for upload
                     temp_file.seek(0)
@@ -708,16 +700,18 @@ GOOGLE_DOCS_IMPORT_FORMATS = {
 GOOGLE_DOCS_MIME_TYPE = "application/vnd.google-apps.document"
 
 
-def _validate_url_not_internal(url: str) -> None:
+def _resolve_and_validate_host(hostname: str) -> list[str]:
     """
-    Validate that a URL doesn't point to internal/private networks (SSRF protection).
+    Resolve a hostname to IP addresses and validate none are private/internal.
+
+    Uses getaddrinfo to handle both IPv4 and IPv6. Fails closed on DNS errors.
+
+    Returns:
+        list[str]: Validated resolved IP address strings.
 
     Raises:
-        ValueError: If URL points to localhost or private IP ranges
+        ValueError: If hostname resolves to private/internal IPs or DNS fails.
     """
-    parsed = urlparse(url)
-    hostname = parsed.hostname
-
     if not hostname:
         raise ValueError("Invalid URL: no hostname")
 
@@ -725,15 +719,186 @@ def _validate_url_not_internal(url: str) -> None:
     if hostname.lower() in ("localhost", "127.0.0.1", "::1", "0.0.0.0"):
         raise ValueError("URLs pointing to localhost are not allowed")
 
-    # Resolve hostname and check if it's a private IP
+    # Resolve hostname using getaddrinfo (handles both IPv4 and IPv6)
     try:
-        ip = ipaddress.ip_address(socket.gethostbyname(hostname))
-        if ip.is_private or ip.is_loopback or ip.is_reserved:
+        addr_infos = socket.getaddrinfo(hostname, None)
+    except socket.gaierror as e:
+        raise ValueError(
+            f"Cannot resolve hostname '{hostname}': {e}. "
+            "Refusing request (fail-closed)."
+        )
+
+    if not addr_infos:
+        raise ValueError(f"No addresses found for hostname: {hostname}")
+
+    resolved_ips: list[str] = []
+    seen_ips: set[str] = set()
+    for _family, _type, _proto, _canonname, sockaddr in addr_infos:
+        ip_str = sockaddr[0]
+        ip = ipaddress.ip_address(ip_str)
+        if (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_reserved
+            or ip.is_link_local
+            or ip.is_multicast
+            or ip.is_unspecified
+        ):
             raise ValueError(
-                f"URLs pointing to private/internal networks are not allowed: {hostname}"
+                f"URLs pointing to private/internal networks are not allowed: "
+                f"{hostname} resolves to {ip_str}"
             )
-    except socket.gaierror:
-        pass  # Can't resolve, let httpx handle it
+        if ip_str not in seen_ips:
+            seen_ips.add(ip_str)
+            resolved_ips.append(ip_str)
+
+    return resolved_ips
+
+
+def _validate_url_not_internal(url: str) -> list[str]:
+    """
+    Validate that a URL doesn't point to internal/private networks (SSRF protection).
+
+    Returns:
+        list[str]: Validated resolved IP addresses for the hostname.
+
+    Raises:
+        ValueError: If URL points to localhost or private IP ranges.
+    """
+    parsed = urlparse(url)
+    return _resolve_and_validate_host(parsed.hostname)
+
+
+def _format_host_header(hostname: str, scheme: str, port: Optional[int]) -> str:
+    """Format the Host header value for IPv4/IPv6 hostnames."""
+    host_value = hostname
+    if ":" in host_value and not host_value.startswith("["):
+        host_value = f"[{host_value}]"
+
+    is_default_port = (
+        (scheme == "http" and (port is None or port == 80))
+        or (scheme == "https" and (port is None or port == 443))
+    )
+    if not is_default_port and port is not None:
+        host_value = f"{host_value}:{port}"
+    return host_value
+
+
+def _build_pinned_url(parsed_url, ip_address_str: str) -> str:
+    """Build a URL that targets a resolved IP while preserving path/query."""
+    pinned_host = ip_address_str
+    if ":" in pinned_host and not pinned_host.startswith("["):
+        pinned_host = f"[{pinned_host}]"
+
+    userinfo = ""
+    if parsed_url.username is not None:
+        userinfo = parsed_url.username
+        if parsed_url.password is not None:
+            userinfo += f":{parsed_url.password}"
+        userinfo += "@"
+
+    port_part = f":{parsed_url.port}" if parsed_url.port is not None else ""
+    netloc = f"{userinfo}{pinned_host}{port_part}"
+
+    path = parsed_url.path or "/"
+    return urlunparse(
+        (
+            parsed_url.scheme,
+            netloc,
+            path,
+            parsed_url.params,
+            parsed_url.query,
+            parsed_url.fragment,
+        )
+    )
+
+
+async def _fetch_url_with_pinned_ip(url: str) -> httpx.Response:
+    """
+    Fetch URL content by connecting to a validated, pre-resolved IP address.
+
+    This prevents DNS rebinding between validation and the outbound connection.
+    """
+    parsed_url = urlparse(url)
+    if parsed_url.scheme not in ("http", "https"):
+        raise ValueError(f"Only http:// and https:// are supported: {url}")
+    if not parsed_url.hostname:
+        raise ValueError(f"Invalid URL: missing hostname ({url})")
+
+    resolved_ips = _validate_url_not_internal(url)
+    host_header = _format_host_header(
+        parsed_url.hostname, parsed_url.scheme, parsed_url.port
+    )
+
+    last_error: Optional[Exception] = None
+    for resolved_ip in resolved_ips:
+        pinned_url = _build_pinned_url(parsed_url, resolved_ip)
+        try:
+            async with httpx.AsyncClient(follow_redirects=False, trust_env=False) as client:
+                request = client.build_request(
+                    "GET",
+                    pinned_url,
+                    headers={"Host": host_header},
+                    extensions={"sni_hostname": parsed_url.hostname},
+                )
+                return await client.send(request)
+        except httpx.HTTPError as exc:
+            last_error = exc
+            logger.warning(
+                f"[ssrf_safe_fetch] Failed request via resolved IP {resolved_ip} for host "
+                f"{parsed_url.hostname}: {exc}"
+            )
+
+    raise Exception(
+        f"Failed to fetch URL after trying {len(resolved_ips)} validated IP(s): {url}"
+    ) from last_error
+
+
+async def _ssrf_safe_fetch(url: str, *, stream: bool = False) -> httpx.Response:
+    """
+    Fetch a URL with SSRF protection that covers redirects and DNS rebinding.
+
+    Validates the initial URL and every redirect target against private/internal
+    networks. Disables automatic redirect following and handles redirects manually.
+
+    Args:
+        url: The URL to fetch.
+        stream: If True, returns a streaming response (caller must manage context).
+
+    Returns:
+        httpx.Response with the final response content.
+
+    Raises:
+        ValueError: If any URL in the redirect chain points to a private network.
+        Exception: If the HTTP request fails.
+    """
+    if stream:
+        raise ValueError("Streaming mode is not supported by _ssrf_safe_fetch.")
+
+    max_redirects = 10
+    current_url = url
+
+    for _ in range(max_redirects):
+        resp = await _fetch_url_with_pinned_ip(current_url)
+
+        if resp.status_code in (301, 302, 303, 307, 308):
+            location = resp.headers.get("location")
+            if not location:
+                raise Exception(f"Redirect with no Location header from {current_url}")
+
+            # Resolve relative redirects against the current URL
+            location = urljoin(current_url, location)
+
+            redirect_parsed = urlparse(location)
+            if redirect_parsed.scheme not in ("http", "https"):
+                raise ValueError(f"Redirect to disallowed scheme: {redirect_parsed.scheme}")
+
+            current_url = location
+            continue
+
+        return resp
+
+    raise Exception(f"Too many redirects (max {max_redirects}) fetching {url}")
 
 
 def _detect_source_format(file_name: str, content: Optional[str] = None) -> str:
@@ -865,7 +1030,7 @@ async def import_to_google_doc(
                 f"file_path should be a local path or file:// URL, got: {file_path}"
             )
 
-        path_obj = Path(actual_path)
+        path_obj = validate_file_path(actual_path)
         if not path_obj.exists():
             raise FileNotFoundError(f"File not found: {actual_path}")
         if not path_obj.is_file():
@@ -887,16 +1052,13 @@ async def import_to_google_doc(
         if parsed_url.scheme not in ("http", "https"):
             raise ValueError(f"file_url must be http:// or https://, got: {file_url}")
 
-        # SSRF protection: block internal/private network URLs
-        _validate_url_not_internal(file_url)
-
-        async with httpx.AsyncClient(follow_redirects=True) as client:
-            resp = await client.get(file_url)
-            if resp.status_code != 200:
-                raise Exception(
-                    f"Failed to fetch file from URL: {file_url} (status {resp.status_code})"
-                )
-            file_data = resp.content
+        # SSRF protection: block internal/private network URLs and validate redirects
+        resp = await _ssrf_safe_fetch(file_url)
+        if resp.status_code != 200:
+            raise Exception(
+                f"Failed to fetch file from URL: {file_url} (status {resp.status_code})"
+            )
+        file_data = resp.content
 
         logger.info(
             f"[import_to_google_doc] Downloaded from URL: {len(file_data)} bytes"
