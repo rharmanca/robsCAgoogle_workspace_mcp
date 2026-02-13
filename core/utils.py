@@ -40,7 +40,11 @@ def _get_allowed_file_dirs() -> list[Path]:
     """Return the list of directories from which local file access is permitted."""
     env_val = os.environ.get(_ALLOWED_FILE_DIRS_ENV)
     if env_val:
-        return [Path(p).expanduser().resolve() for p in env_val.split(os.pathsep) if p.strip()]
+        return [
+            Path(p).expanduser().resolve()
+            for p in env_val.split(os.pathsep)
+            if p.strip()
+        ]
     home = Path.home()
     return [home] if home else []
 
