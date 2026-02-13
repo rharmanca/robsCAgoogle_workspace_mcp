@@ -333,7 +333,7 @@ class ValidationManager:
                         False,
                         f"{name} must be a number, got {type(param).__name__}",
                     )
-                if param < 0:
+                if name != "indent_first_line" and param < 0:
                     return False, f"{name} must be non-negative, got {param}"
 
         return True, ""
@@ -648,7 +648,12 @@ class ValidationManager:
             "constraints": self.validation_rules.copy(),
             "supported_operations": {
                 "table_operations": ["create_table", "populate_table"],
-                "text_operations": ["insert_text", "format_text", "find_replace"],
+                "text_operations": [
+                    "insert_text",
+                    "format_text",
+                    "find_replace",
+                    "update_paragraph_style",
+                ],
                 "element_operations": [
                     "insert_table",
                     "insert_list",
