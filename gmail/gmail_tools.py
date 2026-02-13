@@ -9,7 +9,6 @@ import asyncio
 import base64
 import ssl
 import mimetypes
-from pathlib import Path
 from html.parser import HTMLParser
 from typing import Annotated, Optional, List, Dict, Literal, Any
 

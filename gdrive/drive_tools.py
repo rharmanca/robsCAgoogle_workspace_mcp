@@ -620,10 +620,7 @@ async def create_drive_file(
 
                     # Try to get MIME type from Content-Type header
                     content_type = resp.headers.get("Content-Type")
-                    if (
-                        content_type
-                        and content_type != "application/octet-stream"
-                    ):
+                    if content_type and content_type != "application/octet-stream":
                         mime_type = content_type
                         file_metadata["mimeType"] = mime_type
                         logger.info(
@@ -775,9 +772,8 @@ def _format_host_header(hostname: str, scheme: str, port: Optional[int]) -> str:
     if ":" in host_value and not host_value.startswith("["):
         host_value = f"[{host_value}]"
 
-    is_default_port = (
-        (scheme == "http" and (port is None or port == 80))
-        or (scheme == "https" and (port is None or port == 443))
+    is_default_port = (scheme == "http" and (port is None or port == 80)) or (
+        scheme == "https" and (port is None or port == 443)
     )
     if not is_default_port and port is not None:
         host_value = f"{host_value}:{port}"
@@ -834,7 +830,9 @@ async def _fetch_url_with_pinned_ip(url: str) -> httpx.Response:
     for resolved_ip in resolved_ips:
         pinned_url = _build_pinned_url(parsed_url, resolved_ip)
         try:
-            async with httpx.AsyncClient(follow_redirects=False, trust_env=False) as client:
+            async with httpx.AsyncClient(
+                follow_redirects=False, trust_env=False
+            ) as client:
                 request = client.build_request(
                     "GET",
                     pinned_url,
@@ -891,7 +889,9 @@ async def _ssrf_safe_fetch(url: str, *, stream: bool = False) -> httpx.Response:
 
             redirect_parsed = urlparse(location)
             if redirect_parsed.scheme not in ("http", "https"):
-                raise ValueError(f"Redirect to disallowed scheme: {redirect_parsed.scheme}")
+                raise ValueError(
+                    f"Redirect to disallowed scheme: {redirect_parsed.scheme}"
+                )
 
             current_url = location
             continue

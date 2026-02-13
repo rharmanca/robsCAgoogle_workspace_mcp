@@ -79,9 +79,13 @@ def validate_file_path(file_path: str) -> Path:
 
     # Block well-known sensitive system paths (including macOS /private variants)
     sensitive_prefixes = (
-        "/proc", "/sys", "/dev",
-        "/etc/shadow", "/etc/passwd",
-        "/private/etc/shadow", "/private/etc/passwd",
+        "/proc",
+        "/sys",
+        "/dev",
+        "/etc/shadow",
+        "/etc/passwd",
+        "/private/etc/shadow",
+        "/private/etc/passwd",
     )
     for prefix in sensitive_prefixes:
         if resolved_str == prefix or resolved_str.startswith(prefix + "/"):
@@ -92,10 +96,17 @@ def validate_file_path(file_path: str) -> Path:
 
     # Block other credential/secret file patterns
     sensitive_names = {
-        ".credentials", ".credentials.json", "credentials.json",
-        "client_secret.json", "client_secrets.json",
-        "service_account.json", "service-account.json",
-        ".npmrc", ".pypirc", ".netrc", ".docker/config.json",
+        ".credentials",
+        ".credentials.json",
+        "credentials.json",
+        "client_secret.json",
+        "client_secrets.json",
+        "service_account.json",
+        "service-account.json",
+        ".npmrc",
+        ".pypirc",
+        ".netrc",
+        ".docker/config.json",
     }
     if file_name in sensitive_names:
         raise ValueError(
