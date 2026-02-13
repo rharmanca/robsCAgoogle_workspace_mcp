@@ -936,8 +936,8 @@ async def _ssrf_safe_stream(url: str) -> AsyncIterator[httpx.Response]:
         resp: Optional[httpx.Response] = None
         for resolved_ip in resolved_ips:
             pinned_url = _build_pinned_url(parsed, resolved_ip)
+            client = httpx.AsyncClient(follow_redirects=False, trust_env=False)
             try:
-                client = httpx.AsyncClient(follow_redirects=False, trust_env=False)
                 request = client.build_request(
                     "GET",
                     pinned_url,
@@ -953,6 +953,9 @@ async def _ssrf_safe_stream(url: str) -> AsyncIterator[httpx.Response]:
                     f"[ssrf_safe_stream] Failed via IP {resolved_ip} for "
                     f"{parsed.hostname}: {exc}"
                 )
+            except Exception:
+                await client.aclose()
+                raise
 
         if resp is None:
             raise Exception(
