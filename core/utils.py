@@ -70,6 +70,9 @@ def validate_file_path(file_path: str) -> Path:
     """
     resolved = Path(file_path).resolve()
 
+    if not resolved.exists():
+        raise FileNotFoundError(f"Path does not exist: {resolved}")
+
     # Block sensitive file patterns regardless of allowlist
     resolved_str = str(resolved)
     file_name = resolved.name.lower()
@@ -98,6 +101,23 @@ def validate_file_path(file_path: str) -> Path:
                 "path is in a restricted system location."
             )
 
+    # Block sensitive directories that commonly contain credentials/keys
+    sensitive_dirs = (
+        ".ssh",
+        ".aws",
+        ".kube",
+        ".gnupg",
+        ".config/gcloud",
+    )
+    for sensitive_dir in sensitive_dirs:
+        home = Path.home()
+        blocked = home / sensitive_dir
+        if resolved == blocked or str(resolved).startswith(str(blocked) + "/"):
+            raise ValueError(
+                f"Access to '{resolved_str}' is not allowed: "
+                "path is in a directory that commonly contains secrets or credentials."
+            )
+
     # Block other credential/secret file patterns
     sensitive_names = {
         ".credentials",
@@ -110,6 +130,7 @@ def validate_file_path(file_path: str) -> Path:
         ".npmrc",
         ".pypirc",
         ".netrc",
+        ".git-credentials",
         ".docker/config.json",
     }
     if file_name in sensitive_names:
