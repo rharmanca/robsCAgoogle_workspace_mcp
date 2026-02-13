@@ -1576,6 +1576,12 @@ The credential store automatically handles credential serialization, expiry pars
 - **Transport-Aware Callbacks**: Stdio mode starts a minimal HTTP server only for OAuth, ensuring callbacks work in all modes
 - **Production**: Use HTTPS & OAuth 2.1 and configure accordingly
 - **Scope Minimization**: Tools request only necessary permissions
+- **Local File Access Control**: Tools that read local files (e.g., attachments, `file://` uploads) are restricted to the user's home directory by default. Override this with the `ALLOWED_FILE_DIRS` environment variable:
+  ```bash
+  # Colon-separated list of directories (semicolon on Windows) from which local file reads are permitted
+  export ALLOWED_FILE_DIRS="/home/user/documents:/data/shared"
+  ```
+  Regardless of the allowlist, access to sensitive paths (`.env`, `.ssh/`, `.aws/`, `/etc/shadow`, credential files, etc.) is always blocked.
 
 ---
 

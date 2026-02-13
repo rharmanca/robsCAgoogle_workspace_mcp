@@ -9,7 +9,6 @@ import asyncio
 import base64
 import ssl
 import mimetypes
-from pathlib import Path
 from html.parser import HTMLParser
 from typing import Annotated, Optional, List, Dict, Literal, Any
 
@@ -22,7 +21,7 @@ from email.utils import formataddr
 from pydantic import Field
 
 from auth.service_decorator import require_google_service
-from core.utils import handle_http_errors
+from core.utils import handle_http_errors, validate_file_path
 from core.server import server
 from auth.scopes import (
     GMAIL_SEND_SCOPE,
@@ -288,7 +287,7 @@ def _prepare_gmail_message(
             try:
                 # If path is provided, read and encode the file
                 if file_path:
-                    path_obj = Path(file_path)
+                    path_obj = validate_file_path(file_path)
                     if not path_obj.exists():
                         logger.error(f"File not found: {file_path}")
                         continue
