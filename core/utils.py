@@ -32,7 +32,7 @@ class UserInputError(Exception):
 
 # Directories from which local file reads are allowed.
 # The user's home directory is the default safe base.
-# Override via ALLOWED_FILE_DIRS env var (colon-separated paths).
+# Override via ALLOWED_FILE_DIRS env var (os.pathsep-separated paths).
 _ALLOWED_FILE_DIRS_ENV = "ALLOWED_FILE_DIRS"
 
 
@@ -40,7 +40,7 @@ def _get_allowed_file_dirs() -> list[Path]:
     """Return the list of directories from which local file access is permitted."""
     env_val = os.environ.get(_ALLOWED_FILE_DIRS_ENV)
     if env_val:
-        return [Path(p).resolve() for p in env_val.split(":") if p.strip()]
+        return [Path(p).expanduser().resolve() for p in env_val.split(os.pathsep) if p.strip()]
     home = Path.home()
     return [home] if home else []
 

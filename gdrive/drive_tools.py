@@ -733,14 +733,7 @@ def _resolve_and_validate_host(hostname: str) -> list[str]:
     for _family, _type, _proto, _canonname, sockaddr in addr_infos:
         ip_str = sockaddr[0]
         ip = ipaddress.ip_address(ip_str)
-        if (
-            ip.is_private
-            or ip.is_loopback
-            or ip.is_reserved
-            or ip.is_link_local
-            or ip.is_multicast
-            or ip.is_unspecified
-        ):
+        if not ip.is_global:
             raise ValueError(
                 f"URLs pointing to private/internal networks are not allowed: "
                 f"{hostname} resolves to {ip_str}"
