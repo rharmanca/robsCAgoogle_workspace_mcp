@@ -631,10 +631,7 @@ async def create_drive_file(
                         f"from URL before upload."
                     )
 
-                    if (
-                        content_type
-                        and content_type != "application/octet-stream"
-                    ):
+                    if content_type and content_type != "application/octet-stream":
                         mime_type = content_type
                         file_metadata["mimeType"] = mime_type
                         logger.info(
