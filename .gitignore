@@ -33,9 +33,6 @@ mcp_server_debug.log
 .serena/
 Caddyfile
 ecosystem.config.cjs
-.serena/
-Caddyfile
-ecosystem.config.cjs
 
 # ---- Agent instructions (not for distribution) -------------------------
 .github/instructions/
