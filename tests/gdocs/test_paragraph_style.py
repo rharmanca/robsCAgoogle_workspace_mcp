@@ -85,8 +85,12 @@ class TestValidateParagraphStyleParams:
 
     def test_batch_validation_wired_up(self, vm):
         valid_ops = [
-            {"type": "update_paragraph_style", "start_index": 1,
-             "end_index": 20, "heading_level": 2},
+            {
+                "type": "update_paragraph_style",
+                "start_index": 1,
+                "end_index": 20,
+                "heading_level": 2,
+            },
         ]
         assert vm.validate_batch_operations(valid_ops)[0]
 
@@ -106,8 +110,11 @@ class TestBatchManagerIntegration:
     def test_build_request_and_description(self, manager):
         op = {
             "type": "update_paragraph_style",
-            "start_index": 1, "end_index": 50,
-            "heading_level": 2, "alignment": "CENTER", "line_spacing": 1.5,
+            "start_index": 1,
+            "end_index": 50,
+            "heading_level": 2,
+            "alignment": "CENTER",
+            "line_spacing": 1.5,
         }
         request, desc = manager._build_operation_request(op, "update_paragraph_style")
         assert "updateParagraphStyle" in request
@@ -119,8 +126,14 @@ class TestBatchManagerIntegration:
         manager._execute_batch_requests = AsyncMock(return_value={"replies": [{}]})
         success, message, meta = await manager.execute_batch_operations(
             "doc-123",
-            [{"type": "update_paragraph_style", "start_index": 1,
-              "end_index": 20, "heading_level": 1}],
+            [
+                {
+                    "type": "update_paragraph_style",
+                    "start_index": 1,
+                    "end_index": 20,
+                    "heading_level": 1,
+                }
+            ],
         )
         assert success
         assert meta["operations_count"] == 1
