@@ -38,6 +38,8 @@ class ValidationManager:
             "valid_section_types": ["header", "footer"],
             "valid_list_types": ["UNORDERED", "ORDERED"],
             "valid_element_types": ["table", "list", "page_break"],
+            "valid_alignments": ["START", "CENTER", "END", "JUSTIFIED"],
+            "heading_level_range": (0, 6),
         }
 
     def validate_document_id(self, document_id: str) -> Tuple[bool, str]:
@@ -237,6 +239,103 @@ class ValidationManager:
         )
         if not is_valid:
             return False, error_msg
+
+        return True, ""
+
+    def validate_paragraph_style_params(
+        self,
+        heading_level: Optional[int] = None,
+        alignment: Optional[str] = None,
+        line_spacing: Optional[float] = None,
+        indent_first_line: Optional[float] = None,
+        indent_start: Optional[float] = None,
+        indent_end: Optional[float] = None,
+        space_above: Optional[float] = None,
+        space_below: Optional[float] = None,
+    ) -> Tuple[bool, str]:
+        """
+        Validate paragraph style parameters.
+
+        Args:
+            heading_level: Heading level 0-6 (0 = NORMAL_TEXT, 1-6 = HEADING_N)
+            alignment: Text alignment - 'START', 'CENTER', 'END', or 'JUSTIFIED'
+            line_spacing: Line spacing multiplier (must be positive)
+            indent_first_line: First line indent in points
+            indent_start: Left/start indent in points
+            indent_end: Right/end indent in points
+            space_above: Space above paragraph in points
+            space_below: Space below paragraph in points
+
+        Returns:
+            Tuple of (is_valid, error_message)
+        """
+        style_params = [
+            heading_level,
+            alignment,
+            line_spacing,
+            indent_first_line,
+            indent_start,
+            indent_end,
+            space_above,
+            space_below,
+        ]
+        if all(param is None for param in style_params):
+            return (
+                False,
+                "At least one paragraph style parameter must be provided (heading_level, alignment, line_spacing, indent_first_line, indent_start, indent_end, space_above, or space_below)",
+            )
+
+        if heading_level is not None:
+            if not isinstance(heading_level, int):
+                return (
+                    False,
+                    f"heading_level must be an integer, got {type(heading_level).__name__}",
+                )
+            min_level, max_level = self.validation_rules["heading_level_range"]
+            if not (min_level <= heading_level <= max_level):
+                return (
+                    False,
+                    f"heading_level must be between {min_level} and {max_level}, got {heading_level}",
+                )
+
+        if alignment is not None:
+            if not isinstance(alignment, str):
+                return (
+                    False,
+                    f"alignment must be a string, got {type(alignment).__name__}",
+                )
+            valid = self.validation_rules["valid_alignments"]
+            if alignment.upper() not in valid:
+                return (
+                    False,
+                    f"alignment must be one of: {', '.join(valid)}, got '{alignment}'",
+                )
+
+        if line_spacing is not None:
+            if not isinstance(line_spacing, (int, float)):
+                return (
+                    False,
+                    f"line_spacing must be a number, got {type(line_spacing).__name__}",
+                )
+            if line_spacing <= 0:
+                return False, "line_spacing must be positive"
+
+        for param, name in [
+            (indent_first_line, "indent_first_line"),
+            (indent_start, "indent_start"),
+            (indent_end, "indent_end"),
+            (space_above, "space_above"),
+            (space_below, "space_below"),
+        ]:
+            if param is not None:
+                if not isinstance(param, (int, float)):
+                    return (
+                        False,
+                        f"{name} must be a number, got {type(param).__name__}",
+                    )
+                # indent_first_line may be negative (hanging indent)
+                if name != "indent_first_line" and param < 0:
+                    return False, f"{name} must be non-negative, got {param}"
 
         return True, ""
 
@@ -489,6 +588,32 @@ class ValidationManager:
                 if not is_valid:
                     return False, f"Operation {i + 1} (format_text): {error_msg}"
 
+            elif op_type == "update_paragraph_style":
+                is_valid, error_msg = self.validate_paragraph_style_params(
+                    op.get("heading_level"),
+                    op.get("alignment"),
+                    op.get("line_spacing"),
+                    op.get("indent_first_line"),
+                    op.get("indent_start"),
+                    op.get("indent_end"),
+                    op.get("space_above"),
+                    op.get("space_below"),
+                )
+                if not is_valid:
+                    return (
+                        False,
+                        f"Operation {i + 1} (update_paragraph_style): {error_msg}",
+                    )
+
+                is_valid, error_msg = self.validate_index_range(
+                    op["start_index"], op["end_index"]
+                )
+                if not is_valid:
+                    return (
+                        False,
+                        f"Operation {i + 1} (update_paragraph_style): {error_msg}",
+                    )
+
         return True, ""
 
     def validate_text_content(
@@ -524,7 +649,12 @@ class ValidationManager:
             "constraints": self.validation_rules.copy(),
             "supported_operations": {
                 "table_operations": ["create_table", "populate_table"],
-                "text_operations": ["insert_text", "format_text", "find_replace"],
+                "text_operations": [
+                    "insert_text",
+                    "format_text",
+                    "find_replace",
+                    "update_paragraph_style",
+                ],
                 "element_operations": [
                     "insert_table",
                     "insert_list",

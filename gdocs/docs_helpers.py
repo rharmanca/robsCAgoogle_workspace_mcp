@@ -98,6 +98,86 @@ def build_text_style(
     return text_style, fields
 
 
+def build_paragraph_style(
+    heading_level: int = None,
+    alignment: str = None,
+    line_spacing: float = None,
+    indent_first_line: float = None,
+    indent_start: float = None,
+    indent_end: float = None,
+    space_above: float = None,
+    space_below: float = None,
+) -> tuple[Dict[str, Any], list[str]]:
+    """
+    Build paragraph style object for Google Docs API requests.
+
+    Args:
+        heading_level: Heading level 0-6 (0 = NORMAL_TEXT, 1-6 = HEADING_N)
+        alignment: Text alignment - 'START', 'CENTER', 'END', or 'JUSTIFIED'
+        line_spacing: Line spacing multiplier (1.0 = single, 2.0 = double)
+        indent_first_line: First line indent in points
+        indent_start: Left/start indent in points
+        indent_end: Right/end indent in points
+        space_above: Space above paragraph in points
+        space_below: Space below paragraph in points
+
+    Returns:
+        Tuple of (paragraph_style_dict, list_of_field_names)
+    """
+    paragraph_style = {}
+    fields = []
+
+    if heading_level is not None:
+        if heading_level < 0 or heading_level > 6:
+            raise ValueError("heading_level must be between 0 (normal text) and 6")
+        if heading_level == 0:
+            paragraph_style["namedStyleType"] = "NORMAL_TEXT"
+        else:
+            paragraph_style["namedStyleType"] = f"HEADING_{heading_level}"
+        fields.append("namedStyleType")
+
+    if alignment is not None:
+        valid_alignments = ["START", "CENTER", "END", "JUSTIFIED"]
+        alignment_upper = alignment.upper()
+        if alignment_upper not in valid_alignments:
+            raise ValueError(
+                f"Invalid alignment '{alignment}'. Must be one of: {valid_alignments}"
+            )
+        paragraph_style["alignment"] = alignment_upper
+        fields.append("alignment")
+
+    if line_spacing is not None:
+        if line_spacing <= 0:
+            raise ValueError("line_spacing must be positive")
+        paragraph_style["lineSpacing"] = line_spacing * 100
+        fields.append("lineSpacing")
+
+    if indent_first_line is not None:
+        paragraph_style["indentFirstLine"] = {
+            "magnitude": indent_first_line,
+            "unit": "PT",
+        }
+        fields.append("indentFirstLine")
+
+    if indent_start is not None:
+        paragraph_style["indentStart"] = {"magnitude": indent_start, "unit": "PT"}
+        fields.append("indentStart")
+
+    if indent_end is not None:
+        paragraph_style["indentEnd"] = {"magnitude": indent_end, "unit": "PT"}
+        fields.append("indentEnd")
+
+    if space_above is not None:
+        paragraph_style["spaceAbove"] = {"magnitude": space_above, "unit": "PT"}
+        fields.append("spaceAbove")
+
+    if space_below is not None:
+        paragraph_style["spaceBelow"] = {"magnitude": space_below, "unit": "PT"}
+        fields.append("spaceBelow")
+
+    return paragraph_style, fields
+
+
 def create_insert_text_request(index: int, text: str) -> Dict[str, Any]:
     """
     Create an insertText request for Google Docs API.
@@ -191,6 +271,59 @@ def create_format_text_request(
         "updateTextStyle": {
             "range": {"startIndex": start_index, "endIndex": end_index},
             "textStyle": text_style,
+            "fields": ",".join(fields),
+        }
+    }
+
+
+def create_update_paragraph_style_request(
+    start_index: int,
+    end_index: int,
+    heading_level: int = None,
+    alignment: str = None,
+    line_spacing: float = None,
+    indent_first_line: float = None,
+    indent_start: float = None,
+    indent_end: float = None,
+    space_above: float = None,
+    space_below: float = None,
+) -> Optional[Dict[str, Any]]:
+    """
+    Create an updateParagraphStyle request for Google Docs API.
+
+    Args:
+        start_index: Start position of paragraph range
+        end_index: End position of paragraph range
+        heading_level: Heading level 0-6 (0 = NORMAL_TEXT, 1-6 = HEADING_N)
+        alignment: Text alignment - 'START', 'CENTER', 'END', or 'JUSTIFIED'
+        line_spacing: Line spacing multiplier (1.0 = single, 2.0 = double)
+        indent_first_line: First line indent in points
+        indent_start: Left/start indent in points
+        indent_end: Right/end indent in points
+        space_above: Space above paragraph in points
+        space_below: Space below paragraph in points
+
+    Returns:
+        Dictionary representing the updateParagraphStyle request, or None if no styles provided
+    """
+    paragraph_style, fields = build_paragraph_style(
+        heading_level,
+        alignment,
+        line_spacing,
+        indent_first_line,
+        indent_start,
+        indent_end,
+        space_above,
+        space_below,
+    )
+
+    if not paragraph_style:
+        return None
+
+    return {
+        "updateParagraphStyle": {
+            "range": {"startIndex": start_index, "endIndex": end_index},
+            "paragraphStyle": paragraph_style,
             "fields": ",".join(fields),
         }
     }
@@ -387,6 +520,7 @@ def validate_operation(operation: Dict[str, Any]) -> tuple[bool, str]:
         "delete_text": ["start_index", "end_index"],
         "replace_text": ["start_index", "end_index", "text"],
         "format_text": ["start_index", "end_index"],
+        "update_paragraph_style": ["start_index", "end_index"],
         "insert_table": ["index", "rows", "columns"],
         "insert_page_break": ["index"],
         "find_replace": ["find_text", "replace_text"],
