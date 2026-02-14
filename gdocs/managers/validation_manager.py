@@ -333,6 +333,7 @@ class ValidationManager:
                         False,
                         f"{name} must be a number, got {type(param).__name__}",
                     )
+                # indent_first_line may be negative (hanging indent)
                 if name != "indent_first_line" and param < 0:
                     return False, f"{name} must be non-negative, got {param}"
 

@@ -229,6 +229,18 @@ class BatchOperationManager:
             if not request:
                 raise ValueError("No paragraph style options provided")
 
+            _PT_PARAMS = {
+                "indent_first_line",
+                "indent_start",
+                "indent_end",
+                "space_above",
+                "space_below",
+            }
+            _SUFFIX = {
+                "heading_level": lambda v: f"H{v}",
+                "line_spacing": lambda v: f"{v}x",
+            }
+
             style_changes = []
             for param, name in [
                 ("heading_level", "heading"),
@@ -241,22 +253,14 @@ class BatchOperationManager:
                 ("space_below", "space below"),
             ]:
                 if op.get(param) is not None:
-                    value = (
-                        f"H{op[param]}"
-                        if param == "heading_level"
-                        else f"{op[param]}x"
-                        if param == "line_spacing"
-                        else f"{op[param]}pt"
-                        if param
-                        in (
-                            "indent_first_line",
-                            "indent_start",
-                            "indent_end",
-                            "space_above",
-                            "space_below",
-                        )
-                        else op[param]
-                    )
+                    raw = op[param]
+                    fmt = _SUFFIX.get(param)
+                    if fmt:
+                        value = fmt(raw)
+                    elif param in _PT_PARAMS:
+                        value = f"{raw}pt"
+                    else:
+                        value = raw
                     style_changes.append(f"{name}: {value}")
 
             description = f"paragraph style {op['start_index']}-{op['end_index']} ({', '.join(style_changes)})"
