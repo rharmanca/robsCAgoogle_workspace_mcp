@@ -10,7 +10,7 @@ import logging
 import os
 import uuid
 from pathlib import Path
-from typing import Optional, Dict
+from typing import NamedTuple, Optional, Dict
 from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
@@ -21,8 +21,15 @@ DEFAULT_EXPIRATION_SECONDS = 3600
 # Storage directory - configurable via WORKSPACE_ATTACHMENT_DIR env var
 # Uses absolute path to avoid creating tmp/ in arbitrary working directories (see #327)
 _default_dir = str(Path.home() / ".workspace-mcp" / "attachments")
-STORAGE_DIR = Path(os.getenv("WORKSPACE_ATTACHMENT_DIR", _default_dir))
+STORAGE_DIR = Path(os.getenv("WORKSPACE_ATTACHMENT_DIR", _default_dir)).expanduser().resolve()
 STORAGE_DIR.mkdir(parents=True, exist_ok=True)
+
+
+class SavedAttachment(NamedTuple):
+    """Result of saving an attachment: provides both the UUID and the absolute file path."""
+
+    file_id: str
+    path: str
 
 
 class AttachmentStorage:
@@ -37,9 +44,9 @@ class AttachmentStorage:
         base64_data: str,
         filename: Optional[str] = None,
         mime_type: Optional[str] = None,
-    ) -> str:
+    ) -> SavedAttachment:
         """
-        Save an attachment to local disk and return the absolute file path.
+        Save an attachment to local disk.
 
         Args:
             base64_data: Base64-encoded attachment data
@@ -47,7 +54,7 @@ class AttachmentStorage:
             mime_type: MIME type (optional)
 
         Returns:
-            Absolute file path where the attachment was saved
+            SavedAttachment with file_id (UUID) and path (absolute file path)
         """
         # Generate unique file ID for metadata tracking
         file_id = str(uuid.uuid4())
@@ -104,7 +111,7 @@ class AttachmentStorage:
             "expires_at": expires_at,
         }
 
-        return str(file_path)
+        return SavedAttachment(file_id=file_id, path=str(file_path))
 
     def get_attachment_path(self, file_id: str) -> Optional[Path]:
         """
@@ -213,7 +220,6 @@ def get_attachment_url(file_id: str) -> str:
     Returns:
         Full URL to access the attachment
     """
-    import os
     from core.config import WORKSPACE_MCP_PORT, WORKSPACE_MCP_BASE_URI
 
     # Use external URL if set (for reverse proxy scenarios)

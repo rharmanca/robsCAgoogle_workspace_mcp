@@ -910,7 +910,8 @@ async def get_gmail_attachment_content(
 
     # Save attachment to local disk and return file path
     try:
-        from core.attachment_storage import get_attachment_storage
+        from core.attachment_storage import get_attachment_storage, get_attachment_url
+        from core.config import get_transport_mode
 
         storage = get_attachment_storage()
 
@@ -953,23 +954,35 @@ async def get_gmail_attachment_content(
                 f"Could not fetch attachment metadata for {attachment_id}, using defaults"
             )
 
-        # Save attachment to local disk - returns absolute file path
-        saved_path = storage.save_attachment(
+        # Save attachment to local disk
+        result = storage.save_attachment(
             base64_data=base64_data, filename=filename, mime_type=mime_type
         )
 
         result_lines = [
-            "Attachment downloaded and saved to local disk!",
+            "Attachment downloaded successfully!",
             f"Message ID: {message_id}",
             f"Filename: {filename or 'unknown'}",
             f"Size: {size_kb:.1f} KB ({size_bytes} bytes)",
-            f"\n📎 Saved to: {saved_path}",
-            "\nThe file has been saved to disk and can be accessed directly via the file path.",
-            "\nNote: Attachment IDs are ephemeral. Always use IDs from the most recent message fetch.",
         ]
 
+        if get_transport_mode() == "stdio":
+            result_lines.append(f"\n📎 Saved to: {result.path}")
+            result_lines.append(
+                "\nThe file has been saved to disk and can be accessed directly via the file path."
+            )
+        else:
+            download_url = get_attachment_url(result.file_id)
+            result_lines.append(f"\n📎 Download URL: {download_url}")
+            result_lines.append(f"📂 Local path: {result.path}")
+            result_lines.append("\nThe file will expire after 1 hour.")
+
+        result_lines.append(
+            "\nNote: Attachment IDs are ephemeral. Always use IDs from the most recent message fetch."
+        )
+
         logger.info(
-            f"[get_gmail_attachment_content] Successfully saved {size_kb:.1f} KB attachment to {saved_path}"
+            f"[get_gmail_attachment_content] Successfully saved {size_kb:.1f} KB attachment to {result.path}"
         )
         return "\n".join(result_lines)
 

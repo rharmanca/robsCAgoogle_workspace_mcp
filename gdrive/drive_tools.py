@@ -348,22 +348,19 @@ async def get_drive_file_download_url(
         )
         return "\n".join(result_lines)
 
-    # Save file and generate URL
+    # Save file to local disk and return file path
     try:
         storage = get_attachment_storage()
 
         # Encode bytes to base64 (as expected by AttachmentStorage)
         base64_data = base64.urlsafe_b64encode(file_content_bytes).decode("utf-8")
 
-        # Save attachment
-        saved_file_id = storage.save_attachment(
+        # Save attachment to local disk
+        result = storage.save_attachment(
             base64_data=base64_data,
             filename=output_filename,
             mime_type=output_mime_type,
         )
-
-        # Generate URL
-        download_url = get_attachment_url(saved_file_id)
 
         result_lines = [
             "File downloaded successfully!",
@@ -371,10 +368,18 @@ async def get_drive_file_download_url(
             f"File ID: {file_id}",
             f"Size: {size_kb:.1f} KB ({size_bytes} bytes)",
             f"MIME Type: {output_mime_type}",
-            f"\n📎 Download URL: {download_url}",
-            "\nThe file has been saved and is available at the URL above.",
-            "The file will expire after 1 hour.",
         ]
+
+        if get_transport_mode() == "stdio":
+            result_lines.append(f"\n📎 Saved to: {result.path}")
+            result_lines.append(
+                "\nThe file has been saved to disk and can be accessed directly via the file path."
+            )
+        else:
+            download_url = get_attachment_url(result.file_id)
+            result_lines.append(f"\n📎 Download URL: {download_url}")
+            result_lines.append(f"📂 Local path: {result.path}")
+            result_lines.append("\nThe file will expire after 1 hour.")
 
         if export_mime_type:
             result_lines.append(
@@ -382,7 +387,7 @@ async def get_drive_file_download_url(
             )
 
         logger.info(
-            f"[get_drive_file_download_url] Successfully saved {size_kb:.1f} KB file as {saved_file_id}"
+            f"[get_drive_file_download_url] Successfully saved {size_kb:.1f} KB file to {result.path}"
         )
         return "\n".join(result_lines)
 
