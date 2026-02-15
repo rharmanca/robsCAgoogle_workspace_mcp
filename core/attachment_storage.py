@@ -88,9 +88,7 @@ class AttachmentStorage:
         file_path = STORAGE_DIR / save_name
         try:
             file_path.write_bytes(file_bytes)
-            logger.info(
-                f"Saved attachment ({len(file_bytes)} bytes) to {file_path}"
-            )
+            logger.info(f"Saved attachment ({len(file_bytes)} bytes) to {file_path}")
         except Exception as e:
             logger.error(f"Failed to save attachment to {file_path}: {e}")
             raise
