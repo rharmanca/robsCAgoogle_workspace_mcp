@@ -1,3 +1,5 @@
+<!-- mcp-name: io.github.taylorwilsdon/workspace-mcp -->
+
 <div align="center">
 
 # <span style="color:#cad8d9">Google Workspace MCP Server</span> <img src="https://github.com/user-attachments/assets/b89524e4-6e6e-49e6-ba77-00d6df0c6e5c" width="80" align="right" />
@@ -8,7 +10,7 @@
 [![PyPI Downloads](https://static.pepy.tech/personalized-badge/workspace-mcp?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=BLUE&left_text=downloads)](https://pepy.tech/projects/workspace-mcp)
 [![Website](https://img.shields.io/badge/Website-workspacemcp.com-green.svg)](https://workspacemcp.com)
 
-*Full natural language control over Google Calendar, Drive, Gmail, Docs, Sheets, Slides, Forms, Tasks, Contacts, and Chat through all MCP clients, AI assistants and developer tools. Also features CLI for use with tools like Claude Code and Codex*
+*Full natural language control over Google Calendar, Drive, Gmail, Docs, Sheets, Slides, Forms, Tasks, Contacts, and Chat through all MCP clients, AI assistants and developer tools. Now includes a full featured CLI for use with tools like Claude Code and Codex!*
 
 **The most feature-complete Google Workspace MCP server**, with Remote OAuth2.1 multi-user support and 1-click Claude installation.
 
@@ -53,6 +55,8 @@
 A production-ready MCP server that integrates all major Google Workspace services with AI assistants. It supports both single-user operation and multi-user authentication via OAuth 2.1, making it a powerful backend for custom applications. Built with FastMCP for optimal performance, featuring advanced authentication handling, service caching, and streamlined development patterns.
 
 **Simplified Setup**: Now uses Google Desktop OAuth clients - no redirect URIs or port configuration needed!
+
+**Maintainer Docs**: Automated release and registry publishing guide at [`docs/mcp_registry_publishing_guide.md`](docs/mcp_registry_publishing_guide.md).
 
 ## <span style="color:#adbcbc">Features</span>
 
@@ -846,6 +850,7 @@ cp .env.oauth21 .env
 | `update_drive_permission` | Extended | Modify permission role |
 | `remove_drive_permission` | Extended | Revoke file access |
 | `transfer_drive_ownership` | Extended | Transfer file ownership to another user |
+| `set_drive_file_permissions` | Extended | Set link sharing and file-level sharing settings |
 | `get_drive_file_permissions` | Complete | Get detailed file permissions |
 | `check_drive_file_public_access` | Complete | Check public sharing status |
 
@@ -911,7 +916,7 @@ attachments=[{
 | `find_and_replace_doc` | Extended | Find and replace text |
 | `list_docs_in_folder` | Extended | List docs in folder |
 | `insert_doc_elements` | Extended | Add tables, lists, page breaks |
-| `update_paragraph_style` | Extended | Apply heading styles (H1-H6) and paragraph formatting |
+| `update_paragraph_style` | Extended | Apply heading styles, lists (bulleted/numbered with nesting), and paragraph formatting |
 | `insert_doc_image` | Complete | Insert images from Drive/URLs |
 | `update_doc_headers_footers` | Complete | Modify headers and footers |
 | `batch_update_doc` | Complete | Execute multiple operations |
@@ -936,6 +941,7 @@ attachments=[{
 | `create_spreadsheet` | **Core** | Create new spreadsheets |
 | `list_spreadsheets` | Extended | List accessible spreadsheets |
 | `get_spreadsheet_info` | Extended | Get spreadsheet metadata |
+| `format_sheet_range` | Extended | Apply colors, number formats, text wrapping, alignment, bold/italic, font size |
 | `create_sheet` | Complete | Add sheets to existing files |
 | `*_sheet_comment` | Complete | Read/create/reply/resolve comments |
 
@@ -1570,6 +1576,12 @@ The credential store automatically handles credential serialization, expiry pars
 - **Transport-Aware Callbacks**: Stdio mode starts a minimal HTTP server only for OAuth, ensuring callbacks work in all modes
 - **Production**: Use HTTPS & OAuth 2.1 and configure accordingly
 - **Scope Minimization**: Tools request only necessary permissions
+- **Local File Access Control**: Tools that read local files (e.g., attachments, `file://` uploads) are restricted to the user's home directory by default. Override this with the `ALLOWED_FILE_DIRS` environment variable:
+  ```bash
+  # Colon-separated list of directories (semicolon on Windows) from which local file reads are permitted
+  export ALLOWED_FILE_DIRS="/home/user/documents:/data/shared"
+  ```
+  Regardless of the allowlist, access to sensitive paths (`.env`, `.ssh/`, `.aws/`, `/etc/shadow`, credential files, etc.) is always blocked.
 
 ---
 

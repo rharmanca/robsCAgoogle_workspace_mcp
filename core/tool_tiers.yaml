@@ -38,6 +38,7 @@ drive:
     - remove_drive_permission
     - transfer_drive_ownership
     - batch_share_drive_file
+    - set_drive_file_permissions
   complete:
     - get_drive_file_permissions
     - check_drive_file_public_access
@@ -85,6 +86,7 @@ sheets:
   extended:
     - list_spreadsheets
     - get_spreadsheet_info
+    - format_sheet_range
   complete:
     - create_sheet
     - read_spreadsheet_comments

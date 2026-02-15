@@ -9,9 +9,8 @@ import asyncio
 import base64
 import ssl
 import mimetypes
-from pathlib import Path
 from html.parser import HTMLParser
-from typing import Optional, List, Dict, Literal, Any
+from typing import Annotated, Optional, List, Dict, Literal, Any
 
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -19,11 +18,10 @@ from email.mime.base import MIMEBase
 from email import encoders
 from email.utils import formataddr
 
-from fastapi import Body
 from pydantic import Field
 
 from auth.service_decorator import require_google_service
-from core.utils import handle_http_errors
+from core.utils import handle_http_errors, validate_file_path
 from core.server import server
 from auth.scopes import (
     GMAIL_SEND_SCOPE,
@@ -289,7 +287,7 @@ def _prepare_gmail_message(
             try:
                 # If path is provided, read and encode the file
                 if file_path:
-                    path_obj = Path(file_path)
+                    path_obj = validate_file_path(file_path)
                     if not path_obj.exists():
                         logger.error(f"File not found: {file_path}")
                         continue
@@ -1000,36 +998,57 @@ async def get_gmail_attachment_content(
 async def send_gmail_message(
     service,
     user_google_email: str,
-    to: str = Body(..., description="Recipient email address."),
-    subject: str = Body(..., description="Email subject."),
-    body: str = Body(..., description="Email body content (plain text or HTML)."),
-    body_format: Literal["plain", "html"] = Body(
-        "plain",
-        description="Email body format. Use 'plain' for plaintext or 'html' for HTML content.",
-    ),
-    cc: Optional[str] = Body(None, description="Optional CC email address."),
-    bcc: Optional[str] = Body(None, description="Optional BCC email address."),
-    from_name: Optional[str] = Body(
-        None,
-        description="Optional sender display name (e.g., 'Peter Hartree'). If provided, the From header will be formatted as 'Name <email>'.",
-    ),
-    from_email: Optional[str] = Body(
-        None,
-        description="Optional 'Send As' alias email address. Must be configured in Gmail settings (Settings > Accounts > Send mail as). If not provided, uses the authenticated user's email.",
-    ),
-    thread_id: Optional[str] = Body(
-        None, description="Optional Gmail thread ID to reply within."
-    ),
-    in_reply_to: Optional[str] = Body(
-        None, description="Optional Message-ID of the message being replied to."
-    ),
-    references: Optional[str] = Body(
-        None, description="Optional chain of Message-IDs for proper threading."
-    ),
-    attachments: Optional[List[Dict[str, str]]] = Body(
-        None,
-        description='Optional list of attachments. Each can have: "path" (file path, auto-encodes), OR "content" (standard base64, not urlsafe) + "filename". Optional "mime_type". Example: [{"path": "/path/to/file.pdf"}] or [{"filename": "doc.pdf", "content": "base64data", "mime_type": "application/pdf"}]',
-    ),
+    to: Annotated[str, Field(description="Recipient email address.")],
+    subject: Annotated[str, Field(description="Email subject.")],
+    body: Annotated[str, Field(description="Email body content (plain text or HTML).")],
+    body_format: Annotated[
+        Literal["plain", "html"],
+        Field(
+            description="Email body format. Use 'plain' for plaintext or 'html' for HTML content.",
+        ),
+    ] = "plain",
+    cc: Annotated[
+        Optional[str], Field(description="Optional CC email address.")
+    ] = None,
+    bcc: Annotated[
+        Optional[str], Field(description="Optional BCC email address.")
+    ] = None,
+    from_name: Annotated[
+        Optional[str],
+        Field(
+            description="Optional sender display name (e.g., 'Peter Hartree'). If provided, the From header will be formatted as 'Name <email>'.",
+        ),
+    ] = None,
+    from_email: Annotated[
+        Optional[str],
+        Field(
+            description="Optional 'Send As' alias email address. Must be configured in Gmail settings (Settings > Accounts > Send mail as). If not provided, uses the authenticated user's email.",
+        ),
+    ] = None,
+    thread_id: Annotated[
+        Optional[str],
+        Field(
+            description="Optional Gmail thread ID to reply within.",
+        ),
+    ] = None,
+    in_reply_to: Annotated[
+        Optional[str],
+        Field(
+            description="Optional Message-ID of the message being replied to.",
+        ),
+    ] = None,
+    references: Annotated[
+        Optional[str],
+        Field(
+            description="Optional chain of Message-IDs for proper threading.",
+        ),
+    ] = None,
+    attachments: Annotated[
+        Optional[List[Dict[str, str]]],
+        Field(
+            description='Optional list of attachments. Each can have: "path" (file path, auto-encodes), OR "content" (standard base64, not urlsafe) + "filename". Optional "mime_type". Example: [{"path": "/path/to/file.pdf"}] or [{"filename": "doc.pdf", "content": "base64data", "mime_type": "application/pdf"}]',
+        ),
+    ] = None,
 ) -> str:
     """
     Sends an email using the user's Gmail account. Supports both new emails and replies with optional attachments.
@@ -1172,36 +1191,62 @@ async def send_gmail_message(
 async def draft_gmail_message(
     service,
     user_google_email: str,
-    subject: str = Body(..., description="Email subject."),
-    body: str = Body(..., description="Email body (plain text)."),
-    body_format: Literal["plain", "html"] = Body(
-        "plain",
-        description="Email body format. Use 'plain' for plaintext or 'html' for HTML content.",
-    ),
-    to: Optional[str] = Body(None, description="Optional recipient email address."),
-    cc: Optional[str] = Body(None, description="Optional CC email address."),
-    bcc: Optional[str] = Body(None, description="Optional BCC email address."),
-    from_name: Optional[str] = Body(
-        None,
-        description="Optional sender display name (e.g., 'Peter Hartree'). If provided, the From header will be formatted as 'Name <email>'.",
-    ),
-    from_email: Optional[str] = Body(
-        None,
-        description="Optional 'Send As' alias email address. Must be configured in Gmail settings (Settings > Accounts > Send mail as). If not provided, uses the authenticated user's email.",
-    ),
-    thread_id: Optional[str] = Body(
-        None, description="Optional Gmail thread ID to reply within."
-    ),
-    in_reply_to: Optional[str] = Body(
-        None, description="Optional Message-ID of the message being replied to."
-    ),
-    references: Optional[str] = Body(
-        None, description="Optional chain of Message-IDs for proper threading."
-    ),
-    attachments: Optional[List[Dict[str, str]]] = Body(
-        None,
-        description="Optional list of attachments. Each can have: 'path' (file path, auto-encodes), OR 'content' (standard base64, not urlsafe) + 'filename'. Optional 'mime_type' (auto-detected from path if not provided).",
-    ),
+    subject: Annotated[str, Field(description="Email subject.")],
+    body: Annotated[str, Field(description="Email body (plain text).")],
+    body_format: Annotated[
+        Literal["plain", "html"],
+        Field(
+            description="Email body format. Use 'plain' for plaintext or 'html' for HTML content.",
+        ),
+    ] = "plain",
+    to: Annotated[
+        Optional[str],
+        Field(
+            description="Optional recipient email address.",
+        ),
+    ] = None,
+    cc: Annotated[
+        Optional[str], Field(description="Optional CC email address.")
+    ] = None,
+    bcc: Annotated[
+        Optional[str], Field(description="Optional BCC email address.")
+    ] = None,
+    from_name: Annotated[
+        Optional[str],
+        Field(
+            description="Optional sender display name (e.g., 'Peter Hartree'). If provided, the From header will be formatted as 'Name <email>'.",
+        ),
+    ] = None,
+    from_email: Annotated[
+        Optional[str],
+        Field(
+            description="Optional 'Send As' alias email address. Must be configured in Gmail settings (Settings > Accounts > Send mail as). If not provided, uses the authenticated user's email.",
+        ),
+    ] = None,
+    thread_id: Annotated[
+        Optional[str],
+        Field(
+            description="Optional Gmail thread ID to reply within.",
+        ),
+    ] = None,
+    in_reply_to: Annotated[
+        Optional[str],
+        Field(
+            description="Optional Message-ID of the message being replied to.",
+        ),
+    ] = None,
+    references: Annotated[
+        Optional[str],
+        Field(
+            description="Optional chain of Message-IDs for proper threading.",
+        ),
+    ] = None,
+    attachments: Annotated[
+        Optional[List[Dict[str, str]]],
+        Field(
+            description="Optional list of attachments. Each can have: 'path' (file path, auto-encodes), OR 'content' (standard base64, not urlsafe) + 'filename'. Optional 'mime_type' (auto-detected from path if not provided).",
+        ),
+    ] = None,
 ) -> str:
     """
     Creates a draft email in the user's Gmail account. Supports both new drafts and reply drafts with optional attachments.
@@ -1366,6 +1411,9 @@ def _format_thread_content(thread_data: dict, thread_id: str) -> str:
         sender = headers.get("From", "(unknown sender)")
         date = headers.get("Date", "(unknown date)")
         subject = headers.get("Subject", "(no subject)")
+        rfc822_message_id = headers.get("Message-ID", "")
+        in_reply_to = headers.get("In-Reply-To", "")
+        references = headers.get("References", "")
 
         # Extract both text and HTML bodies
         payload = message.get("payload", {})
@@ -1384,6 +1432,13 @@ def _format_thread_content(thread_data: dict, thread_id: str) -> str:
                 f"Date: {date}",
             ]
         )
+
+        if rfc822_message_id:
+            content_lines.append(f"Message-ID: {rfc822_message_id}")
+        if in_reply_to:
+            content_lines.append(f"In-Reply-To: {in_reply_to}")
+        if references:
+            content_lines.append(f"References: {references}")
 
         # Only show subject if it's different from thread subject
         if subject != thread_subject:
@@ -1748,12 +1803,18 @@ async def list_gmail_filters(service, user_google_email: str) -> str:
 async def create_gmail_filter(
     service,
     user_google_email: str,
-    criteria: Dict[str, Any] = Body(
-        ..., description="Filter criteria object as defined in the Gmail API."
-    ),
-    action: Dict[str, Any] = Body(
-        ..., description="Filter action object as defined in the Gmail API."
-    ),
+    criteria: Annotated[
+        Dict[str, Any],
+        Field(
+            description="Filter criteria object as defined in the Gmail API.",
+        ),
+    ],
+    action: Annotated[
+        Dict[str, Any],
+        Field(
+            description="Filter action object as defined in the Gmail API.",
+        ),
+    ],
 ) -> str:
     """
     Creates a Gmail filter using the users.settings.filters API.
@@ -1828,12 +1889,8 @@ async def modify_gmail_message_labels(
     service,
     user_google_email: str,
     message_id: str,
-    add_label_ids: List[str] = Field(
-        default=[], description="Label IDs to add to the message."
-    ),
-    remove_label_ids: List[str] = Field(
-        default=[], description="Label IDs to remove from the message."
-    ),
+    add_label_ids: Optional[List[str]] = None,
+    remove_label_ids: Optional[List[str]] = None,
 ) -> str:
     """
     Adds or removes labels from a Gmail message.
@@ -1884,12 +1941,8 @@ async def batch_modify_gmail_message_labels(
     service,
     user_google_email: str,
     message_ids: List[str],
-    add_label_ids: List[str] = Field(
-        default=[], description="Label IDs to add to messages."
-    ),
-    remove_label_ids: List[str] = Field(
-        default=[], description="Label IDs to remove from messages."
-    ),
+    add_label_ids: Optional[List[str]] = None,
+    remove_label_ids: Optional[List[str]] = None,
 ) -> str:
     """
     Adds or removes labels from multiple Gmail messages in a single batch request.
