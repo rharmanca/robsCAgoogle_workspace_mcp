@@ -104,7 +104,15 @@ class AttachmentStorage:
         try:
             fd = os.open(file_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
             try:
-                os.write(fd, file_bytes)
+                total_written = 0
+                data_len = len(file_bytes)
+                while total_written < data_len:
+                    written = os.write(fd, file_bytes[total_written:])
+                    if written == 0:
+                        raise OSError(
+                            "os.write returned 0 bytes; could not write attachment data"
+                        )
+                    total_written += written
             finally:
                 os.close(fd)
             logger.info(
