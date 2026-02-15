@@ -21,7 +21,9 @@ DEFAULT_EXPIRATION_SECONDS = 3600
 # Storage directory - configurable via WORKSPACE_ATTACHMENT_DIR env var
 # Uses absolute path to avoid creating tmp/ in arbitrary working directories (see #327)
 _default_dir = str(Path.home() / ".workspace-mcp" / "attachments")
-STORAGE_DIR = Path(os.getenv("WORKSPACE_ATTACHMENT_DIR", _default_dir)).expanduser().resolve()
+STORAGE_DIR = (
+    Path(os.getenv("WORKSPACE_ATTACHMENT_DIR", _default_dir)).expanduser().resolve()
+)
 
 
 def _ensure_storage_dir() -> None:

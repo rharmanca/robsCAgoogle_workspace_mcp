@@ -943,7 +943,8 @@ async def get_gmail_attachment_content(
             # Fallback: match by size if exactly one attachment matches (IDs are ephemeral)
             if not filename and attachments:
                 size_matches = [
-                    att for att in attachments
+                    att
+                    for att in attachments
                     if att.get("size") and abs(att["size"] - size_bytes) < 100
                 ]
                 if len(size_matches) == 1:
