@@ -22,7 +22,11 @@ DEFAULT_EXPIRATION_SECONDS = 3600
 # Uses absolute path to avoid creating tmp/ in arbitrary working directories (see #327)
 _default_dir = str(Path.home() / ".workspace-mcp" / "attachments")
 STORAGE_DIR = Path(os.getenv("WORKSPACE_ATTACHMENT_DIR", _default_dir)).expanduser().resolve()
-STORAGE_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _ensure_storage_dir() -> None:
+    """Create the storage directory on first use, not at import time."""
+    STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 
 
 class SavedAttachment(NamedTuple):
@@ -56,6 +60,8 @@ class AttachmentStorage:
         Returns:
             SavedAttachment with file_id (UUID) and path (absolute file path)
         """
+        _ensure_storage_dir()
+
         # Generate unique file ID for metadata tracking
         file_id = str(uuid.uuid4())
 

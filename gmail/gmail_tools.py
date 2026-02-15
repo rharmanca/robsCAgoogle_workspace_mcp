@@ -936,14 +936,18 @@ async def get_gmail_attachment_content(
                     mime_type = att.get("mimeType")
                     break
 
-            # Fallback: match by size (attachment IDs are ephemeral)
+            # Fallback: match by size if exactly one attachment matches (IDs are ephemeral)
             if not filename and attachments:
-                for att in attachments:
-                    att_size = att.get("size", 0)
-                    if att_size and abs(att_size - size_bytes) < 100:
-                        filename = att.get("filename")
-                        mime_type = att.get("mimeType")
-                        break
+                size_matches = [
+                    att for att in attachments
+                    if att.get("size") and abs(att["size"] - size_bytes) < 100
+                ]
+                if len(size_matches) == 1:
+                    filename = size_matches[0].get("filename")
+                    mime_type = size_matches[0].get("mimeType")
+                    logger.warning(
+                        f"Attachment {attachment_id} matched by size fallback as '{filename}'"
+                    )
 
             # Last resort: if only one attachment, use its name
             if not filename and len(attachments) == 1:

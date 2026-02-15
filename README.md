@@ -400,6 +400,7 @@ export USER_GOOGLE_EMAIL=\
 | `WORKSPACE_MCP_PORT` | Server listening port | `8000` |
 | `WORKSPACE_MCP_HOST` | Server bind host | `0.0.0.0` |
 | `WORKSPACE_EXTERNAL_URL` | External URL for reverse proxy setups | None |
+| `WORKSPACE_ATTACHMENT_DIR` | Directory for downloaded attachments | `~/.workspace-mcp/attachments/` |
 | `GOOGLE_OAUTH_REDIRECT_URI` | Override OAuth callback URL | Auto-constructed |
 | `USER_GOOGLE_EMAIL` | Default auth email | None |
 
@@ -838,7 +839,7 @@ cp .env.oauth21 .env
 |------|------|-------------|
 | `search_drive_files` | **Core** | Search files with query syntax |
 | `get_drive_file_content` | **Core** | Read file content (Office formats) |
-| `get_drive_file_download_url` | **Core** | Get download URL for Drive files |
+| `get_drive_file_download_url` | **Core** | Download Drive files to local disk |
 | `create_drive_file` | **Core** | Create files or fetch from URLs |
 | `import_to_google_doc` | **Core** | Import files (MD, DOCX, HTML, etc.) as Google Docs |
 | `share_drive_file` | **Core** | Share file with users/groups/domains/anyone |
@@ -899,6 +900,24 @@ attachments=[{
 ```
 
 **⚠️ Centrally Hosted Servers**: When the MCP server runs remotely (cloud, shared instance), it cannot access your local filesystem. Use **Option 2** with base64-encoded content. Your MCP client must encode files before sending.
+
+</details>
+
+<details>
+<summary><b>📥 Downloaded Attachment Storage</b> <sub><sup>← Where downloaded files are saved</sup></sub></summary>
+
+When downloading Gmail attachments (`get_gmail_attachment_content`) or Drive files (`get_drive_file_download_url`), files are saved to a persistent local directory rather than a temporary folder in the working directory.
+
+**Default location:** `~/.workspace-mcp/attachments/`
+
+Files are saved with their original filename plus a short UUID suffix for uniqueness (e.g., `invoice_a1b2c3d4.pdf`). In **stdio mode**, the tool returns the absolute file path for direct filesystem access. In **HTTP mode**, it returns a download URL via the `/attachments/{file_id}` endpoint.
+
+To customize the storage directory:
+```bash
+export WORKSPACE_ATTACHMENT_DIR="/path/to/custom/dir"
+```
+
+Saved files expire after 1 hour and are cleaned up automatically.
 
 </details>
 
