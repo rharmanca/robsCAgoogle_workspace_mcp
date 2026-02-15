@@ -26,7 +26,7 @@ STORAGE_DIR = Path(os.getenv("WORKSPACE_ATTACHMENT_DIR", _default_dir)).expandus
 
 def _ensure_storage_dir() -> None:
     """Create the storage directory on first use, not at import time."""
-    STORAGE_DIR.mkdir(parents=True, exist_ok=True)
+    STORAGE_DIR.mkdir(parents=True, exist_ok=True, mode=0o700)
 
 
 class SavedAttachment(NamedTuple):
@@ -97,13 +97,23 @@ class AttachmentStorage:
         else:
             save_name = f"{file_id}{extension}"
 
-        # Save file
+        # Save file with restrictive permissions (sensitive email/drive content)
         file_path = STORAGE_DIR / save_name
         try:
-            file_path.write_bytes(file_bytes)
-            logger.info(f"Saved attachment ({len(file_bytes)} bytes) to {file_path}")
+            fd = os.open(file_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+            try:
+                os.write(fd, file_bytes)
+            finally:
+                os.close(fd)
+            logger.info(
+                f"Saved attachment file_id={file_id} filename={filename or save_name} "
+                f"({len(file_bytes)} bytes) to {file_path}"
+            )
         except Exception as e:
-            logger.error(f"Failed to save attachment to {file_path}: {e}")
+            logger.error(
+                f"Failed to save attachment file_id={file_id} "
+                f"filename={filename or save_name} to {file_path}: {e}"
+            )
             raise
 
         # Store metadata

@@ -225,25 +225,28 @@ async def get_drive_file_download_url(
     export_format: Optional[str] = None,
 ) -> str:
     """
-    Gets a download URL for a Google Drive file. The file is prepared and made available via HTTP URL.
+    Downloads a Google Drive file and saves it to local disk.
+
+    In stdio mode, returns the local file path for direct access.
+    In HTTP mode, returns a temporary download URL (valid for 1 hour).
 
     For Google native files (Docs, Sheets, Slides), exports to a useful format:
-    • Google Docs → PDF (default) or DOCX if export_format='docx'
-    • Google Sheets → XLSX (default), PDF if export_format='pdf', or CSV if export_format='csv'
-    • Google Slides → PDF (default) or PPTX if export_format='pptx'
+    - Google Docs -> PDF (default) or DOCX if export_format='docx'
+    - Google Sheets -> XLSX (default), PDF if export_format='pdf', or CSV if export_format='csv'
+    - Google Slides -> PDF (default) or PPTX if export_format='pptx'
 
     For other files, downloads the original file format.
 
     Args:
         user_google_email: The user's Google email address. Required.
-        file_id: The Google Drive file ID to get a download URL for.
+        file_id: The Google Drive file ID to download.
         export_format: Optional export format for Google native files.
                       Options: 'pdf', 'docx', 'xlsx', 'csv', 'pptx'.
                       If not specified, uses sensible defaults (PDF for Docs/Slides, XLSX for Sheets).
                       For Sheets: supports 'csv', 'pdf', or 'xlsx' (default).
 
     Returns:
-        str: Download URL and file metadata. The file is available at the URL for 1 hour.
+        str: File metadata with either a local file path or download URL.
     """
     logger.info(
         f"[get_drive_file_download_url] Invoked. File ID: '{file_id}', Export format: {export_format}"
@@ -378,7 +381,6 @@ async def get_drive_file_download_url(
         else:
             download_url = get_attachment_url(result.file_id)
             result_lines.append(f"\n📎 Download URL: {download_url}")
-            result_lines.append(f"📂 Local path: {result.path}")
             result_lines.append("\nThe file will expire after 1 hour.")
 
         if export_mime_type:
