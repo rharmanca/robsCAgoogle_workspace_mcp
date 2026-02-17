@@ -403,7 +403,16 @@ async def modify_doc_text(
         return f"Error: {error_msg}"
 
     # Validate that we have something to do
-    formatting_params = [bold, italic, underline, font_size, font_family, text_color, background_color, link_url]
+    formatting_params = [
+        bold,
+        italic,
+        underline,
+        font_size,
+        font_family,
+        text_color,
+        background_color,
+        link_url,
+    ]
     if text is None and not any(p is not None for p in formatting_params):
         return "Error: Must provide either 'text' to insert/replace, or formatting parameters (bold, italic, underline, font_size, font_family, text_color, background_color, link_url)."
 
