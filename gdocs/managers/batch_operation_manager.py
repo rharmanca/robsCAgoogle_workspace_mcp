@@ -372,6 +372,7 @@ class BatchOperationManager:
                         "font_family",
                         "text_color",
                         "background_color",
+                        "link_url",
                     ],
                     "description": "Apply formatting to text range",
                 },
