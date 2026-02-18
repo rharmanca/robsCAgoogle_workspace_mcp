@@ -15,7 +15,7 @@ from google.auth.transport.requests import Request
 from google.auth.exceptions import RefreshError
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
-from auth.scopes import SCOPES, get_current_scopes  # noqa
+from auth.scopes import SCOPES, get_current_scopes, has_required_scopes  # noqa
 from auth.oauth21_session_store import get_oauth21_session_store
 from auth.credential_store import get_credential_store
 from auth.oauth_config import get_oauth_config, is_stateless_mode
@@ -586,20 +586,8 @@ def get_credentials(
                         f"[get_credentials] Found OAuth 2.1 credentials for MCP session {session_id}"
                     )
 
-                    # Check scopes
-                    if not all(
-                        scope in credentials.scopes for scope in required_scopes
-                    ):
-                        logger.warning(
-                            f"[get_credentials] OAuth 2.1 credentials lack required scopes. Need: {required_scopes}, Have: {credentials.scopes}"
-                        )
-                        return None
-
-                    # Return if valid
-                    if credentials.valid:
-                        return credentials
-                    elif credentials.expired and credentials.refresh_token:
-                        # Try to refresh
+                    # Refresh expired credentials before checking scopes
+                    if credentials.expired and credentials.refresh_token:
                         try:
                             credentials.refresh(Request())
                             logger.info(
@@ -631,12 +619,23 @@ def get_credentials(
                                         logger.warning(
                                             f"[get_credentials] Failed to persist refreshed OAuth 2.1 credentials for user {user_email}: {persist_error}"
                                         )
-                            return credentials
                         except Exception as e:
                             logger.error(
                                 f"[get_credentials] Failed to refresh OAuth 2.1 credentials: {e}"
                             )
                             return None
+
+                    # Check scopes after refresh so stale metadata doesn't block valid tokens
+                    if not has_required_scopes(credentials.scopes, required_scopes):
+                        logger.warning(
+                            f"[get_credentials] OAuth 2.1 credentials lack required scopes. Need: {required_scopes}, Have: {credentials.scopes}"
+                        )
+                        return None
+
+                    if credentials.valid:
+                        return credentials
+
+                    return None
         except ImportError:
             pass  # OAuth 2.1 store not available
         except Exception as e:
@@ -710,21 +709,14 @@ def get_credentials(
         f"[get_credentials] Credentials found. Scopes: {credentials.scopes}, Valid: {credentials.valid}, Expired: {credentials.expired}"
     )
 
-    if not all(scope in credentials.scopes for scope in required_scopes):
-        logger.warning(
-            f"[get_credentials] Credentials lack required scopes. Need: {required_scopes}, Have: {credentials.scopes}. User: '{user_google_email}', Session: '{session_id}'"
-        )
-        return None  # Re-authentication needed for scopes
-
-    logger.debug(
-        f"[get_credentials] Credentials have sufficient scopes. User: '{user_google_email}', Session: '{session_id}'"
-    )
-
+    # Attempt refresh before checking scopes — the scope check validates against
+    # credentials.scopes which is set at authorization time and not updated by the
+    # google-auth library on refresh. Checking scopes first would block a valid
+    # refresh attempt when stored scope metadata is stale.
     if credentials.valid:
         logger.debug(
             f"[get_credentials] Credentials are valid. User: '{user_google_email}', Session: '{session_id}'"
         )
-        return credentials
     elif credentials.expired and credentials.refresh_token:
         logger.info(
             f"[get_credentials] Credentials expired. Attempting refresh. User: '{user_google_email}', Session: '{session_id}'"
@@ -733,7 +725,6 @@ def get_credentials(
             logger.debug(
                 "[get_credentials] Refreshing token using embedded client credentials"
             )
-            # client_config = load_client_secrets(client_secrets_path) # Not strictly needed if creds have client_id/secret
             credentials.refresh(Request())
             logger.info(
                 f"[get_credentials] Credentials refreshed successfully. User: '{user_google_email}', Session: '{session_id}'"
@@ -766,7 +757,6 @@ def get_credentials(
 
             if session_id:  # Update session cache if it was the source or is active
                 save_credentials_to_session(session_id, credentials)
-            return credentials
         except RefreshError as e:
             logger.warning(
                 f"[get_credentials] RefreshError - token expired/revoked: {e}. User: '{user_google_email}', Session: '{session_id}'"
@@ -784,6 +774,19 @@ def get_credentials(
             f"[get_credentials] Credentials invalid/cannot refresh. Valid: {credentials.valid}, Refresh Token: {credentials.refresh_token is not None}. User: '{user_google_email}', Session: '{session_id}'"
         )
         return None
+
+    # Check scopes after refresh so stale scope metadata doesn't block valid tokens.
+    # Uses hierarchy-aware check (e.g. gmail.modify satisfies gmail.readonly).
+    if not has_required_scopes(credentials.scopes, required_scopes):
+        logger.warning(
+            f"[get_credentials] Credentials lack required scopes. Need: {required_scopes}, Have: {credentials.scopes}. User: '{user_google_email}', Session: '{session_id}'"
+        )
+        return None  # Re-authentication needed for scopes
+
+    logger.debug(
+        f"[get_credentials] Credentials have sufficient scopes. User: '{user_google_email}', Session: '{session_id}'"
+    )
+    return credentials
 
 
 def get_user_info(
