@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 @server.tool()
-@require_google_service("chat", "chat_read")
+@require_google_service("chat", "chat_spaces_readonly")
 @handle_http_errors("list_spaces", service_type="chat")
 async def list_spaces(
     service,
