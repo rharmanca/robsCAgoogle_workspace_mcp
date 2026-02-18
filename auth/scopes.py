@@ -112,12 +112,13 @@ def has_required_scopes(available_scopes, required_scopes):
         True if all required scopes are satisfied.
     """
     available = set(available_scopes or [])
+    required = set(required_scopes or [])
     # Expand available scopes with implied narrower scopes
     expanded = set(available)
     for broad_scope, covered in SCOPE_HIERARCHY.items():
         if broad_scope in available:
             expanded.update(covered)
-    return all(scope in expanded for scope in required_scopes)
+    return all(scope in expanded for scope in required)
 
 
 # Base OAuth scopes required for user identification
