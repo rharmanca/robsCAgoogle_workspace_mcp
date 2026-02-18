@@ -370,7 +370,7 @@ async def create_reaction(
     """
     logger.info(f"[create_reaction] Message: '{message_id}', Emoji: '{emoji_unicode}'")
 
-    reaction = await asyncio.to_thread(
+    await asyncio.to_thread(
         service.spaces()
         .messages()
         .reactions()
