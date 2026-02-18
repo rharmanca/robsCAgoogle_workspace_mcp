@@ -53,6 +53,7 @@ from auth.scopes import (
     SCRIPT_PROJECTS_READONLY_SCOPE,
     SCRIPT_DEPLOYMENTS_SCOPE,
     SCRIPT_DEPLOYMENTS_READONLY_SCOPE,
+    has_required_scopes,
 )
 
 logger = logging.getLogger(__name__)
@@ -274,7 +275,7 @@ async def get_authenticated_google_service_oauth21(
         if not scopes_available and getattr(access_token, "scopes", None):
             scopes_available = set(access_token.scopes)
 
-        if not all(scope in scopes_available for scope in required_scopes):
+        if not has_required_scopes(scopes_available, required_scopes):
             raise GoogleAuthenticationError(
                 f"OAuth credentials lack required scopes. Need: {required_scopes}, Have: {sorted(scopes_available)}"
             )
@@ -304,7 +305,7 @@ async def get_authenticated_google_service_oauth21(
     else:
         scopes_available = set(credentials.scopes)
 
-    if not all(scope in scopes_available for scope in required_scopes):
+    if not has_required_scopes(scopes_available, required_scopes):
         raise GoogleAuthenticationError(
             f"OAuth 2.1 credentials lack required scopes. Need: {required_scopes}, Have: {sorted(scopes_available)}"
         )
