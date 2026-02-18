@@ -134,10 +134,16 @@ async def list_spaces(
 
 @server.tool()
 @handle_http_errors("get_messages", service_type="chat")
-@require_multiple_services([
-    {"service_type": "chat", "scopes": "chat_read", "param_name": "chat_service"},
-    {"service_type": "people", "scopes": "contacts_read", "param_name": "people_service"},
-])
+@require_multiple_services(
+    [
+        {"service_type": "chat", "scopes": "chat_read", "param_name": "chat_service"},
+        {
+            "service_type": "people",
+            "scopes": "contacts_read",
+            "param_name": "people_service",
+        },
+    ]
+)
 async def get_messages(
     chat_service,
     people_service,
@@ -155,7 +161,9 @@ async def get_messages(
     logger.info(f"[get_messages] Space ID: '{space_id}' for user '{user_google_email}'")
 
     # Get space info first
-    space_info = await asyncio.to_thread(chat_service.spaces().get(name=space_id).execute)
+    space_info = await asyncio.to_thread(
+        chat_service.spaces().get(name=space_id).execute
+    )
     space_name = space_info.get("displayName", "Unknown Space")
 
     # Get messages
@@ -255,10 +263,16 @@ async def send_message(
 
 @server.tool()
 @handle_http_errors("search_messages", service_type="chat")
-@require_multiple_services([
-    {"service_type": "chat", "scopes": "chat_read", "param_name": "chat_service"},
-    {"service_type": "people", "scopes": "contacts_read", "param_name": "people_service"},
-])
+@require_multiple_services(
+    [
+        {"service_type": "chat", "scopes": "chat_read", "param_name": "chat_service"},
+        {
+            "service_type": "people",
+            "scopes": "contacts_read",
+            "param_name": "people_service",
+        },
+    ]
+)
 async def search_messages(
     chat_service,
     people_service,
@@ -328,7 +342,9 @@ async def search_messages(
 
         rich_links = _extract_rich_links(msg)
         links_suffix = "".join(f" [linked: {url}]" for url in rich_links)
-        output.append(f"- [{create_time}] {sender} in '{space_name}': {text_content}{links_suffix}")
+        output.append(
+            f"- [{create_time}] {sender} in '{space_name}': {text_content}{links_suffix}"
+        )
 
     return "\n".join(output)
 
