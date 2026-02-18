@@ -225,25 +225,28 @@ async def get_drive_file_download_url(
     export_format: Optional[str] = None,
 ) -> str:
     """
-    Gets a download URL for a Google Drive file. The file is prepared and made available via HTTP URL.
+    Downloads a Google Drive file and saves it to local disk.
+
+    In stdio mode, returns the local file path for direct access.
+    In HTTP mode, returns a temporary download URL (valid for 1 hour).
 
     For Google native files (Docs, Sheets, Slides), exports to a useful format:
-    • Google Docs → PDF (default) or DOCX if export_format='docx'
-    • Google Sheets → XLSX (default), PDF if export_format='pdf', or CSV if export_format='csv'
-    • Google Slides → PDF (default) or PPTX if export_format='pptx'
+    - Google Docs -> PDF (default) or DOCX if export_format='docx'
+    - Google Sheets -> XLSX (default), PDF if export_format='pdf', or CSV if export_format='csv'
+    - Google Slides -> PDF (default) or PPTX if export_format='pptx'
 
     For other files, downloads the original file format.
 
     Args:
         user_google_email: The user's Google email address. Required.
-        file_id: The Google Drive file ID to get a download URL for.
+        file_id: The Google Drive file ID to download.
         export_format: Optional export format for Google native files.
                       Options: 'pdf', 'docx', 'xlsx', 'csv', 'pptx'.
                       If not specified, uses sensible defaults (PDF for Docs/Slides, XLSX for Sheets).
                       For Sheets: supports 'csv', 'pdf', or 'xlsx' (default).
 
     Returns:
-        str: Download URL and file metadata. The file is available at the URL for 1 hour.
+        str: File metadata with either a local file path or download URL.
     """
     logger.info(
         f"[get_drive_file_download_url] Invoked. File ID: '{file_id}', Export format: {export_format}"
@@ -348,22 +351,19 @@ async def get_drive_file_download_url(
         )
         return "\n".join(result_lines)
 
-    # Save file and generate URL
+    # Save file to local disk and return file path
     try:
         storage = get_attachment_storage()
 
         # Encode bytes to base64 (as expected by AttachmentStorage)
         base64_data = base64.urlsafe_b64encode(file_content_bytes).decode("utf-8")
 
-        # Save attachment
-        saved_file_id = storage.save_attachment(
+        # Save attachment to local disk
+        result = storage.save_attachment(
             base64_data=base64_data,
             filename=output_filename,
             mime_type=output_mime_type,
         )
-
-        # Generate URL
-        download_url = get_attachment_url(saved_file_id)
 
         result_lines = [
             "File downloaded successfully!",
@@ -371,10 +371,17 @@ async def get_drive_file_download_url(
             f"File ID: {file_id}",
             f"Size: {size_kb:.1f} KB ({size_bytes} bytes)",
             f"MIME Type: {output_mime_type}",
-            f"\n📎 Download URL: {download_url}",
-            "\nThe file has been saved and is available at the URL above.",
-            "The file will expire after 1 hour.",
         ]
+
+        if get_transport_mode() == "stdio":
+            result_lines.append(f"\n📎 Saved to: {result.path}")
+            result_lines.append(
+                "\nThe file has been saved to disk and can be accessed directly via the file path."
+            )
+        else:
+            download_url = get_attachment_url(result.file_id)
+            result_lines.append(f"\n📎 Download URL: {download_url}")
+            result_lines.append("\nThe file will expire after 1 hour.")
 
         if export_mime_type:
             result_lines.append(
@@ -382,7 +389,7 @@ async def get_drive_file_download_url(
             )
 
         logger.info(
-            f"[get_drive_file_download_url] Successfully saved {size_kb:.1f} KB file as {saved_file_id}"
+            f"[get_drive_file_download_url] Successfully saved {size_kb:.1f} KB file to {result.path}"
         )
         return "\n".join(result_lines)
 
