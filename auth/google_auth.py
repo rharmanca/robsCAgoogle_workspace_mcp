@@ -587,7 +587,11 @@ def get_credentials(
                     )
 
                     # Refresh expired credentials before checking scopes
-                    if not credentials.valid and credentials.expired and credentials.refresh_token:
+                    if (
+                        not credentials.valid
+                        and credentials.expired
+                        and credentials.refresh_token
+                    ):
                         try:
                             credentials.refresh(Request())
                             logger.info(

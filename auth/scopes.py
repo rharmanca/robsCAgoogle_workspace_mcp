@@ -84,7 +84,12 @@ SCRIPT_METRICS_SCOPE = "https://www.googleapis.com/auth/script.metrics"
 # See https://developers.google.com/gmail/api/auth/scopes,
 # https://developers.google.com/drive/api/guides/api-specific-auth, etc.
 SCOPE_HIERARCHY = {
-    GMAIL_MODIFY_SCOPE: {GMAIL_READONLY_SCOPE, GMAIL_SEND_SCOPE, GMAIL_COMPOSE_SCOPE, GMAIL_LABELS_SCOPE},
+    GMAIL_MODIFY_SCOPE: {
+        GMAIL_READONLY_SCOPE,
+        GMAIL_SEND_SCOPE,
+        GMAIL_COMPOSE_SCOPE,
+        GMAIL_LABELS_SCOPE,
+    },
     DRIVE_SCOPE: {DRIVE_READONLY_SCOPE, DRIVE_FILE_SCOPE},
     CALENDAR_SCOPE: {CALENDAR_READONLY_SCOPE, CALENDAR_EVENTS_SCOPE},
     DOCS_WRITE_SCOPE: {DOCS_READONLY_SCOPE},

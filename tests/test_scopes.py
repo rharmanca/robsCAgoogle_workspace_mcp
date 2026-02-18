@@ -151,7 +151,9 @@ class TestHasRequiredScopes:
 
     def test_gmail_modify_does_not_cover_settings(self):
         """gmail.modify does NOT cover gmail.settings.basic."""
-        assert not has_required_scopes([GMAIL_MODIFY_SCOPE], [GMAIL_SETTINGS_BASIC_SCOPE])
+        assert not has_required_scopes(
+            [GMAIL_MODIFY_SCOPE], [GMAIL_SETTINGS_BASIC_SCOPE]
+        )
 
     def test_gmail_modify_covers_multiple_children(self):
         """gmail.modify should satisfy multiple child scopes at once."""
