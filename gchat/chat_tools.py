@@ -17,8 +17,18 @@ from core.utils import handle_http_errors
 
 logger = logging.getLogger(__name__)
 
-# In-memory cache for user ID → display name (persists for the process lifetime)
+# In-memory cache for user ID → display name (bounded to avoid unbounded growth)
+_SENDER_CACHE_MAX_SIZE = 256
 _sender_name_cache: Dict[str, str] = {}
+
+
+def _cache_sender(user_id: str, name: str) -> None:
+    """Store a resolved sender name, evicting oldest entries if cache is full."""
+    if len(_sender_name_cache) >= _SENDER_CACHE_MAX_SIZE:
+        to_remove = list(_sender_name_cache.keys())[:_SENDER_CACHE_MAX_SIZE // 2]
+        for k in to_remove:
+            del _sender_name_cache[k]
+    _sender_name_cache[user_id] = name
 
 
 async def _resolve_sender(people_service, sender_obj: dict) -> str:
@@ -53,13 +63,13 @@ async def _resolve_sender(people_service, sender_obj: dict) -> str:
             names = person.get("names", [])
             if names:
                 resolved = names[0].get("displayName", user_id)
-                _sender_name_cache[user_id] = resolved
+                _cache_sender(user_id, resolved)
                 return resolved
             # Fall back to email if no name
             emails = person.get("emailAddresses", [])
             if emails:
                 resolved = emails[0].get("value", user_id)
-                _sender_name_cache[user_id] = resolved
+                _cache_sender(user_id, resolved)
                 return resolved
         except HttpError as e:
             logger.debug(f"People API lookup failed for {user_id}: {e}")
@@ -67,7 +77,7 @@ async def _resolve_sender(people_service, sender_obj: dict) -> str:
             logger.debug(f"Unexpected error resolving {user_id}: {e}")
 
     # Final fallback
-    _sender_name_cache[user_id] = user_id
+    _cache_sender(user_id, user_id)
     return user_id
 
 
@@ -133,7 +143,6 @@ async def list_spaces(
 
 
 @server.tool()
-@handle_http_errors("get_messages", service_type="chat")
 @require_multiple_services(
     [
         {"service_type": "chat", "scopes": "chat_read", "param_name": "chat_service"},
@@ -144,6 +153,7 @@ async def list_spaces(
         },
     ]
 )
+@handle_http_errors("get_messages", service_type="chat")
 async def get_messages(
     chat_service,
     people_service,
@@ -178,9 +188,23 @@ async def get_messages(
     if not messages:
         return f"No messages found in space '{space_name}' (ID: {space_id})."
 
+    # Pre-resolve unique senders in parallel
+    sender_lookup = {}
+    for msg in messages:
+        s = msg.get("sender", {})
+        key = s.get("name", "")
+        if key and key not in sender_lookup:
+            sender_lookup[key] = s
+    resolved_names = await asyncio.gather(
+        *[_resolve_sender(people_service, s) for s in sender_lookup.values()]
+    )
+    sender_map = dict(zip(sender_lookup.keys(), resolved_names))
+
     output = [f"Messages from '{space_name}' (ID: {space_id}):\n"]
     for msg in messages:
-        sender = await _resolve_sender(people_service, msg.get("sender", {}))
+        sender_obj = msg.get("sender", {})
+        sender_key = sender_obj.get("name", "")
+        sender = sender_map.get(sender_key) or await _resolve_sender(people_service, sender_obj)
         create_time = msg.get("createTime", "Unknown Time")
         text_content = msg.get("text", "No text content")
         msg_name = msg.get("name", "")
@@ -262,7 +286,6 @@ async def send_message(
 
 
 @server.tool()
-@handle_http_errors("search_messages", service_type="chat")
 @require_multiple_services(
     [
         {"service_type": "chat", "scopes": "chat_read", "param_name": "chat_service"},
@@ -273,6 +296,7 @@ async def send_message(
         },
     ]
 )
+@handle_http_errors("search_messages", service_type="chat")
 async def search_messages(
     chat_service,
     people_service,
@@ -322,16 +346,31 @@ async def search_messages(
                 for msg in space_msgs:
                     msg["_space_name"] = space.get("displayName", "Unknown")
                 messages.extend(space_msgs)
-            except HttpError:
-                continue  # Skip spaces we can't access
+            except HttpError as e:
+                logger.debug("Skipping space %s during search: %s", space.get("name"), e)
+                continue
         context = "all accessible spaces"
 
     if not messages:
         return f"No messages found matching '{query}' in {context}."
 
+    # Pre-resolve unique senders in parallel
+    sender_lookup = {}
+    for msg in messages:
+        s = msg.get("sender", {})
+        key = s.get("name", "")
+        if key and key not in sender_lookup:
+            sender_lookup[key] = s
+    resolved_names = await asyncio.gather(
+        *[_resolve_sender(people_service, s) for s in sender_lookup.values()]
+    )
+    sender_map = dict(zip(sender_lookup.keys(), resolved_names))
+
     output = [f"Found {len(messages)} messages matching '{query}' in {context}:"]
     for msg in messages:
-        sender = await _resolve_sender(people_service, msg.get("sender", {}))
+        sender_obj = msg.get("sender", {})
+        sender_key = sender_obj.get("name", "")
+        sender = sender_map.get(sender_key) or await _resolve_sender(people_service, sender_obj)
         create_time = msg.get("createTime", "Unknown Time")
         text_content = msg.get("text", "No text content")
         space_name = msg.get("_space_name", "Unknown Space")
@@ -370,7 +409,7 @@ async def create_reaction(
     """
     logger.info(f"[create_reaction] Message: '{message_id}', Emoji: '{emoji_unicode}'")
 
-    await asyncio.to_thread(
+    reaction = await asyncio.to_thread(
         service.spaces()
         .messages()
         .reactions()
@@ -381,4 +420,5 @@ async def create_reaction(
         .execute
     )
 
-    return f"Reacted with {emoji_unicode} on message {message_id}."
+    reaction_name = reaction.get("name", "")
+    return f"Reacted with {emoji_unicode} on message {message_id}. Reaction ID: {reaction_name}"
