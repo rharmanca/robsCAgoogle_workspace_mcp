@@ -7,6 +7,7 @@ This module provides MCP tools for interacting with Google Docs API and managing
 import logging
 import asyncio
 import io
+import re
 from typing import List, Dict, Any
 
 from googleapiclient.http import MediaIoBaseDownload, MediaIoBaseUpload
@@ -36,6 +37,12 @@ from gdocs.docs_structure import (
     analyze_document_complexity,
 )
 from gdocs.docs_tables import extract_table_as_data
+from gdocs.docs_markdown import (
+    convert_doc_to_markdown,
+    format_comments_inline,
+    format_comments_appendix,
+    parse_drive_comments,
+)
 
 # Import operation managers for complex business logic
 from gdocs.managers import (
@@ -1561,6 +1568,110 @@ async def update_paragraph_style(
 
     link = f"https://docs.google.com/document/d/{document_id}/edit"
     return f"Applied paragraph formatting ({', '.join(summary_parts)}) to range {start_index}-{end_index} in document {document_id}. Link: {link}"
+
+
+@server.tool()
+@handle_http_errors("get_doc_as_markdown", is_read_only=True, service_type="docs")
+@require_multiple_services(
+    [
+        {
+            "service_type": "drive",
+            "scopes": "drive_read",
+            "param_name": "drive_service",
+        },
+        {"service_type": "docs", "scopes": "docs_read", "param_name": "docs_service"},
+    ]
+)
+async def get_doc_as_markdown(
+    drive_service: Any,
+    docs_service: Any,
+    user_google_email: str,
+    document_id: str,
+    include_comments: bool = True,
+    comment_mode: str = "inline",
+    include_resolved: bool = False,
+) -> str:
+    """
+    Reads a Google Doc and returns it as clean Markdown with optional comment context.
+
+    Unlike get_doc_content which returns plain text, this tool preserves document
+    formatting as Markdown: headings, bold/italic/strikethrough, links, code spans,
+    ordered/unordered lists with nesting, and tables.
+
+    When comments are included (the default), each comment's anchor text — the specific
+    text the comment was attached to — is preserved, giving full context for the discussion.
+
+    Args:
+        user_google_email: User's Google email address
+        document_id: ID of the Google Doc (or full URL)
+        include_comments: Whether to include comments (default: True)
+        comment_mode: How to display comments:
+            - "inline": Footnote-style references placed at the anchor text location (default)
+            - "appendix": All comments grouped at the bottom with blockquoted anchor text
+            - "none": No comments included
+        include_resolved: Whether to include resolved comments (default: False)
+
+    Returns:
+        str: The document content as Markdown, optionally with comments
+    """
+    # Extract doc ID from URL if a full URL was provided
+    url_match = re.search(r"/d/([\w-]+)", document_id)
+    if url_match:
+        document_id = url_match.group(1)
+
+    valid_modes = ("inline", "appendix", "none")
+    if comment_mode not in valid_modes:
+        return f"Error: comment_mode must be one of {valid_modes}, got '{comment_mode}'"
+
+    logger.info(
+        f"[get_doc_as_markdown] Doc={document_id}, comments={include_comments}, mode={comment_mode}"
+    )
+
+    # Fetch document content via Docs API
+    doc = await asyncio.to_thread(
+        docs_service.documents().get(documentId=document_id).execute
+    )
+
+    markdown = convert_doc_to_markdown(doc)
+
+    if not include_comments or comment_mode == "none":
+        return markdown
+
+    # Fetch comments via Drive API
+    all_comments = []
+    page_token = None
+
+    while True:
+        response = await asyncio.to_thread(
+            drive_service.comments()
+            .list(
+                fileId=document_id,
+                fields="comments(id,content,author,createdTime,modifiedTime,"
+                "resolved,quotedFileContent,"
+                "replies(id,content,author,createdTime,modifiedTime)),"
+                "nextPageToken",
+                includeDeleted=False,
+                pageToken=page_token,
+            )
+            .execute
+        )
+        all_comments.extend(response.get("comments", []))
+        page_token = response.get("nextPageToken")
+        if not page_token:
+            break
+
+    comments = parse_drive_comments(
+        {"comments": all_comments}, include_resolved=include_resolved
+    )
+
+    if not comments:
+        return markdown
+
+    if comment_mode == "inline":
+        return format_comments_inline(markdown, comments)
+    else:
+        appendix = format_comments_appendix(comments)
+        return markdown.rstrip("\n") + "\n\n" + appendix
 
 
 # Create comment management tools for documents
