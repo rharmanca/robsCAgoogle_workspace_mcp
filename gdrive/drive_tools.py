@@ -30,6 +30,7 @@ from core.server import server
 from core.config import get_transport_mode
 from gdrive.drive_helpers import (
     DRIVE_QUERY_PATTERNS,
+    FOLDER_MIME_TYPE,
     build_drive_list_params,
     check_public_link_permission,
     format_permission_info,
@@ -473,18 +474,16 @@ async def _create_drive_folder_impl(
     file_metadata = {
         "name": folder_name,
         "parents": [resolved_folder_id],
-        "mimeType": "application/vnd.google-apps.folder",
+        "mimeType": FOLDER_MIME_TYPE,
     }
     created_file = await asyncio.to_thread(
-        lambda: (
-            service.files()
-            .create(
-                body=file_metadata,
-                fields="id, name, webViewLink",
-                supportsAllDrives=True,
-            )
-            .execute()
+        service.files()
+        .create(
+            body=file_metadata,
+            fields="id, name, webViewLink",
+            supportsAllDrives=True,
         )
+        .execute
     )
     link = created_file.get("webViewLink", "")
     return (
@@ -556,9 +555,13 @@ async def create_drive_file(
     if (
         not content
         and not fileUrl
-        and mime_type != "application/vnd.google-apps.folder"
+        and mime_type != FOLDER_MIME_TYPE
     ):
         raise Exception("You must provide either 'content' or 'fileUrl'.")
+
+    # Create folder (no content or media_body). Prefer create_drive_folder for new code.
+    if mime_type == FOLDER_MIME_TYPE:
+        return await _create_drive_folder_impl(service, user_google_email, file_name, folder_id)
 
     file_data = None
     resolved_folder_id = await resolve_folder_id(service, folder_id)
@@ -568,25 +571,6 @@ async def create_drive_file(
         "parents": [resolved_folder_id],
         "mimeType": mime_type,
     }
-
-    # Create folder (no content or media_body). Prefer create_drive_folder for new code.
-    if mime_type == "application/vnd.google-apps.folder":
-        created_file = await asyncio.to_thread(
-            lambda: (
-                service.files()
-                .create(
-                    body=file_metadata,
-                    fields="id, name, webViewLink",
-                    supportsAllDrives=True,
-                )
-                .execute()
-            )
-        )
-        link = created_file.get("webViewLink", "")
-        return (
-            f"Successfully created folder '{created_file.get('name', file_name)}' (ID: {created_file.get('id', 'N/A')}) "
-            f"in folder '{folder_id}' for {user_google_email}. Link: {link}"
-        )
 
     # Prefer fileUrl if both are provided
     if fileUrl:
