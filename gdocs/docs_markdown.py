@@ -194,7 +194,8 @@ def _extract_cell_text(cell: dict[str, Any]) -> str:
             text = _convert_paragraph_text(content_elem["paragraph"])
             if text.strip():
                 parts.append(text.strip())
-    return " ".join(parts)
+    cell_text = " ".join(parts)
+    return cell_text.replace("|", "\\|")
 
 
 def format_comments_inline(markdown: str, comments: list[dict[str, Any]]) -> str:

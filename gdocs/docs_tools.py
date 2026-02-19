@@ -7,6 +7,7 @@ This module provides MCP tools for interacting with Google Docs API and managing
 import logging
 import asyncio
 import io
+import re
 from typing import List, Dict, Any
 
 from googleapiclient.http import MediaIoBaseDownload, MediaIoBaseUpload
@@ -1613,6 +1614,15 @@ async def get_doc_as_markdown(
     Returns:
         str: The document content as Markdown, optionally with comments
     """
+    # Extract doc ID from URL if a full URL was provided
+    url_match = re.search(r"/d/([\w-]+)", document_id)
+    if url_match:
+        document_id = url_match.group(1)
+
+    valid_modes = ("inline", "appendix", "none")
+    if comment_mode not in valid_modes:
+        return f"Error: comment_mode must be one of {valid_modes}, got '{comment_mode}'"
+
     logger.info(
         f"[get_doc_as_markdown] Doc={document_id}, comments={include_comments}, mode={comment_mode}"
     )
