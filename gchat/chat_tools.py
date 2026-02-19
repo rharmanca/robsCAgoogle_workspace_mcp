@@ -4,10 +4,12 @@ Google Chat MCP Tools
 This module provides MCP tools for interacting with Google Chat API.
 """
 
+import base64
 import logging
 import asyncio
 from typing import Dict, List, Optional
 
+import httpx
 from googleapiclient.errors import HttpError
 
 # Auth & server utilities
@@ -216,6 +218,17 @@ async def get_messages(
         rich_links = _extract_rich_links(msg)
         for url in rich_links:
             output.append(f"  [linked: {url}]")
+        # Show attachments
+        attachments = msg.get("attachment", [])
+        for idx, att in enumerate(attachments):
+            att_name = att.get("contentName", "unnamed")
+            att_type = att.get("contentType", "unknown type")
+            att_resource = att.get("name", "")
+            output.append(f"  [attachment {idx}: {att_name} ({att_type})]")
+            if att_resource:
+                output.append(
+                    f"  Use download_chat_attachment(message_id='{msg_name}', attachment_index={idx}) to download"
+                )
         # Show thread info if this is a threaded reply
         thread = msg.get("thread", {})
         if msg.get("threadReply") and thread.get("name"):
@@ -387,8 +400,12 @@ async def search_messages(
 
         rich_links = _extract_rich_links(msg)
         links_suffix = "".join(f" [linked: {url}]" for url in rich_links)
+        attachments = msg.get("attachment", [])
+        att_suffix = "".join(
+            f" [attachment: {a.get('contentName', 'unnamed')}]" for a in attachments
+        )
         output.append(
-            f"- [{create_time}] {sender} in '{space_name}': {text_content}{links_suffix}"
+            f"- [{create_time}] {sender} in '{space_name}': {text_content}{links_suffix}{att_suffix}"
         )
 
     return "\n".join(output)
@@ -428,3 +445,138 @@ async def create_reaction(
 
     reaction_name = reaction.get("name", "")
     return f"Reacted with {emoji_unicode} on message {message_id}. Reaction ID: {reaction_name}"
+
+
+@server.tool()
+@handle_http_errors("download_chat_attachment", is_read_only=True, service_type="chat")
+@require_google_service("chat", "chat_read")
+async def download_chat_attachment(
+    service,
+    user_google_email: str,
+    message_id: str,
+    attachment_index: int = 0,
+) -> str:
+    """
+    Downloads an attachment from a Google Chat message and saves it to local disk.
+
+    In stdio mode, returns the local file path for direct access.
+    In HTTP mode, returns a temporary download URL (valid for 1 hour).
+
+    Args:
+        message_id: The message resource name (e.g. spaces/X/messages/Y).
+        attachment_index: Zero-based index of the attachment to download (default 0).
+
+    Returns:
+        str: Attachment metadata with either a local file path or download URL.
+    """
+    logger.info(
+        f"[download_chat_attachment] Message: '{message_id}', Index: {attachment_index}"
+    )
+
+    # Fetch the message to get attachment metadata
+    msg = await asyncio.to_thread(
+        service.spaces().messages().get(name=message_id).execute
+    )
+
+    attachments = msg.get("attachment", [])
+    if not attachments:
+        return f"No attachments found on message {message_id}."
+
+    if attachment_index < 0 or attachment_index >= len(attachments):
+        return (
+            f"Invalid attachment_index {attachment_index}. "
+            f"Message has {len(attachments)} attachment(s) (0-{len(attachments) - 1})."
+        )
+
+    att = attachments[attachment_index]
+    filename = att.get("contentName", "attachment")
+    content_type = att.get("contentType", "application/octet-stream")
+    source = att.get("source", "")
+
+    # The media endpoint needs attachmentDataRef.resourceName (e.g.
+    # "spaces/S/attachments/A"), NOT the attachment name which includes
+    # the /messages/ segment and causes 400 errors.
+    media_resource = att.get("attachmentDataRef", {}).get("resourceName", "")
+    att_name = att.get("name", "")
+
+    logger.info(
+        f"[download_chat_attachment] Downloading '{filename}' ({content_type}), "
+        f"source={source}, mediaResource={media_resource}, name={att_name}"
+    )
+
+    # Download the attachment binary data via the Chat API media endpoint.
+    # We use httpx with the Bearer token directly because MediaIoBaseDownload
+    # and AuthorizedHttp fail in OAuth 2.1 (no refresh_token). The attachment's
+    # downloadUri points to chat.google.com which requires browser cookies.
+    if not media_resource and not att_name:
+        return f"No resource name available for attachment '{filename}'."
+
+    # Prefer attachmentDataRef.resourceName for the media endpoint
+    resource_name = media_resource or att_name
+    download_url = (
+        f"https://chat.googleapis.com/v1/media/{resource_name}?alt=media"
+    )
+
+    try:
+        access_token = service._http.credentials.token
+        async with httpx.AsyncClient(follow_redirects=True) as client:
+            resp = await client.get(
+                download_url,
+                headers={"Authorization": f"Bearer {access_token}"},
+            )
+            if resp.status_code != 200:
+                body = resp.text[:500]
+                return (
+                    f"Failed to download attachment '{filename}': "
+                    f"HTTP {resp.status_code} from {download_url}\n{body}"
+                )
+            file_bytes = resp.content
+    except Exception as e:
+        return f"Failed to download attachment '{filename}': {e}"
+
+    size_bytes = len(file_bytes)
+    size_kb = size_bytes / 1024
+
+    # Check if we're in stateless mode (can't save files)
+    from auth.oauth_config import is_stateless_mode
+
+    if is_stateless_mode():
+        b64_preview = base64.urlsafe_b64encode(file_bytes).decode("utf-8")[:100]
+        return "\n".join([
+            f"Attachment downloaded: {filename} ({content_type})",
+            f"Size: {size_kb:.1f} KB ({size_bytes} bytes)",
+            "",
+            "Stateless mode: File storage disabled.",
+            f"Base64 preview: {b64_preview}...",
+        ])
+
+    # Save to local disk
+    from core.attachment_storage import get_attachment_storage, get_attachment_url
+    from core.config import get_transport_mode
+
+    storage = get_attachment_storage()
+    b64_data = base64.urlsafe_b64encode(file_bytes).decode("utf-8")
+    result = storage.save_attachment(
+        base64_data=b64_data, filename=filename, mime_type=content_type
+    )
+
+    result_lines = [
+        f"Attachment downloaded: {filename}",
+        f"Type: {content_type}",
+        f"Size: {size_kb:.1f} KB ({size_bytes} bytes)",
+    ]
+
+    if get_transport_mode() == "stdio":
+        result_lines.append(f"\nSaved to: {result.path}")
+        result_lines.append(
+            "\nThe file has been saved to disk and can be accessed directly via the file path."
+        )
+    else:
+        download_url = get_attachment_url(result.file_id)
+        result_lines.append(f"\nDownload URL: {download_url}")
+        result_lines.append("\nThe file will expire after 1 hour.")
+
+    logger.info(
+        f"[download_chat_attachment] Saved {size_kb:.1f} KB attachment to {result.path}"
+    )
+    return "\n".join(result_lines)

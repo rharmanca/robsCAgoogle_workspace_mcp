@@ -101,6 +101,7 @@ chat:
     - search_messages
   extended:
     - list_spaces
+    - download_chat_attachment
   complete: []
 
 forms:
