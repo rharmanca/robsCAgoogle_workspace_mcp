@@ -66,6 +66,7 @@ docs:
     - list_docs_in_folder
     - insert_doc_elements
     - update_paragraph_style
+    - get_doc_as_markdown
   complete:
     - insert_doc_image
     - update_doc_headers_footers
