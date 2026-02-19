@@ -291,9 +291,7 @@ async def test_download_uses_api_media_endpoint():
 async def test_download_falls_back_to_att_name():
     """When attachmentDataRef is missing, should fall back to attachment name."""
     fake_bytes = b"fetched content"
-    att = _make_attachment(
-        name="spaces/S/messages/M/attachments/A", resource_name=None
-    )
+    att = _make_attachment(name="spaces/S/messages/M/attachments/A", resource_name=None)
     msg = _make_message(attachments=[att])
 
     service = Mock()

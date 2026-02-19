@@ -152,9 +152,7 @@ def _apply_text_style(text: str, style: dict[str, Any]) -> str:
     return text
 
 
-def _is_ordered_list(
-    lists_meta: dict[str, Any], list_id: str, nesting: int
-) -> bool:
+def _is_ordered_list(lists_meta: dict[str, Any], list_id: str, nesting: int) -> bool:
     """Check if a list at a given nesting level is ordered."""
     list_info = lists_meta.get(list_id, {})
     nesting_levels = list_info.get("listProperties", {}).get("nestingLevels", [])
@@ -251,9 +249,7 @@ def format_comments_appendix(comments: list[dict[str, Any]]) -> str:
         if anchor:
             lines.append(f"> {anchor}")
             lines.append("")
-        lines.append(
-            f"- **{comment['author']}**: {comment['content']}{resolved_tag}"
-        )
+        lines.append(f"- **{comment['author']}**: {comment['content']}{resolved_tag}")
         for reply in comment.get("replies", []):
             lines.append(f"  - **{reply['author']}**: {reply['content']}")
         lines.append("")

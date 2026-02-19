@@ -402,7 +402,8 @@ async def search_messages(
         links_suffix = "".join(f" [linked: {url}]" for url in rich_links)
         attachments = msg.get("attachment", [])
         att_suffix = "".join(
-            f" [attachment: {a.get('contentName', 'unnamed')}]" for a in attachments
+            f" [attachment: {a.get('contentName', 'unnamed')} ({a.get('contentType', 'unknown type')})]"
+            for a in attachments
         )
         output.append(
             f"- [{create_time}] {sender} in '{space_name}': {text_content}{links_suffix}{att_suffix}"
@@ -513,9 +514,7 @@ async def download_chat_attachment(
 
     # Prefer attachmentDataRef.resourceName for the media endpoint
     resource_name = media_resource or att_name
-    download_url = (
-        f"https://chat.googleapis.com/v1/media/{resource_name}?alt=media"
-    )
+    download_url = f"https://chat.googleapis.com/v1/media/{resource_name}?alt=media"
 
     try:
         access_token = service._http.credentials.token
@@ -542,13 +541,15 @@ async def download_chat_attachment(
 
     if is_stateless_mode():
         b64_preview = base64.urlsafe_b64encode(file_bytes).decode("utf-8")[:100]
-        return "\n".join([
-            f"Attachment downloaded: {filename} ({content_type})",
-            f"Size: {size_kb:.1f} KB ({size_bytes} bytes)",
-            "",
-            "Stateless mode: File storage disabled.",
-            f"Base64 preview: {b64_preview}...",
-        ])
+        return "\n".join(
+            [
+                f"Attachment downloaded: {filename} ({content_type})",
+                f"Size: {size_kb:.1f} KB ({size_bytes} bytes)",
+                "",
+                "Stateless mode: File storage disabled.",
+                f"Base64 preview: {b64_preview}...",
+            ]
+        )
 
     # Save to local disk
     from core.attachment_storage import get_attachment_storage, get_attachment_url
