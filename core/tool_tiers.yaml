@@ -100,6 +100,7 @@ chat:
     - send_message
     - get_messages
     - search_messages
+    - create_reaction
   extended:
     - list_spaces
     - download_chat_attachment

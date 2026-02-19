@@ -936,6 +936,7 @@ Saved files expire after 1 hour and are cleaned up automatically.
 | `list_docs_in_folder` | Extended | List docs in folder |
 | `insert_doc_elements` | Extended | Add tables, lists, page breaks |
 | `update_paragraph_style` | Extended | Apply heading styles, lists (bulleted/numbered with nesting), and paragraph formatting |
+| `get_doc_as_markdown` | Extended | Export document as formatted Markdown with optional comments |
 | `insert_doc_image` | Complete | Insert images from Drive/URLs |
 | `update_doc_headers_footers` | Complete | Modify headers and footers |
 | `batch_update_doc` | Complete | Execute multiple operations |
@@ -1044,6 +1045,8 @@ Saved files expire after 1 hour and are cleaned up automatically.
 | `get_messages` | **Core** | Retrieve space messages |
 | `send_message` | **Core** | Send messages to spaces |
 | `search_messages` | **Core** | Search across chat history |
+| `create_reaction` | **Core** | Add emoji reaction to a message |
+| `download_chat_attachment` | Extended | Download attachment from a chat message |
 
 </td>
 <td width="50%" valign="top">
