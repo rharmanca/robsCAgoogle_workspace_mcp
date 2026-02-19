@@ -195,7 +195,7 @@ async def _read_comments_impl(service, app_name: str, file_id: str) -> str:
         service.comments()
         .list(
             fileId=file_id,
-            fields="comments(id,content,author,createdTime,modifiedTime,resolved,replies(content,author,id,createdTime,modifiedTime))",
+            fields="comments(id,content,author,createdTime,modifiedTime,resolved,quotedFileContent,replies(content,author,id,createdTime,modifiedTime))",
         )
         .execute
     )
@@ -215,9 +215,13 @@ async def _read_comments_impl(service, app_name: str, file_id: str) -> str:
         comment_id = comment.get("id", "")
         status = " [RESOLVED]" if resolved else ""
 
+        quoted_text = comment.get("quotedFileContent", {}).get("value", "")
+
         output.append(f"Comment ID: {comment_id}")
         output.append(f"Author: {author}")
         output.append(f"Created: {created}{status}")
+        if quoted_text:
+            output.append(f"Quoted text: {quoted_text}")
         output.append(f"Content: {content}")
 
         # Add replies if any
