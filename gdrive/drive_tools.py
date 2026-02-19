@@ -30,6 +30,7 @@ from core.server import server
 from core.config import get_transport_mode
 from gdrive.drive_helpers import (
     DRIVE_QUERY_PATTERNS,
+    FOLDER_MIME_TYPE,
     build_drive_list_params,
     check_public_link_permission,
     format_permission_info,
@@ -462,6 +463,64 @@ async def list_drive_items(
     return text_output
 
 
+async def _create_drive_folder_impl(
+    service,
+    user_google_email: str,
+    folder_name: str,
+    parent_folder_id: str = "root",
+) -> str:
+    """Internal implementation for create_drive_folder. Used by tests."""
+    resolved_folder_id = await resolve_folder_id(service, parent_folder_id)
+    file_metadata = {
+        "name": folder_name,
+        "parents": [resolved_folder_id],
+        "mimeType": FOLDER_MIME_TYPE,
+    }
+    created_file = await asyncio.to_thread(
+        service.files()
+        .create(
+            body=file_metadata,
+            fields="id, name, webViewLink",
+            supportsAllDrives=True,
+        )
+        .execute
+    )
+    link = created_file.get("webViewLink", "")
+    return (
+        f"Successfully created folder '{created_file.get('name', folder_name)}' (ID: {created_file.get('id', 'N/A')}) "
+        f"in folder '{parent_folder_id}' for {user_google_email}. Link: {link}"
+    )
+
+
+@server.tool()
+@handle_http_errors("create_drive_folder", service_type="drive")
+@require_google_service("drive", "drive_file")
+async def create_drive_folder(
+    service,
+    user_google_email: str,
+    folder_name: str,
+    parent_folder_id: str = "root",
+) -> str:
+    """
+    Creates a new folder in Google Drive, supporting creation within shared drives.
+
+    Args:
+        user_google_email (str): The user's Google email address. Required.
+        folder_name (str): The name for the new folder.
+        parent_folder_id (str): The ID of the parent folder. Defaults to 'root'.
+            For shared drives, use a folder ID within that shared drive.
+
+    Returns:
+        str: Confirmation message with folder name, ID, and link.
+    """
+    logger.info(
+        f"[create_drive_folder] Invoked. Email: '{user_google_email}', Folder: '{folder_name}', Parent: '{parent_folder_id}'"
+    )
+    return await _create_drive_folder_impl(
+        service, user_google_email, folder_name, parent_folder_id
+    )
+
+
 @server.tool()
 @handle_http_errors("create_drive_file", service_type="drive")
 @require_google_service("drive", "drive_file")
@@ -493,8 +552,16 @@ async def create_drive_file(
         f"[create_drive_file] Invoked. Email: '{user_google_email}', File Name: {file_name}, Folder ID: {folder_id}, fileUrl: {fileUrl}"
     )
 
-    if not content and not fileUrl:
+    if (
+        not content
+        and not fileUrl
+        and mime_type != FOLDER_MIME_TYPE
+    ):
         raise Exception("You must provide either 'content' or 'fileUrl'.")
+
+    # Create folder (no content or media_body). Prefer create_drive_folder for new code.
+    if mime_type == FOLDER_MIME_TYPE:
+        return await _create_drive_folder_impl(service, user_google_email, file_name, folder_id)
 
     file_data = None
     resolved_folder_id = await resolve_folder_id(service, folder_id)
