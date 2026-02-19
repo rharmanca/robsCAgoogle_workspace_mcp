@@ -22,7 +22,9 @@ SIMPLE_DOC = {
             {"sectionBreak": {"sectionStyle": {}}},
             {
                 "paragraph": {
-                    "elements": [{"textRun": {"content": "Hello world\n", "textStyle": {}}}],
+                    "elements": [
+                        {"textRun": {"content": "Hello world\n", "textStyle": {}}}
+                    ],
                     "paragraphStyle": {"namedStyleType": "NORMAL_TEXT"},
                 }
             },
@@ -32,7 +34,12 @@ SIMPLE_DOC = {
                         {"textRun": {"content": "This is ", "textStyle": {}}},
                         {"textRun": {"content": "bold", "textStyle": {"bold": True}}},
                         {"textRun": {"content": " and ", "textStyle": {}}},
-                        {"textRun": {"content": "italic", "textStyle": {"italic": True}}},
+                        {
+                            "textRun": {
+                                "content": "italic",
+                                "textStyle": {"italic": True},
+                            }
+                        },
                         {"textRun": {"content": " text.\n", "textStyle": {}}},
                     ],
                     "paragraphStyle": {"namedStyleType": "NORMAL_TEXT"},
@@ -55,13 +62,17 @@ HEADINGS_DOC = {
             },
             {
                 "paragraph": {
-                    "elements": [{"textRun": {"content": "Heading one\n", "textStyle": {}}}],
+                    "elements": [
+                        {"textRun": {"content": "Heading one\n", "textStyle": {}}}
+                    ],
                     "paragraphStyle": {"namedStyleType": "HEADING_1"},
                 }
             },
             {
                 "paragraph": {
-                    "elements": [{"textRun": {"content": "Heading two\n", "textStyle": {}}}],
+                    "elements": [
+                        {"textRun": {"content": "Heading two\n", "textStyle": {}}}
+                    ],
                     "paragraphStyle": {"namedStyleType": "HEADING_2"},
                 }
             },
@@ -81,14 +92,86 @@ TABLE_DOC = {
                     "tableRows": [
                         {
                             "tableCells": [
-                                {"content": [{"paragraph": {"elements": [{"textRun": {"content": "Name\n", "textStyle": {}}}], "paragraphStyle": {"namedStyleType": "NORMAL_TEXT"}}}]},
-                                {"content": [{"paragraph": {"elements": [{"textRun": {"content": "Age\n", "textStyle": {}}}], "paragraphStyle": {"namedStyleType": "NORMAL_TEXT"}}}]},
+                                {
+                                    "content": [
+                                        {
+                                            "paragraph": {
+                                                "elements": [
+                                                    {
+                                                        "textRun": {
+                                                            "content": "Name\n",
+                                                            "textStyle": {},
+                                                        }
+                                                    }
+                                                ],
+                                                "paragraphStyle": {
+                                                    "namedStyleType": "NORMAL_TEXT"
+                                                },
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "content": [
+                                        {
+                                            "paragraph": {
+                                                "elements": [
+                                                    {
+                                                        "textRun": {
+                                                            "content": "Age\n",
+                                                            "textStyle": {},
+                                                        }
+                                                    }
+                                                ],
+                                                "paragraphStyle": {
+                                                    "namedStyleType": "NORMAL_TEXT"
+                                                },
+                                            }
+                                        }
+                                    ]
+                                },
                             ]
                         },
                         {
                             "tableCells": [
-                                {"content": [{"paragraph": {"elements": [{"textRun": {"content": "Alice\n", "textStyle": {}}}], "paragraphStyle": {"namedStyleType": "NORMAL_TEXT"}}}]},
-                                {"content": [{"paragraph": {"elements": [{"textRun": {"content": "30\n", "textStyle": {}}}], "paragraphStyle": {"namedStyleType": "NORMAL_TEXT"}}}]},
+                                {
+                                    "content": [
+                                        {
+                                            "paragraph": {
+                                                "elements": [
+                                                    {
+                                                        "textRun": {
+                                                            "content": "Alice\n",
+                                                            "textStyle": {},
+                                                        }
+                                                    }
+                                                ],
+                                                "paragraphStyle": {
+                                                    "namedStyleType": "NORMAL_TEXT"
+                                                },
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "content": [
+                                        {
+                                            "paragraph": {
+                                                "elements": [
+                                                    {
+                                                        "textRun": {
+                                                            "content": "30\n",
+                                                            "textStyle": {},
+                                                        }
+                                                    }
+                                                ],
+                                                "paragraphStyle": {
+                                                    "namedStyleType": "NORMAL_TEXT"
+                                                },
+                                            }
+                                        }
+                                    ]
+                                },
                             ]
                         },
                     ],
@@ -114,14 +197,18 @@ LIST_DOC = {
             {"sectionBreak": {"sectionStyle": {}}},
             {
                 "paragraph": {
-                    "elements": [{"textRun": {"content": "Item one\n", "textStyle": {}}}],
+                    "elements": [
+                        {"textRun": {"content": "Item one\n", "textStyle": {}}}
+                    ],
                     "paragraphStyle": {"namedStyleType": "NORMAL_TEXT"},
                     "bullet": {"listId": "kix.list001", "nestingLevel": 0},
                 }
             },
             {
                 "paragraph": {
-                    "elements": [{"textRun": {"content": "Item two\n", "textStyle": {}}}],
+                    "elements": [
+                        {"textRun": {"content": "Item two\n", "textStyle": {}}}
+                    ],
                     "paragraphStyle": {"namedStyleType": "NORMAL_TEXT"},
                     "bullet": {"listId": "kix.list001", "nestingLevel": 0},
                 }
@@ -196,8 +283,18 @@ class TestParseComments:
     def test_filters_resolved(self):
         response = {
             "comments": [
-                {"content": "open", "resolved": False, "author": {"displayName": "A"}, "replies": []},
-                {"content": "closed", "resolved": True, "author": {"displayName": "B"}, "replies": []},
+                {
+                    "content": "open",
+                    "resolved": False,
+                    "author": {"displayName": "A"},
+                    "replies": [],
+                },
+                {
+                    "content": "closed",
+                    "resolved": True,
+                    "author": {"displayName": "B"},
+                    "replies": [],
+                },
             ]
         }
         result = parse_drive_comments(response, include_resolved=False)
@@ -207,8 +304,18 @@ class TestParseComments:
     def test_includes_resolved(self):
         response = {
             "comments": [
-                {"content": "open", "resolved": False, "author": {"displayName": "A"}, "replies": []},
-                {"content": "closed", "resolved": True, "author": {"displayName": "B"}, "replies": []},
+                {
+                    "content": "open",
+                    "resolved": False,
+                    "author": {"displayName": "A"},
+                    "replies": [],
+                },
+                {
+                    "content": "closed",
+                    "resolved": True,
+                    "author": {"displayName": "B"},
+                    "replies": [],
+                },
             ]
         }
         result = parse_drive_comments(response, include_resolved=True)
@@ -237,7 +344,13 @@ class TestInlineComments:
     def test_inserts_footnote(self):
         md = "Some text here."
         comments = [
-            {"author": "Alice", "content": "Note.", "anchor_text": "text", "replies": [], "resolved": False}
+            {
+                "author": "Alice",
+                "content": "Note.",
+                "anchor_text": "text",
+                "replies": [],
+                "resolved": False,
+            }
         ]
         result = format_comments_inline(md, comments)
         assert "text[^c1]" in result
@@ -246,7 +359,13 @@ class TestInlineComments:
     def test_unmatched_goes_to_appendix(self):
         md = "No match."
         comments = [
-            {"author": "Alice", "content": "Note.", "anchor_text": "missing", "replies": [], "resolved": False}
+            {
+                "author": "Alice",
+                "content": "Note.",
+                "anchor_text": "missing",
+                "replies": [],
+                "resolved": False,
+            }
         ]
         result = format_comments_inline(md, comments)
         assert "## Comments" in result
@@ -256,7 +375,13 @@ class TestInlineComments:
 class TestAppendixComments:
     def test_structure(self):
         comments = [
-            {"author": "Alice", "content": "Note.", "anchor_text": "some text", "replies": [], "resolved": False}
+            {
+                "author": "Alice",
+                "content": "Note.",
+                "anchor_text": "some text",
+                "replies": [],
+                "resolved": False,
+            }
         ]
         result = format_comments_appendix(comments)
         assert "## Comments" in result

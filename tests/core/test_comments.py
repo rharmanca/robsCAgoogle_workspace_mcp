@@ -57,7 +57,9 @@ async def test_read_comments_includes_quoted_text():
         if "Author: Bob" in part:
             bob_section_started = True
         if bob_section_started and "Quoted text:" in part:
-            pytest.fail("Comment without quotedFileContent should not show 'Quoted text'")
+            pytest.fail(
+                "Comment without quotedFileContent should not show 'Quoted text'"
+            )
         if bob_section_started and "Content: General comment" in part:
             break
 
