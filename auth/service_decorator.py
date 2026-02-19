@@ -39,6 +39,7 @@ from auth.scopes import (
     CHAT_READONLY_SCOPE,
     CHAT_WRITE_SCOPE,
     CHAT_SPACES_SCOPE,
+    CHAT_SPACES_READONLY_SCOPE,
     FORMS_BODY_SCOPE,
     FORMS_BODY_READONLY_SCOPE,
     FORMS_RESPONSES_READONLY_SCOPE,
@@ -53,6 +54,7 @@ from auth.scopes import (
     SCRIPT_PROJECTS_READONLY_SCOPE,
     SCRIPT_DEPLOYMENTS_SCOPE,
     SCRIPT_DEPLOYMENTS_READONLY_SCOPE,
+    has_required_scopes,
 )
 
 logger = logging.getLogger(__name__)
@@ -274,7 +276,7 @@ async def get_authenticated_google_service_oauth21(
         if not scopes_available and getattr(access_token, "scopes", None):
             scopes_available = set(access_token.scopes)
 
-        if not all(scope in scopes_available for scope in required_scopes):
+        if not has_required_scopes(scopes_available, required_scopes):
             raise GoogleAuthenticationError(
                 f"OAuth credentials lack required scopes. Need: {required_scopes}, Have: {sorted(scopes_available)}"
             )
@@ -304,7 +306,7 @@ async def get_authenticated_google_service_oauth21(
     else:
         scopes_available = set(credentials.scopes)
 
-    if not all(scope in scopes_available for scope in required_scopes):
+    if not has_required_scopes(scopes_available, required_scopes):
         raise GoogleAuthenticationError(
             f"OAuth 2.1 credentials lack required scopes. Need: {required_scopes}, Have: {sorted(scopes_available)}"
         )
@@ -439,6 +441,7 @@ SCOPE_GROUPS = {
     "chat_read": CHAT_READONLY_SCOPE,
     "chat_write": CHAT_WRITE_SCOPE,
     "chat_spaces": CHAT_SPACES_SCOPE,
+    "chat_spaces_readonly": CHAT_SPACES_READONLY_SCOPE,
     # Forms scopes
     "forms": FORMS_BODY_SCOPE,
     "forms_read": FORMS_BODY_READONLY_SCOPE,
